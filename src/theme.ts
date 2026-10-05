@@ -22,7 +22,9 @@ export const colors = {
   violetSoft: '#F2E9FC',
 
   scrim: 'rgba(32, 41, 74, 0.08)',
-};
+} as const;
+
+export type ColorToken = keyof typeof colors;
 
 export const fonts = {
   regular: 'Inter_400Regular',
@@ -30,7 +32,9 @@ export const fonts = {
   semibold: 'Inter_600SemiBold',
   bold: 'Inter_700Bold',
   extrabold: 'Inter_800ExtraBold',
-};
+} as const;
+
+export type FontToken = keyof typeof fonts;
 
 export const radius = {
   sm: 10,
@@ -38,7 +42,7 @@ export const radius = {
   lg: 18,
   xl: 24,
   pill: 999,
-};
+} as const;
 
 export const shadow = {
   card: {
@@ -55,12 +59,25 @@ export const shadow = {
     shadowRadius: 18,
     elevation: 4,
   },
+} as const;
+
+export type SubjectId = 'mathematics' | 'physics' | 'chemistry';
+
+export type Subject = {
+  id: SubjectId;
+  name: string;
+  accent: string;
+  soft: string;
 };
 
-export const SUBJECTS = [
+export const SUBJECTS: readonly Subject[] = [
   { id: 'mathematics', name: 'Mathematics', accent: colors.green, soft: colors.greenSoft },
   { id: 'physics', name: 'Physics', accent: colors.blue, soft: colors.blueSoft },
   { id: 'chemistry', name: 'Chemistry', accent: colors.violet, soft: colors.violetSoft },
-];
+] as const;
 
-export const CLASSES = ['JSS3', 'SS1', 'SS2', 'SS3'];
+export const CLASSES = ['JSS3', 'SS1', 'SS2', 'SS3'] as const;
+
+export type ClassLevel = (typeof CLASSES)[number];
+
+export const HOUR_OPTIONS = [0.5, 1, 1.5, 2, 3] as const;

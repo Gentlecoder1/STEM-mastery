@@ -1,9 +1,13 @@
-import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text } from 'react-native';
 import { colors, fonts, radius, shadow } from '../theme';
 import { GoogleIcon } from './GoogleIcon';
 
-export function GoogleButton({ title = 'Sign up with Google', onPress }) {
+type GoogleButtonProps = {
+  title?: string;
+  onPress?: () => void;
+};
+
+export function GoogleButton({ title = 'Sign up with Google', onPress }: GoogleButtonProps) {
   return (
     <Pressable
       accessibilityRole="button"

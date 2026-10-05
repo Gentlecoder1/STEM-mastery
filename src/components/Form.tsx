@@ -1,21 +1,37 @@
-import React from 'react';
-import { StyleSheet, Text, Pressable } from 'react-native';
+import { type ReactNode } from 'react';
+import { StyleSheet, Text, Pressable, type StyleProp, type ViewStyle } from 'react-native';
 import { colors, fonts, radius, shadow } from '../theme';
 import { ArrowRightIcon } from './icons';
 
-export function PrimaryButton({ title, onPress, disabled, icon }) {
+type PrimaryButtonProps = {
+  title: string;
+  onPress: () => void;
+  disabled?: boolean;
+  icon?: ReactNode;
+  style?: StyleProp<ViewStyle>;
+};
+
+export function PrimaryButton({
+  title,
+  onPress,
+  disabled = false,
+  icon,
+  style,
+}: PrimaryButtonProps) {
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
         styles.button,
+        style,
         disabled && styles.buttonDisabled,
         pressed && !disabled && styles.pressed,
       ]}
     >
-      {icon || <ArrowRightIcon size={18} color={colors.surface} />}
+      {icon ?? <ArrowRightIcon size={18} color={colors.surface} />}
       <Text style={styles.buttonLabel}>{title}</Text>
     </Pressable>
   );

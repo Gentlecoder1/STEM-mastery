@@ -1,6 +1,5 @@
-import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
+import { StatusBar } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import BottomNav from '../components/BottomNav';
@@ -13,11 +12,28 @@ import {
   CalendarIcon,
 } from '../components/glyphs';
 import { colors, fonts, shadow } from '../theme';
+import type { RootScreenProps } from '../navigation/types';
+import type { IconProps } from '../components/icons';
 
-const SUBJECTS = [
+type IconComponent = (props: IconProps) => React.JSX.Element;
+
+type Subject = {
+  name: string;
+  Icon: IconComponent;
+  tint: string;
+  badge: string;
+  card: string;
+  border: string;
+  borderWidth: number;
+  detail: string;
+  mastery: number;
+  action?: string;
+};
+
+const SUBJECTS: readonly Subject[] = [
   {
     name: 'Physics',
-    icon: AtomIcon,
+    Icon: AtomIcon,
     tint: '#2979FF',
     badge: '#E8F1FF',
     card: '#E8F1FF',
@@ -29,7 +45,7 @@ const SUBJECTS = [
   },
   {
     name: 'Mathematics',
-    icon: SigmaIcon,
+    Icon: SigmaIcon,
     tint: '#00A887',
     badge: '#DFF8F1',
     card: colors.surface,
@@ -40,7 +56,7 @@ const SUBJECTS = [
   },
   {
     name: 'Chemistry',
-    icon: FlaskIcon,
+    Icon: FlaskIcon,
     tint: '#9A54E8',
     badge: '#F2E9FC',
     card: colors.surface,
@@ -51,8 +67,12 @@ const SUBJECTS = [
   },
 ];
 
-function SubjectCard({ subject }) {
-  const Icon = subject.icon;
+type SubjectCardProps = {
+  subject: Subject;
+};
+
+function SubjectCard({ subject }: SubjectCardProps) {
+  const { Icon } = subject;
   const active = Boolean(subject.action);
 
   return (
@@ -73,11 +93,9 @@ function SubjectCard({ subject }) {
       <View style={styles.details}>
         <View style={styles.titleRow}>
           <Text style={styles.cardName}>{subject.name}</Text>
-          {active ? (
+          {active && subject.action ? (
             <View style={styles.actionPill}>
-              <Text style={[styles.actionLabel, { color: subject.tint }]}>
-                {subject.action}
-              </Text>
+              <Text style={[styles.actionLabel, { color: subject.tint }]}>{subject.action}</Text>
             </View>
           ) : null}
         </View>
@@ -93,28 +111,26 @@ function SubjectCard({ subject }) {
               ]}
             />
           </View>
-          <Text style={[styles.masteryValue, { color: subject.tint }]}>
-            {subject.mastery}%
-          </Text>
+          <Text style={[styles.masteryValue, { color: subject.tint }]}>{subject.mastery}%</Text>
         </View>
       </View>
     </View>
   );
 }
 
-export default function SubjectsScreen({ navigation }) {
+export default function SubjectsScreen({ navigation }: RootScreenProps<'Subjects'>) {
   const insets = useSafeAreaInsets();
 
   return (
     <View style={styles.root}>
-      <StatusBar style="dark" />
+      <StatusBar barStyle="dark-content" />
       <View style={styles.body}>
         <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
           <View style={styles.headerCopy}>
             <Text style={styles.headerTitle}>Subjects</Text>
             <Text style={styles.headerSubtitle}>SS1 • Your learning library</Text>
           </View>
-          <Pressable style={styles.headerAction}>
+          <Pressable style={styles.headerAction} accessibilityRole="button" accessibilityLabel="Search subjects">
             <SearchIcon size={20} color={colors.primary} />
           </Pressable>
         </View>
@@ -150,10 +166,7 @@ export default function SubjectsScreen({ navigation }) {
         </ScrollView>
       </View>
 
-      <BottomNav
-        active="Subjects"
-        onSelect={(k) => k === 'Home' && navigation.navigate('Home')}
-      />
+      <BottomNav active="Subjects" onSelect={(k) => k === 'Home' && navigation.navigate('Home')} />
     </View>
   );
 }

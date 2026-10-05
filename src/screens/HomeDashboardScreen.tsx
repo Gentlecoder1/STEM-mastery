@@ -1,6 +1,5 @@
-import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
+import { StatusBar } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import BottomNav from '../components/BottomNav';
@@ -17,14 +16,29 @@ import {
   FlaskIcon,
 } from '../components/glyphs';
 import { colors, fonts, shadow } from '../theme';
+import type { RootScreenProps } from '../navigation/types';
+import type { IconProps } from '../components/icons';
 
-const SUBJECT_ICONS = {
+type SubjectIconKey = 'atom' | 'sigma' | 'flask';
+
+type DashboardSubject = {
+  name: string;
+  icon: SubjectIconKey;
+  tint: string;
+  soft: string;
+  mastery: number;
+  subtitle: string;
+};
+
+type IconComponent = (props: IconProps) => React.JSX.Element;
+
+const SUBJECT_ICONS: Record<SubjectIconKey, IconComponent> = {
   atom: AtomIcon,
   sigma: SigmaIcon,
   flask: FlaskIcon,
 };
 
-const SUBJECTS = [
+const SUBJECTS: readonly DashboardSubject[] = [
   {
     name: 'Physics',
     icon: 'atom',
@@ -51,13 +65,29 @@ const SUBJECTS = [
   },
 ];
 
-const STATS = [
+type Stat = {
+  key: string;
+  bg: string;
+  tint: string;
+  Icon: IconComponent;
+  value: string;
+  label: string;
+};
+
+const STATS: readonly Stat[] = [
   { key: 'xp', bg: '#FFF0D8', tint: '#FF9F1C', Icon: StarIcon, value: '120 XP', label: 'Today' },
   { key: 'goal', bg: '#DDF8F3', tint: '#0FAF9A', Icon: TargetIcon, value: '3 / 4', label: 'Daily goal' },
   { key: 'league', bg: '#EEECFF', tint: '#5B4CF0', Icon: TrophyIcon, value: '#12', label: 'League' },
 ];
 
-function SubjectIcon({ subject, size = 19, box = 38, radius = 12 }) {
+type SubjectIconProps = {
+  subject: DashboardSubject;
+  size?: number;
+  box?: number;
+  radius?: number;
+};
+
+function SubjectIcon({ subject, size = 19, box = 38, radius = 12 }: SubjectIconProps) {
   const Icon = SUBJECT_ICONS[subject.icon];
   return (
     <View
@@ -71,7 +101,15 @@ function SubjectIcon({ subject, size = 19, box = 38, radius = 12 }) {
   );
 }
 
-function StatCard({ bg, tint, Icon, value, label }) {
+type StatCardProps = {
+  bg: string;
+  tint: string;
+  Icon: IconComponent;
+  value: string;
+  label: string;
+};
+
+function StatCard({ bg, tint, Icon, value, label }: StatCardProps) {
   return (
     <View style={[styles.stat, { backgroundColor: bg }]}>
       <Icon size={18} color={tint} />
@@ -81,12 +119,14 @@ function StatCard({ bg, tint, Icon, value, label }) {
   );
 }
 
-export default function HomeDashboardScreen({ navigation }) {
+export default function HomeDashboardScreen({ navigation }: RootScreenProps<'Home'>) {
   const insets = useSafeAreaInsets();
+
+  const openSubjects = () => navigation.navigate('Subjects');
 
   return (
     <View style={styles.root}>
-      <StatusBar style="dark" />
+      <StatusBar barStyle="dark-content" />
       <View style={styles.body}>
         <ScrollView
           contentContainerStyle={[
@@ -141,18 +181,14 @@ export default function HomeDashboardScreen({ navigation }) {
 
           <View style={styles.sectionHead}>
             <Text style={styles.sectionTitle}>Your subjects</Text>
-            <Pressable onPress={() => navigation.navigate('Subjects')}>
+            <Pressable onPress={openSubjects}>
               <Text style={styles.sectionAction}>See all</Text>
             </Pressable>
           </View>
 
           <View style={styles.subjectList}>
             {SUBJECTS.map((subject) => (
-              <Pressable
-                key={subject.name}
-                style={styles.subjectRow}
-                onPress={() => navigation.navigate('Subjects')}
-              >
+              <Pressable key={subject.name} style={styles.subjectRow} onPress={openSubjects}>
                 <SubjectIcon subject={subject} />
                 <View style={styles.subjectCopy}>
                   <Text style={styles.subjectName}>{subject.name}</Text>
@@ -165,7 +201,7 @@ export default function HomeDashboardScreen({ navigation }) {
         </ScrollView>
       </View>
 
-      <BottomNav active="Home" onSelect={(k) => k === 'Subjects' && navigation.navigate('Subjects')} />
+      <BottomNav active="Home" onSelect={(k) => k === 'Subjects' && openSubjects()} />
     </View>
   );
 }

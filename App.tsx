@@ -1,6 +1,4 @@
-import React from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
+import { ActivityIndicator, StatusBar, StyleSheet, View } from 'react-native';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -15,15 +13,15 @@ import {
 
 import { colors } from './src/theme';
 import SplashScreen from './src/screens/SplashScreen';
-
 import SignUpScreen from './src/screens/SignUpScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import OTPScreen from './src/screens/OTPScreen';
 import OnboardingFlow from './src/screens/OnboardingFlow';
 import HomeDashboardScreen from './src/screens/HomeDashboardScreen';
 import SubjectsScreen from './src/screens/SubjectsScreen';
+import type { RootStackParamList } from './src/navigation/types';
 
-const Stack = createNativeStackNavigator();
+const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const navTheme = {
   ...DefaultTheme,
@@ -56,7 +54,7 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <StatusBar style="light" translucent backgroundColor="transparent" />
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
       <NavigationContainer theme={navTheme}>
         <Stack.Navigator
           initialRouteName="Splash"
@@ -71,11 +69,7 @@ export default function App() {
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="OTPScreen" component={OTPScreen} />
           <Stack.Screen name="Onboarding" component={OnboardingFlow} />
-          <Stack.Screen
-            name="Home"
-            component={HomeDashboardScreen}
-            options={{ animation: 'fade' }}
-          />
+          <Stack.Screen name="Home" component={HomeDashboardScreen} options={{ animation: 'fade' }} />
           <Stack.Screen
             name="Subjects"
             component={SubjectsScreen}
@@ -93,11 +87,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.surface,
-  },
-  home: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.canvas,
   },
 });

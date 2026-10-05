@@ -1,8 +1,14 @@
-import React from 'react';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Path, type SvgProps } from 'react-native-svg';
 
-function stroked(viewBox, d, defaultStrokeWidth) {
-  return function Icon({ size = 24, color = '#000000', strokeWidth, ...rest }) {
+export type IconProps = {
+  size?: number;
+  color?: string;
+  strokeWidth?: number;
+  style?: SvgProps['style'];
+};
+
+function stroked(viewBox: string, d: string, defaultStrokeWidth: number) {
+  return function Icon({ size = 24, color = '#000000', strokeWidth, ...rest }: IconProps) {
     return (
       <Svg width={size} height={size} viewBox={viewBox} fill="none" {...rest}>
         <Path
@@ -18,8 +24,8 @@ function stroked(viewBox, d, defaultStrokeWidth) {
   };
 }
 
-function filled(viewBox, d) {
-  return function Icon({ size = 24, color = '#000000', ...rest }) {
+function filled(viewBox: string, d: string) {
+  return function Icon({ size = 24, color = '#000000', ...rest }: IconProps) {
     return (
       <Svg width={size} height={size} viewBox={viewBox} fill="none" {...rest}>
         <Path d={d} fill={color} />

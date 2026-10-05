@@ -1,11 +1,29 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, type Dispatch, type SetStateAction } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, fonts, radius, shadow, CLASSES, SUBJECTS } from '../theme';
+import {
+  colors,
+  fonts,
+  radius,
+  shadow,
+  CLASSES,
+  HOUR_OPTIONS,
+  SUBJECTS,
+  type ClassLevel,
+  type SubjectId,
+} from '../theme';
 import { PrimaryButton } from '../components/Form';
-import { ArrowRightIcon, CheckIcon, SparklesIcon } from '../components/icons';
+import { ArrowRightIcon, CheckIcon } from '../components/icons';
+import type { RootScreenProps } from '../navigation/types';
 
-const QUIZ = [
+type QuizQuestion = {
+  subject: string;
+  question: string;
+  options: string[];
+  answer: string;
+};
+
+const QUIZ: readonly QuizQuestion[] = [
   {
     subject: 'Mathematics',
     question: 'Solve 2x + 5 = 15. What is x?',
@@ -27,8 +45,24 @@ const QUIZ = [
 ];
 
 const TOTAL_STEPS = 5;
+const FIRST_QUIZ_STEP = 3;
 
-function QuizOption({ text, status, onPress }) {
+type OptionStatus = 'selected' | 'wrong' | null;
+
+type OnboardingState = {
+  klass: ClassLevel;
+  subjects: SubjectId[];
+  hours: number;
+  answers: Record<number, string>;
+};
+
+type QuizOptionProps = {
+  text: string;
+  status: OptionStatus;
+  onPress: () => void;
+};
+
+function QuizOption({ text, status, onPress }: QuizOptionProps) {
   const shake = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -45,7 +79,7 @@ function QuizOption({ text, status, onPress }) {
   const translateX = shake.interpolate({ inputRange: [-1, 1], outputRange: [-9, 9] });
 
   return (
-    <Animated.View style={status === 'wrong' ? { transform: [{ translateX }] } : null}>
+    <Animated.View style={status === 'wrong' ? { transform: [{ translateX }] } : undefined}>
       <Pressable
         accessibilityRole="radio"
         accessibilityState={{ selected: status === 'selected' }}
@@ -71,7 +105,14 @@ function QuizOption({ text, status, onPress }) {
   );
 }
 
-function StepContent({ step, state, setState, wrongPick }) {
+type StepContentProps = {
+  step: number;
+  state: OnboardingState;
+  setState: Dispatch<SetStateAction<OnboardingState>>;
+  wrongPick: number | null;
+};
+
+function StepContent({ step, state, setState, wrongPick }: StepContentProps) {
   if (step === 1) {
     return (
       <View style={styles.section}>
@@ -84,10 +125,14 @@ function StepContent({ step, state, setState, wrongPick }) {
             {CLASSES.map((c) => (
               <Pressable
                 key={c}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: state.klass === c }}
                 onPress={() => setState((s) => ({ ...s, klass: c }))}
                 style={[styles.classOption, state.klass === c && styles.classOptionActive]}
               >
-                <Text style={[styles.classText, state.klass === c && styles.classTextActive]}>{c}</Text>
+                <Text style={[styles.classText, state.klass === c && styles.classTextActive]}>
+                  {c}
+                </Text>
               </Pressable>
             ))}
           </View>
@@ -104,10 +149,14 @@ function StepContent({ step, state, setState, wrongPick }) {
               return (
                 <Pressable
                   key={s.id}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: sel }}
                   onPress={() =>
                     setState((prev) => ({
                       ...prev,
-                      subjects: sel ? prev.subjects.filter((x) => x !== s.id) : [...prev.subjects, s.id],
+                      subjects: sel
+                        ? prev.subjects.filter((x) => x !== s.id)
+                        : [...prev.subjects, s.id],
                     }))
                   }
                   style={[styles.subjectOption, { borderColor: sel ? s.accent : colors.border }]}
@@ -140,15 +189,19 @@ function StepContent({ step, state, setState, wrongPick }) {
     return (
       <View style={styles.section}>
         <Text style={styles.title}>How much time can you commit each day?</Text>
-        <Text style={styles.subtitle}>Small, consistent sessions beat long cramming. Pick what fits your day.</Text>
+        <Text style={styles.subtitle}>
+          Small, consistent sessions beat long cramming. Pick what fits your day.
+        </Text>
         <View style={styles.block}>
           <Text style={styles.label}>Hours per day</Text>
           <View style={styles.hoursWrap}>
-            {[0.5, 1, 1.5, 2, 3].map((h) => {
+            {HOUR_OPTIONS.map((h) => {
               const sel = state.hours === h;
               return (
                 <Pressable
                   key={h}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: sel }}
                   onPress={() => setState((s) => ({ ...s, hours: h }))}
                   style={[styles.hourChip, sel && styles.hourChipActive]}
                 >
@@ -162,30 +215,29 @@ function StepContent({ step, state, setState, wrongPick }) {
     );
   }
 
-  if (step >= 3 && step <= 5) {
-    const qi = step - 3;
+  if (step >= FIRST_QUIZ_STEP && step <= TOTAL_STEPS) {
+    const qi = step - FIRST_QUIZ_STEP;
     const q = QUIZ[qi];
+    if (!q) return null;
     const picked = state.answers[qi];
+
     return (
       <View style={styles.section}>
         <View style={styles.quizBadge}>
-          <Text style={styles.quizBadgeText}>
-            QUICK CHECK-IN · {q.subject.toUpperCase()}
-          </Text>
+          <Text style={styles.quizBadgeText}>QUICK CHECK-IN · {q.subject.toUpperCase()}</Text>
         </View>
         <Text style={styles.title}>{q.question}</Text>
         <Text style={styles.subtitle}>Pick the answer you think is right.</Text>
         <View style={styles.options}>
           {q.options.map((opt) => {
-            const status = picked === opt ? (wrongPick === qi ? 'wrong' : 'selected') : null;
+            const status: OptionStatus =
+              picked === opt ? (wrongPick === qi ? 'wrong' : 'selected') : null;
             return (
               <QuizOption
                 key={opt}
                 text={opt}
                 status={status}
-                onPress={() =>
-                  setState((s) => ({ ...s, answers: { ...s.answers, [qi]: opt } }))
-                }
+                onPress={() => setState((s) => ({ ...s, answers: { ...s.answers, [qi]: opt } }))}
               />
             );
           })}
@@ -197,7 +249,9 @@ function StepContent({ step, state, setState, wrongPick }) {
   return null;
 }
 
-function StepBody({ step, state, setState, wrongPick }) {
+type StepBodyProps = StepContentProps;
+
+function StepBody({ step, state, setState, wrongPick }: StepBodyProps) {
   const anim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -225,7 +279,7 @@ function StepBody({ step, state, setState, wrongPick }) {
   );
 }
 
-function SuccessBody({ state }) {
+function SuccessBody({ state }: { state: OnboardingState }) {
   const scale = useRef(new Animated.Value(0.8)).current;
   const fade = useRef(new Animated.Value(0)).current;
 
@@ -234,7 +288,7 @@ function SuccessBody({ state }) {
       Animated.spring(scale, { toValue: 1, friction: 6, tension: 80, useNativeDriver: true }),
       Animated.timing(fade, { toValue: 1, duration: 260, useNativeDriver: true }),
     ]).start();
-  }, []);
+  }, [fade, scale]);
 
   return (
     <Animated.View style={[styles.success, { opacity: fade, transform: [{ scale }] }]}>
@@ -244,17 +298,18 @@ function SuccessBody({ state }) {
       <Text style={styles.successTitle}>Congratulations!</Text>
       <Text style={styles.subtitle}>
         You picked {state.klass} with {state.subjects.length} subject
-        {state.subjects.length > 1 ? 's' : ''} and {state.hours}h a day. Your learning path is ready.
+        {state.subjects.length > 1 ? 's' : ''} and {state.hours}h a day. Your learning path is
+        ready.
       </Text>
     </Animated.View>
   );
 }
 
-export default function OnboardingFlow({ navigation }) {
+export default function OnboardingFlow({ navigation }: RootScreenProps<'Onboarding'>) {
   const insets = useSafeAreaInsets();
   const [step, setStep] = useState(1);
-  const [wrongPick, setWrongPick] = useState(null);
-  const [state, setState] = useState({
+  const [wrongPick, setWrongPick] = useState<number | null>(null);
+  const [state, setState] = useState<OnboardingState>({
     klass: 'SS1',
     subjects: SUBJECTS.map((s) => s.id),
     hours: 1,
@@ -262,9 +317,9 @@ export default function OnboardingFlow({ navigation }) {
   });
 
   const isDone = step > TOTAL_STEPS;
-  const isQuiz = step >= 3 && step <= 5;
-  const qi = step - 3;
-  const picked = isQuiz ? state.answers[qi] : null;
+  const isQuiz = step >= FIRST_QUIZ_STEP && step <= TOTAL_STEPS;
+  const qi = step - FIRST_QUIZ_STEP;
+  const picked = isQuiz ? state.answers[qi] : undefined;
   const answeredWrong = isQuiz && wrongPick === qi && Boolean(picked);
 
   const canProceed = () => {
@@ -289,7 +344,8 @@ export default function OnboardingFlow({ navigation }) {
       return;
     }
 
-    if (isQuiz && picked && picked !== QUIZ[qi].answer) {
+    const answer = isQuiz ? QUIZ[qi]?.answer : undefined;
+    if (isQuiz && picked && answer && picked !== answer) {
       setWrongPick(qi);
       return;
     }
@@ -301,19 +357,23 @@ export default function OnboardingFlow({ navigation }) {
   const primaryLabel = isDone
     ? 'Build my learning path'
     : answeredWrong
-    ? 'Try again'
-    : step === TOTAL_STEPS
-    ? 'Finish'
-    : 'Next';
+      ? 'Try again'
+      : step === TOTAL_STEPS
+        ? 'Finish'
+        : 'Next';
 
   return (
     <View style={styles.screen}>
-      <View style={[styles.body, { paddingTop: insets.top + 8, paddingBottom: Math.max(insets.bottom, 20) }]}>
+      <View
+        style={[styles.body, { paddingTop: insets.top + 8, paddingBottom: Math.max(insets.bottom, 20) }]}
+      >
         {!isDone && (
           <>
             <View style={styles.header}>
               <View style={styles.stepPill}>
-                <Text style={styles.stepPillText}>STEP {step} OF {TOTAL_STEPS}</Text>
+                <Text style={styles.stepPillText}>
+                  STEP {step} OF {TOTAL_STEPS}
+                </Text>
               </View>
               <Pressable accessibilityRole="button" onPress={() => navigation.goBack()}>
                 <Text style={styles.skip}>Skip</Text>
@@ -337,6 +397,7 @@ export default function OnboardingFlow({ navigation }) {
         <View style={styles.footer}>
           <PrimaryButton
             title={primaryLabel}
+            icon={isDone ? <ArrowRightIcon size={18} color={colors.surface} /> : undefined}
             onPress={handlePrimary}
             disabled={!isDone && !canProceed()}
           />
@@ -360,10 +421,20 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 10,
   },
-  stepPillText: { fontFamily: fonts.regular, fontSize: 10, lineHeight: 12.1023, color: colors.primary },
+  stepPillText: {
+    fontFamily: fonts.regular,
+    fontSize: 10,
+    lineHeight: 12.1023,
+    color: colors.primary,
+  },
   skip: { fontFamily: fonts.bold, fontSize: 13, lineHeight: 15.733, color: colors.slate },
 
-  progressTrack: { height: 10, borderRadius: radius.pill, backgroundColor: colors.border, overflow: 'hidden' },
+  progressTrack: {
+    height: 10,
+    borderRadius: radius.pill,
+    backgroundColor: colors.border,
+    overflow: 'hidden',
+  },
   progressFill: { height: '100%', borderRadius: radius.pill, backgroundColor: colors.primary },
 
   section: { gap: 12 },
@@ -400,10 +471,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     gap: 12,
   },
-  subjectBadge: { width: 52, height: 52, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center' },
+  subjectBadge: {
+    width: 52,
+    height: 52,
+    borderRadius: radius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   subjectBadgeText: { fontFamily: fonts.bold, fontSize: 22 },
-  subjectName: { flex: 1, fontFamily: fonts.regular, fontSize: 15, lineHeight: 18.1534, color: colors.ink },
-  checkDot: { width: 26, height: 26, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
+  subjectName: {
+    flex: 1,
+    fontFamily: fonts.regular,
+    fontSize: 15,
+    lineHeight: 18.1534,
+    color: colors.ink,
+  },
+  checkDot: {
+    width: 26,
+    height: 26,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   checkDotEmpty: { borderWidth: 1.5, borderColor: colors.border },
 
   hoursWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
@@ -429,7 +518,12 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 10,
   },
-  quizBadgeText: { fontFamily: fonts.medium, fontSize: 10, lineHeight: 12.1023, color: colors.primary },
+  quizBadgeText: {
+    fontFamily: fonts.medium,
+    fontSize: 10,
+    lineHeight: 12.1023,
+    color: colors.primary,
+  },
 
   options: { gap: 10, marginTop: 4 },
   option: {

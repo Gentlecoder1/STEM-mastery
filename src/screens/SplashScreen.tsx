@@ -1,8 +1,8 @@
-import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fonts, radius, shadow } from '../theme';
 import { AtomIcon, TelescopeIcon, MailIcon } from '../components/icons';
+import type { RootScreenProps } from '../navigation/types';
 
 function Brand() {
   return (
@@ -41,7 +41,7 @@ function Hero() {
   );
 }
 
-export default function SplashScreen({ navigation }) {
+export default function SplashScreen({ navigation }: RootScreenProps<'Splash'>) {
   const insets = useSafeAreaInsets();
 
   return (

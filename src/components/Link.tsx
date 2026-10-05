@@ -1,8 +1,14 @@
-import React from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
 import { colors, fonts } from '../theme';
 
-export default function Link({ text, action, onPress }) {
+type LinkProps = {
+  text: string;
+  action?: string;
+  onPress?: () => void;
+  bold?: boolean;
+};
+
+export default function Link({ text, action, onPress, bold = false }: LinkProps) {
   return (
     <Pressable
       accessibilityRole="button"
@@ -11,7 +17,9 @@ export default function Link({ text, action, onPress }) {
     >
       <Text style={styles.text}>
         {text}
-        {action ? <Text style={styles.action}>{' ' + action}</Text> : null}
+        {action ? (
+          <Text style={[styles.action, bold && styles.actionBold]}>{' ' + action}</Text>
+        ) : null}
       </Text>
     </Pressable>
   );
@@ -21,5 +29,6 @@ const styles = StyleSheet.create({
   wrap: { alignItems: 'center' },
   text: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 14.5227, color: colors.slate },
   action: { fontFamily: fonts.bold, color: colors.primary },
+  actionBold: { fontFamily: fonts.extrabold },
   pressed: { opacity: 0.6 },
 });

@@ -1,4 +1,3 @@
-import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import {
   HouseIcon,
@@ -8,8 +7,16 @@ import {
   UserIcon,
 } from './glyphs';
 import { colors, fonts } from '../theme';
+import type { TabKey } from '../navigation/types';
+import type { IconProps } from './icons';
 
-export const TABS = [
+export type Tab = {
+  key: TabKey;
+  label: string;
+  Icon: (props: IconProps) => React.JSX.Element;
+};
+
+export const TABS: readonly Tab[] = [
   { key: 'Home', label: 'Home', Icon: HouseIcon },
   { key: 'Subjects', label: 'Learn', Icon: BookOpenIcon },
   { key: 'Practice', label: 'Practice', Icon: DumbbellIcon },
@@ -17,7 +24,12 @@ export const TABS = [
   { key: 'Profile', label: 'Profile', Icon: UserIcon },
 ];
 
-export default function BottomNav({ active, onSelect }) {
+type BottomNavProps = {
+  active: TabKey;
+  onSelect?: (key: TabKey) => void;
+};
+
+export default function BottomNav({ active, onSelect }: BottomNavProps) {
   return (
     <View style={styles.bar}>
       {TABS.map(({ key, label, Icon }) => {
@@ -25,7 +37,9 @@ export default function BottomNav({ active, onSelect }) {
         return (
           <Pressable
             key={key}
-            onPress={() => onSelect && onSelect(key)}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: on }}
+            onPress={() => onSelect?.(key)}
             style={[styles.item, on && styles.itemActive]}
           >
             <Icon size={20} color={on ? colors.primary : colors.slate} />

@@ -1,4 +1,3 @@
-import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { colors, fonts } from '../theme';
@@ -8,19 +7,20 @@ const STROKE = 7;
 const R = (SIZE - STROKE) / 2;
 const C = 2 * Math.PI * R;
 
-export default function MasteryRing({ percent, color, size = SIZE }) {
+type MasteryRingProps = {
+  percent: number;
+  color: string;
+  size?: number;
+};
+
+export default function MasteryRing({ percent, color, size = SIZE }: MasteryRingProps) {
   const scale = size / SIZE;
+  const clamped = Math.min(100, Math.max(0, percent));
+
   return (
     <View style={{ width: size, height: size }}>
       <Svg width={size} height={size} viewBox="0 0 44 44">
-        <Circle
-          cx={22}
-          cy={22}
-          r={R}
-          stroke={colors.border}
-          strokeWidth={STROKE}
-          fill="none"
-        />
+        <Circle cx={22} cy={22} r={R} stroke={colors.border} strokeWidth={STROKE} fill="none" />
         <Circle
           cx={22}
           cy={22}
@@ -29,7 +29,7 @@ export default function MasteryRing({ percent, color, size = SIZE }) {
           strokeWidth={STROKE}
           fill="none"
           strokeLinecap="round"
-          strokeDasharray={`${(C * percent) / 100} ${C}`}
+          strokeDasharray={`${(C * clamped) / 100} ${C}`}
           transform="rotate(-90 22 22)"
         />
       </Svg>

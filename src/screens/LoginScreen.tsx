@@ -1,26 +1,26 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fonts, radius } from '../theme';
 import { PrimaryButton } from '../components/Form';
 import Link from '../components/Link';
 import { GoogleButton } from '../components/SocialButtons';
+import type { RootScreenProps } from '../navigation/types';
 
-export default function SignUpScreen({ navigation }) {
+export default function LoginScreen({ navigation }: RootScreenProps<'Login'>) {
   const insets = useSafeAreaInsets();
-  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
 
   return (
     <View style={styles.screen}>
       <View style={[styles.content, { paddingTop: insets.top + 42, paddingBottom: Math.max(insets.bottom, 24) }]}>
         <View style={styles.top}>
-          <Text style={styles.title}>Create your account</Text>
-          <Text style={styles.subtitle}>Tell us your name and email to get started.</Text>
+          <Text style={styles.title}>Log in</Text>
+          <Text style={styles.subtitle}>Enter your email to receive a verification code and log in.</Text>
         </View>
 
         <View style={styles.middle}>
-          <GoogleButton title="Sign up with Google" onPress={() => {}} />
+          <GoogleButton title="Sign in with Google" onPress={() => {}} />
 
           <View style={styles.orWrap}>
             <View style={styles.orLine} />
@@ -28,41 +28,28 @@ export default function SignUpScreen({ navigation }) {
             <View style={styles.orLine} />
           </View>
 
-          <View style={styles.fields}>
-            <View style={styles.field}>
-              <Text style={styles.label}>Full name</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g. Iseoluwa Adebayo"
-                placeholderTextColor={colors.slate}
-                value={fullName}
-                onChangeText={setFullName}
-                autoCapitalize="words"
-              />
-            </View>
-            <View style={styles.field}>
-              <Text style={styles.label}>Email address</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="you@example.com"
-                placeholderTextColor={colors.slate}
-                keyboardType="email-address"
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-              />
-            </View>
+          <View style={styles.field}>
+            <Text style={styles.label}>Email address</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="you@example.com"
+              placeholderTextColor={colors.slate}
+              keyboardType="email-address"
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+            />
           </View>
         </View>
 
         <View style={styles.actions}>
           <PrimaryButton
-            title="Create account"
-            onPress={() => navigation.navigate('Home')}
-            disabled={!fullName || !email}
+            title="Send verification code"
+            onPress={() => navigation.navigate('OTPScreen', { email })}
+            disabled={!email}
           />
           <View style={styles.linkWrap}>
-            <Link text="Already have an account?" action="Log in" bold onPress={() => navigation.navigate('Login')} />
+            <Link text="New to Masterly?" action="Sign up" bold onPress={() => navigation.navigate('SignUp')} />
           </View>
         </View>
       </View>
@@ -80,7 +67,6 @@ const styles = StyleSheet.create({
   orWrap: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   orLine: { flex: 1, height: 1, backgroundColor: colors.border },
   orText: { fontFamily: fonts.regular, fontSize: 12, color: colors.slate },
-  fields: { gap: 14 },
   field: { gap: 6 },
   label: { fontFamily: fonts.medium, fontSize: 13, lineHeight: 15.733, color: colors.ink },
   input: {

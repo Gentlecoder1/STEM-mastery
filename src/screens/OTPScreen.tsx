@@ -1,10 +1,16 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Animated, Easing, Modal, StyleSheet, Text, TextInput, View } from 'react-native';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fonts, radius, shadow } from '../theme';
 import { PrimaryButton } from '../components/Form';
 import Link from '../components/Link';
 import { CheckIcon } from '../components/icons';
+import type { RootStackParamList } from '../navigation/types';
+
+const CODE_LENGTH = 6;
+
+type Stage = 'input' | 'verifying' | 'verified';
 
 function DotsLoader() {
   const t = useRef(new Animated.Value(0)).current;
@@ -22,10 +28,11 @@ function DotsLoader() {
     return () => loop.stop();
   }, [t]);
 
-  const opacityFor = (i) =>
+  const opacityFor = (i: number) =>
     t.interpolate({
       inputRange: [0, 0.25, 0.5, 0.75, 1],
-      outputRange: i === 0 ? [0.25, 1, 1, 1, 0.25] : i === 1 ? [0.25, 0.25, 1, 1, 1] : [1, 1, 0.25, 0.25, 1],
+      outputRange:
+        i === 0 ? [0.25, 1, 1, 1, 0.25] : i === 1 ? [0.25, 0.25, 1, 1, 1] : [1, 1, 0.25, 0.25, 1],
     });
 
   return (
@@ -37,18 +44,18 @@ function DotsLoader() {
   );
 }
 
-export default function OTPScreen({ route, navigation }) {
+export default function OTPScreen({ route, navigation }: NativeStackScreenProps<RootStackParamList, 'OTPScreen'>) {
   const insets = useSafeAreaInsets();
-  const { email = '' } = route.params || {};
-  const [code, setCode] = useState(['', '', '', '', '', '']);
-  const [stage, setStage] = useState('input');
-  const refs = useRef(Array(6).fill(null));
+  const { email = '' } = route.params ?? {};
+  const [code, setCode] = useState<string[]>(() => Array<string>(CODE_LENGTH).fill(''));
+  const [stage, setStage] = useState<Stage>('input');
+  const refs = useRef<Array<TextInput | null>>([]);
 
   useEffect(() => {
     if (stage === 'input') refs.current[0]?.focus();
   }, [stage]);
 
-  const handleChange = (txt, idx) => {
+  const handleChange = useCallback((txt: string, idx: number) => {
     const digits = txt.replace(/\D/g, '');
     if (!digits) {
       setCode((c) => {
@@ -61,12 +68,12 @@ export default function OTPScreen({ route, navigation }) {
     const chars = digits.split('');
     setCode((c) => {
       const next = [...c];
-      for (let i = 0; i < chars.length && idx + i < 6; i++) next[idx + i] = chars[i];
+      for (let i = 0; i < chars.length && idx + i < CODE_LENGTH; i++) next[idx + i] = chars[i];
       return next;
     });
-    const nextIdx = Math.min(idx + chars.length, 5);
-    if (nextIdx < 6) refs.current[nextIdx]?.focus();
-  };
+    const nextIdx = Math.min(idx + chars.length, CODE_LENGTH - 1);
+    if (nextIdx < CODE_LENGTH) refs.current[nextIdx]?.focus();
+  }, []);
 
   const handleVerify = () => {
     setStage('verifying');
@@ -108,7 +115,7 @@ export default function OTPScreen({ route, navigation }) {
                   }}
                   style={styles.otpBox}
                   keyboardType="number-pad"
-                  maxLength={6}
+                  maxLength={CODE_LENGTH}
                   value={d}
                   onChangeText={(t) => handleChange(t, i)}
                   selectionColor={colors.primary}
@@ -127,7 +134,7 @@ export default function OTPScreen({ route, navigation }) {
               <PrimaryButton
                 title="Verify & continue"
                 onPress={handleVerify}
-                disabled={code.join('').length !== 6 || stage === 'verifying'}
+                disabled={code.join('').length !== CODE_LENGTH || stage === 'verifying'}
               />
               <View style={styles.linkWrap}>
                 <Link text="Didn’t receive code?" action="Resend" bold onPress={() => {}} />
