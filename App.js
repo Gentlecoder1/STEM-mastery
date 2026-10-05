@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -13,13 +13,15 @@ import {
   Inter_800ExtraBold,
 } from '@expo-google-fonts/inter';
 
-import { colors, fonts } from './src/theme';
+import { colors } from './src/theme';
 import SplashScreen from './src/screens/SplashScreen';
 
 import SignUpScreen from './src/screens/SignUpScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import OTPScreen from './src/screens/OTPScreen';
 import OnboardingFlow from './src/screens/OnboardingFlow';
+import HomeDashboardScreen from './src/screens/HomeDashboardScreen';
+import SubjectsScreen from './src/screens/SubjectsScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -34,14 +36,6 @@ const navTheme = {
     border: 'transparent',
   },
 };
-
-function HomeScreen() {
-  return (
-    <View style={styles.home}>
-      <Text style={styles.homeTitle}>Learning path ready</Text>
-    </View>
-  );
-}
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -79,7 +73,12 @@ export default function App() {
           <Stack.Screen name="Onboarding" component={OnboardingFlow} />
           <Stack.Screen
             name="Home"
-            component={HomeScreen}
+            component={HomeDashboardScreen}
+            options={{ animation: 'fade' }}
+          />
+          <Stack.Screen
+            name="Subjects"
+            component={SubjectsScreen}
             options={{ animation: 'fade' }}
           />
         </Stack.Navigator>
@@ -100,10 +99,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.canvas,
-  },
-  homeTitle: {
-    fontFamily: fonts.semibold,
-    fontSize: 20,
-    color: colors.ink,
   },
 });

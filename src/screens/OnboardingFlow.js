@@ -169,7 +169,6 @@ function StepContent({ step, state, setState, wrongPick }) {
     return (
       <View style={styles.section}>
         <View style={styles.quizBadge}>
-          <SparklesIcon size={13} color={colors.primary} />
           <Text style={styles.quizBadgeText}>
             QUICK CHECK-IN · {q.subject.toUpperCase()}
           </Text>
@@ -314,7 +313,6 @@ export default function OnboardingFlow({ navigation }) {
           <>
             <View style={styles.header}>
               <View style={styles.stepPill}>
-                <SparklesIcon size={13} color={colors.primary} />
                 <Text style={styles.stepPillText}>STEP {step} OF {TOTAL_STEPS}</Text>
               </View>
               <Pressable accessibilityRole="button" onPress={() => navigation.goBack()}>
