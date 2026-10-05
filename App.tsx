@@ -19,6 +19,8 @@ import OTPScreen from './src/screens/OTPScreen';
 import OnboardingFlow from './src/screens/OnboardingFlow';
 import HomeDashboardScreen from './src/screens/HomeDashboardScreen';
 import SubjectsScreen from './src/screens/SubjectsScreen';
+import SubjectDashboardScreen from './src/screens/SubjectDashboardScreen';
+import TopicOverviewScreen from './src/screens/TopicOverviewScreen';
 import type { RootStackParamList } from './src/navigation/types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -70,11 +72,9 @@ export default function App() {
           <Stack.Screen name="OTPScreen" component={OTPScreen} />
           <Stack.Screen name="Onboarding" component={OnboardingFlow} />
           <Stack.Screen name="Home" component={HomeDashboardScreen} options={{ animation: 'fade' }} />
-          <Stack.Screen
-            name="Subjects"
-            component={SubjectsScreen}
-            options={{ animation: 'fade' }}
-          />
+          <Stack.Screen name="Subjects" component={SubjectsScreen} options={{ animation: 'fade' }} />
+          <Stack.Screen name="SubjectDashboard" component={SubjectDashboardScreen} options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="TopicOverview" component={TopicOverviewScreen} options={{ animation: 'slide_from_right' }} />
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>

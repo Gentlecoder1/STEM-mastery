@@ -11,9 +11,10 @@ type MasteryRingProps = {
   percent: number;
   color: string;
   size?: number;
+  labelColor?: string;
 };
 
-export default function MasteryRing({ percent, color, size = SIZE }: MasteryRingProps) {
+export default function MasteryRing({ percent, color, size = SIZE, labelColor = colors.ink }: MasteryRingProps) {
   const scale = size / SIZE;
   const clamped = Math.min(100, Math.max(0, percent));
 
@@ -33,7 +34,7 @@ export default function MasteryRing({ percent, color, size = SIZE }: MasteryRing
           transform="rotate(-90 22 22)"
         />
       </Svg>
-      <Text style={[styles.value, { fontSize: 10 * scale, lineHeight: 12 * scale }]}>
+      <Text style={[styles.value, { fontSize: 10 * scale, lineHeight: 12 * scale, color: labelColor }]}>
         {percent}%
       </Text>
     </View>

@@ -12,12 +12,14 @@ import {
   CalendarIcon,
 } from '../components/glyphs';
 import { colors, fonts, shadow } from '../theme';
+import type { SubjectId } from '../theme';
 import type { RootScreenProps } from '../navigation/types';
 import type { IconProps } from '../components/icons';
 
 type IconComponent = (props: IconProps) => React.JSX.Element;
 
 type Subject = {
+  id: SubjectId;
   name: string;
   Icon: IconComponent;
   tint: string;
@@ -32,18 +34,20 @@ type Subject = {
 
 const SUBJECTS: readonly Subject[] = [
   {
+    id: 'physics',
     name: 'Physics',
     Icon: AtomIcon,
     tint: '#2979FF',
     badge: '#E8F1FF',
-    card: '#E8F1FF',
-    border: '#2979FF',
-    borderWidth: 2,
+    card: colors.surface,
+    border: colors.border,
+    borderWidth: 1,
     detail: '4 of 8 topics active',
     mastery: 68,
     action: 'CONTINUE',
   },
   {
+    id: 'mathematics',
     name: 'Mathematics',
     Icon: SigmaIcon,
     tint: '#00A887',
@@ -55,6 +59,7 @@ const SUBJECTS: readonly Subject[] = [
     mastery: 74,
   },
   {
+    id: 'chemistry',
     name: 'Chemistry',
     Icon: FlaskIcon,
     tint: '#9A54E8',
@@ -69,14 +74,18 @@ const SUBJECTS: readonly Subject[] = [
 
 type SubjectCardProps = {
   subject: Subject;
+  onPress: () => void;
 };
 
-function SubjectCard({ subject }: SubjectCardProps) {
+function SubjectCard({ subject, onPress }: SubjectCardProps) {
   const { Icon } = subject;
   const active = Boolean(subject.action);
 
   return (
-    <View
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`Open ${subject.name}`}
       style={[
         styles.card,
         {
@@ -114,7 +123,7 @@ function SubjectCard({ subject }: SubjectCardProps) {
           <Text style={[styles.masteryValue, { color: subject.tint }]}>{subject.mastery}%</Text>
         </View>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -150,7 +159,11 @@ export default function SubjectsScreen({ navigation }: RootScreenProps<'Subjects
           </View>
 
           {SUBJECTS.map((s) => (
-            <SubjectCard key={s.name} subject={s} />
+            <SubjectCard
+              key={s.name}
+              subject={s}
+              onPress={() => navigation.navigate('SubjectDashboard', { subjectId: s.id })}
+            />
           ))}
 
           <View style={styles.challenge}>

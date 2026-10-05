@@ -1,4 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { SubjectId } from '../theme';
 
 export type RootStackParamList = {
   Splash: undefined;
@@ -8,6 +9,8 @@ export type RootStackParamList = {
   Onboarding: undefined;
   Home: undefined;
   Subjects: undefined;
+  SubjectDashboard: { subjectId: SubjectId };
+  TopicOverview: undefined;
 };
 
 export type RootScreenProps<T extends keyof RootStackParamList> = NativeStackScreenProps<
