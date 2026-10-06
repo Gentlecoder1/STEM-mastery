@@ -1,5 +1,7 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
-import { colors, fonts } from '../theme';
+import { fonts } from '../theme';
+import { useThemedStyles } from '../themeContext';
+import type { ThemeColors } from '../theme';
 
 type LinkProps = {
   text: string;
@@ -9,6 +11,7 @@ type LinkProps = {
 };
 
 export default function Link({ text, action, onPress, bold = false }: LinkProps) {
+  const styles = useThemedStyles(createStyles);
   return (
     <Pressable
       accessibilityRole="button"
@@ -25,10 +28,10 @@ export default function Link({ text, action, onPress, bold = false }: LinkProps)
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   wrap: { alignItems: 'center' },
-  text: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 14.5227, color: colors.slate },
-  action: { fontFamily: fonts.bold, color: colors.primary },
+  text: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 14.5227, color: c.slate },
+  action: { fontFamily: fonts.bold, color: c.primary },
   actionBold: { fontFamily: fonts.extrabold },
   pressed: { opacity: 0.6 },
 });

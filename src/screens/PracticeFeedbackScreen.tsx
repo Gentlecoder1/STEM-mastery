@@ -10,12 +10,15 @@ import { ActionButton } from '../components/PracticeUI';
 import { colors, fonts, shadow } from '../theme';
 import { getPracticeQuestion, PRACTICE_SET_SIZE } from '../data/practice';
 import type { RootScreenProps } from '../navigation/types';
+import { useThemedStyles, useTheme } from '../themeContext';
 
 export default function PracticeFeedbackScreen({
   navigation,
   route,
 }: RootScreenProps<'PracticeFeedback'>) {
   const insets = useSafeAreaInsets();
+  const styles = useThemedStyles(createStyles);
+  const { statusBarStyle } = useTheme();
   const { index, selected, writtenText } = route.params;
 
   const question = useMemo(() => getPracticeQuestion(index), [index]);
@@ -48,7 +51,7 @@ export default function PracticeFeedbackScreen({
 
   return (
     <View style={styles.root}>
-      <StatusBar style="dark" />
+      <StatusBar style={statusBarStyle} />
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
@@ -117,7 +120,7 @@ export default function PracticeFeedbackScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = () => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.greenSoft },
   missing: { alignItems: 'center', justifyContent: 'center' },
   missingText: { fontFamily: fonts.medium, fontSize: 14, lineHeight: 17, color: colors.slate },

@@ -13,45 +13,48 @@ import {
   TrophyIcon,
 } from '../components/glyphs';
 import { Pill } from '../components/PracticeUI';
-import { colors, fonts, shadow } from '../theme';
+import { colors, fonts, shadow, type ColorToken } from '../theme';
+import { useTheme, useThemedStyles } from '../themeContext';
 import type { RootScreenProps } from '../navigation/types';
 
 const STATS = [
-  { value: '5', label: 'First try', tint: colors.success },
-  { value: '04:38', label: 'Time', tint: colors.blue },
-  { value: '3', label: 'Best streak', tint: colors.orange },
-] as const;
+  { value: '5', label: 'First try', tint: 'success' as ColorToken },
+  { value: '04:38', label: 'Time', tint: 'blue' as ColorToken },
+  { value: '3', label: 'Best streak', tint: 'orange' as ColorToken },
+];
 
 const UPDATES = [
   {
     title: 'Graph interpretation',
     subtitle: '68% → 75% • Strong improvement',
     Icon: LineChartIcon,
-    tint: colors.success,
-    soft: colors.greenSoft,
+    tint: 'success' as ColorToken,
+    soft: 'greenSoft' as ColorToken,
     trailing: ArrowUpIcon,
   },
   {
     title: 'Acceleration reasoning',
     subtitle: '41% • Needs one quick review',
     Icon: TrendingUpIcon,
-    tint: colors.orange,
-    soft: 'rgba(255,159,28,0.09)',
+    tint: 'orange' as ColorToken,
+    soft: 'orangeSoft' as ColorToken,
     trailing: null,
   },
-] as const;
+];
 
 export default function PracticeQuizResultScreen({
   navigation,
   route,
 }: RootScreenProps<'PracticeQuizResult'>) {
   const insets = useSafeAreaInsets();
+  const { statusBarStyle } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const correct = route.params?.correct ?? 6;
   const xp = route.params?.xp ?? 75;
 
   return (
     <View style={styles.root}>
-      <StatusBar style="dark" />
+      <StatusBar style={statusBarStyle} />
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
@@ -91,7 +94,7 @@ export default function PracticeQuizResultScreen({
               <View key={label} style={styles.statWrap}>
                 {index > 0 ? <View style={styles.statDivider} /> : null}
                 <View style={styles.stat}>
-                  <Text style={[styles.statValue, { color: tint }]}>{value}</Text>
+                  <Text style={[styles.statValue, { color: colors[tint] }]}>{value}</Text>
                   <Text style={styles.statLabel}>{label}</Text>
                 </View>
               </View>
@@ -103,8 +106,8 @@ export default function PracticeQuizResultScreen({
         <View style={styles.updateList}>
           {UPDATES.map(({ title, subtitle, Icon, tint, soft, trailing: Trailing }) => (
             <View key={title} style={styles.updateRow}>
-              <View style={[styles.updateIcon, { backgroundColor: soft }]}>
-                <Icon size={19} color={tint} />
+              <View style={[styles.updateIcon, { backgroundColor: colors[soft] }]}>
+                <Icon size={19} color={colors[tint]} />
               </View>
               <View style={styles.updateCopy}>
                 <Text style={styles.updateName}>{title}</Text>
@@ -143,7 +146,7 @@ export default function PracticeQuizResultScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = () => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.canvas },
   content: { paddingHorizontal: 18, gap: 14, alignItems: 'center' },
 

@@ -1,4 +1,4 @@
-import { colors } from '../theme';
+import type { ColorToken } from '../theme';
 
 export const CONTENT_TYPES = [
   'DEFINITION',
@@ -33,8 +33,8 @@ export type Concept = {
   whyItMatters: string;
   prerequisites: readonly string[];
   related: readonly string[];
-  tint: string;
-  soft: string;
+  tint: ColorToken;
+  soft: ColorToken;
   content: readonly LearningContent[];
 };
 
@@ -56,8 +56,8 @@ export const CONCEPTS: readonly Concept[] = [
       'Velocity is what separates physics from guesswork. Once a learner can track direction as well as magnitude, every later topic — acceleration, forces, momentum — builds on a foundation they actually own.',
     prerequisites: ['Displacement', 'Speed'],
     related: ['Direction', 'Acceleration'],
-    tint: colors.blue,
-    soft: colors.blueSoft,
+    tint: 'blue',
+    soft: 'blueSoft',
     content: ordered([
       {
         id: 'c-velocity-def',
@@ -133,8 +133,8 @@ export const CONCEPTS: readonly Concept[] = [
       'Learners who blur distance and displacement cannot compute velocity correctly. This is the most common source of sign errors later on.',
     prerequisites: ['Position', 'Time'],
     related: ['Speed', 'Velocity'],
-    tint: colors.green,
-    soft: colors.greenSoft,
+    tint: 'green',
+    soft: 'greenSoft',
     content: ordered([
       {
         id: 'c-disp-def',
@@ -175,8 +175,8 @@ export const CONCEPTS: readonly Concept[] = [
       'Reading slope off a graph is the skill that turns kinematics from arithmetic into interpretation.',
     prerequisites: ['Displacement', 'Velocity'],
     related: ['Acceleration'],
-    tint: colors.violet,
-    soft: colors.violetSoft,
+    tint: 'violet',
+    soft: 'violetSoft',
     content: ordered([
       {
         id: 'c-graph-def',
@@ -215,8 +215,8 @@ export const CONCEPTS: readonly Concept[] = [
       'Acceleration connects motion to force — it is the bridge from pure kinematics into dynamics.',
     prerequisites: ['Velocity', 'Displacement–time graphs'],
     related: ['Forces', 'Direction'],
-    tint: colors.slate,
-    soft: colors.canvas,
+    tint: 'slate',
+    soft: 'canvas',
     content: ordered([
       {
         id: 'c-accel-def',

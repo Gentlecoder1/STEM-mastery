@@ -14,15 +14,16 @@ import {
   TrendingUpIcon,
 } from '../components/glyphs';
 import { Pill, ProgressBar, SectionHeading } from '../components/PracticeUI';
-import { colors, fonts, shadow } from '../theme';
+import { colors, fonts, shadow, type ColorToken } from '../theme';
+import { useTheme, useThemedStyles } from '../themeContext';
 import { navigateToTab } from '../navigation/tabs';
 import type { RootScreenProps } from '../navigation/types';
 
 type PathRow = {
   title: string;
   subtitle: string;
-  tint: string;
-  soft: string;
+  tint: ColorToken;
+  soft: ColorToken;
   Icon: (props: { size?: number; color?: string; strokeWidth?: number }) => React.JSX.Element;
   leading?: (props: { size?: number; color?: string }) => React.JSX.Element;
   active: boolean;
@@ -32,8 +33,8 @@ const PATH: readonly PathRow[] = [
   {
     title: 'Targeted mini lesson',
     subtitle: 'Acceleration • 6 min • +40 XP',
-    tint: colors.orange,
-    soft: 'rgba(255,159,28,0.09)',
+    tint: 'orange',
+    soft: 'orangeSoft',
     Icon: TrendingUpIcon,
     leading: PlayIcon,
     active: true,
@@ -41,44 +42,46 @@ const PATH: readonly PathRow[] = [
   {
     title: 'Adaptive practice',
     subtitle: '5 questions • about 4 min • +50 XP',
-    tint: colors.blue,
-    soft: 'rgba(41,121,255,0.09)',
+    tint: 'blue',
+    soft: 'blueSoft',
     Icon: BrainIcon,
     active: false,
   },
   {
     title: 'Linear equations refresh',
     subtitle: 'Mathematics • 8 min • +60 XP',
-    tint: colors.green,
-    soft: 'rgba(0,168,135,0.09)',
+    tint: 'green',
+    soft: 'greenSoft',
     Icon: SigmaIcon,
     active: false,
   },
-] as const;
+];
 
 const CURIOUS = [
   {
     title: 'Why reactions speed up',
     subtitle: 'Chemistry • 5 min',
-    bg: colors.violetSoft,
-    tint: colors.violet,
+    bg: 'violetSoft' as ColorToken,
+    tint: 'violet' as ColorToken,
     Icon: FlaskIcon,
   },
   {
     title: 'Graphs in real life',
     subtitle: 'Mathematics • 7 min',
-    bg: colors.greenSoft,
-    tint: colors.green,
+    bg: 'greenSoft' as ColorToken,
+    tint: 'green' as ColorToken,
     Icon: ChartSplineIcon,
   },
-] as const;
+];
 
 export default function ChallengeScreen({ navigation }: RootScreenProps<'Challenge'>) {
   const insets = useSafeAreaInsets();
+  const { statusBarStyle } = useTheme();
+  const styles = useThemedStyles(createStyles);
 
   return (
     <View style={styles.root}>
-      <StatusBar style="dark" />
+      <StatusBar style={statusBarStyle} />
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
@@ -128,8 +131,8 @@ export default function ChallengeScreen({ navigation }: RootScreenProps<'Challen
               onPress={() => navigation.navigate('Practice')}
               accessibilityRole="button"
             >
-              <View style={[styles.pathIcon, { backgroundColor: soft }]}>
-                <Icon size={19} color={tint} />
+              <View style={[styles.pathIcon, { backgroundColor: colors[soft] }]}>
+                <Icon size={19} color={colors[tint]} />
               </View>
               <View style={styles.pathCopy}>
                 <Text style={styles.pathTitle}>{title}</Text>
@@ -149,14 +152,14 @@ export default function ChallengeScreen({ navigation }: RootScreenProps<'Challen
           {CURIOUS.map(({ title, subtitle, bg, tint, Icon }) => (
             <Pressable
               key={title}
-              style={[styles.curiousCard, { backgroundColor: bg }]}
+              style={[styles.curiousCard, { backgroundColor: colors[bg] }]}
               onPress={() => navigation.navigate('Practice')}
               accessibilityRole="button"
             >
               <View style={styles.curiousIcon}>
-                <Icon size={20} color={tint} />
-              </View>
-              <Text style={styles.curiousTitle}>{title}</Text>
+<Icon size={20} color={colors[tint]} />
+                  </View>
+                  <Text style={styles.curiousTitle}>{title}</Text>
               <Text style={styles.curiousSubtitle}>{subtitle}</Text>
             </Pressable>
           ))}
@@ -167,7 +170,7 @@ export default function ChallengeScreen({ navigation }: RootScreenProps<'Challen
             <Text style={styles.goalLabel}>Daily learning goal</Text>
             <Text style={styles.goalValue}>12 / 20 min</Text>
           </View>
-          <ProgressBar progress={60} track="rgba(22,32,74,0.08)" fill={colors.surface} />
+          <ProgressBar progress={60} track={colors.border} fill={colors.surface} />
         </View>
       </ScrollView>
 
@@ -176,7 +179,7 @@ export default function ChallengeScreen({ navigation }: RootScreenProps<'Challen
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = () => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.canvas },
   content: { paddingHorizontal: 18, gap: 13 },
 
@@ -278,7 +281,7 @@ const styles = StyleSheet.create({
   goalCard: {
     padding: 14,
     borderRadius: 18,
-    backgroundColor: '#E2F6EB',
+    backgroundColor: colors.greenSoft,
     gap: 9,
     ...shadow.frame,
   },

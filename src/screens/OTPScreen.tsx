@@ -7,12 +7,14 @@ import { PrimaryButton } from '../components/Form';
 import Link from '../components/Link';
 import { CheckIcon } from '../components/icons';
 import type { RootStackParamList } from '../navigation/types';
+import { useThemedStyles } from '../themeContext';
 
 const CODE_LENGTH = 6;
 
 type Stage = 'input' | 'verifying' | 'verified';
 
 function DotsLoader() {
+  const styles = useThemedStyles(createStyles);
   const t = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -46,6 +48,7 @@ function DotsLoader() {
 
 export default function OTPScreen({ route, navigation }: NativeStackScreenProps<RootStackParamList, 'OTPScreen'>) {
   const insets = useSafeAreaInsets();
+  const styles = useThemedStyles(createStyles);
   const { email = '' } = route.params ?? {};
   const [code, setCode] = useState<string[]>(() => Array<string>(CODE_LENGTH).fill(''));
   const [stage, setStage] = useState<Stage>('input');
@@ -156,7 +159,7 @@ export default function OTPScreen({ route, navigation }: NativeStackScreenProps<
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = () => StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.canvas },
   content: { flex: 1, paddingHorizontal: 20, justifyContent: 'space-between' },
   top: { gap: 8 },

@@ -7,6 +7,7 @@ import { navigateToTab } from '../navigation/tabs';
 import { GaugeIcon } from '../components/glyphs';
 import { ArrowLeftIcon, BookmarkIcon, CheckCircleIcon, ChevronRightIcon, LockIcon, SparklesIcon } from '../components/icons';
 import { colors, fonts, shadow } from '../theme';
+import { useTheme, useThemedStyles } from '../themeContext';
 import { CONCEPTS } from '../data/learning';
 import type { Concept } from '../data/learning';
 import type { RootScreenProps } from '../navigation/types';
@@ -40,9 +41,11 @@ const concepts = CONCEPTS.map((concept) => ({
 
 export default function TopicOverviewScreen({ navigation }: RootScreenProps<'TopicOverview'>) {
   const insets = useSafeAreaInsets();
+  const { statusBarStyle } = useTheme();
+  const styles = useThemedStyles(createStyles);
   return (
     <View style={styles.root}>
-      <StatusBar style="dark" />
+      <StatusBar style={statusBarStyle} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingTop: insets.top + 4, paddingBottom: insets.bottom + 18 }]}>
         <View style={styles.header}>
           <Pressable style={styles.iconButton} onPress={() => navigation.goBack()} accessibilityLabel="Go back"><ArrowLeftIcon size={23} color={colors.ink} /></Pressable>
@@ -66,10 +69,11 @@ export default function TopicOverviewScreen({ navigation }: RootScreenProps<'Top
 }
 
 function ConceptRow({ concept, onPress }: { concept: (typeof concepts)[number]; onPress?: () => void }) {
-  return <Pressable onPress={onPress} style={[styles.conceptRow, concept.state === 'current' && styles.conceptCurrent]}><View style={[styles.conceptIcon, { backgroundColor: concept.soft }]}>{concept.state === 'done' ? <CheckCircleIcon size={22} color={concept.tint} /> : concept.state === 'current' ? <Text style={styles.play}>▷</Text> : concept.state === 'locked' ? <LockIcon size={21} color={concept.tint} /> : <SparklesIcon size={22} color={concept.tint} />}</View><View style={styles.conceptCopy}><Text style={styles.conceptTitle}>{concept.title}</Text><Text style={styles.conceptSubtitle}>{concept.subtitle}</Text></View>{concept.trailing ? <View style={[styles.trailing, concept.state === 'current' && styles.continuePill, concept.state === 'done' && styles.masteryPill]}><Text style={[styles.trailingText, concept.state === 'next' && styles.nextText]}>{concept.trailing}</Text></View> : <LockIcon size={21} color={colors.slate} />}{concept.state === 'current' ? <ChevronRightIcon size={20} color={colors.blue} /> : null}</Pressable>;
+  const styles = useThemedStyles(createStyles);
+  return <Pressable onPress={onPress} style={[styles.conceptRow, concept.state === 'current' && styles.conceptCurrent]}><View style={[styles.conceptIcon, { backgroundColor: colors[concept.soft] }]}>{concept.state === 'done' ? <CheckCircleIcon size={22} color={colors[concept.tint]} /> : concept.state === 'current' ? <Text style={styles.play}>▷</Text> : concept.state === 'locked' ? <LockIcon size={21} color={colors[concept.tint]} /> : <SparklesIcon size={22} color={colors[concept.tint]} />}</View><View style={styles.conceptCopy}><Text style={styles.conceptTitle}>{concept.title}</Text><Text style={styles.conceptSubtitle}>{concept.subtitle}</Text></View>{concept.trailing ? <View style={[styles.trailing, concept.state === 'current' && styles.continuePill, concept.state === 'done' && styles.masteryPill]}><Text style={[styles.trailingText, concept.state === 'next' && styles.nextText]}>{concept.trailing}</Text></View> : <LockIcon size={21} color={colors.slate} />}{concept.state === 'current' ? <ChevronRightIcon size={20} color={colors.blue} /> : null}</Pressable>;
 }
 
-const styles = StyleSheet.create({
+const createStyles = () => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.canvas },
   content: { paddingHorizontal: 18, gap: 14 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 14 },
@@ -77,7 +81,7 @@ const styles = StyleSheet.create({
   headerCopy: { flex: 1, gap: 2 },
   title: { fontFamily: fonts.regular, fontSize: 22, lineHeight: 25, color: colors.ink },
   subtitle: { fontFamily: fonts.medium, fontSize: 12, lineHeight: 16, color: colors.slate },
-  hero: { minHeight: 154, padding: 17, borderRadius: 18, borderWidth: 1, borderColor: '#C8DFFF', backgroundColor: '#EDF5FF', flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 14, ...shadow.frame },
+  hero: { minHeight: 154, padding: 17, borderRadius: 18, borderWidth: 1, borderColor: colors.blueBorder, backgroundColor: colors.blueSoft, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 14, ...shadow.frame },
   heroIcon: { width: 54, height: 54, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.blue },
   heroCopy: { flex: 1, gap: 6 },
   eyebrow: { fontFamily: fonts.bold, fontSize: 12, color: colors.blue },
@@ -105,7 +109,7 @@ const styles = StyleSheet.create({
   masteryPill: { backgroundColor: colors.greenSoft },
   continuePill: { backgroundColor: colors.surface },
   trailingText: { fontFamily: fonts.medium, fontSize: 12, color: colors.green },
-  nextText: { color: '#FF9F1C', fontSize: 25, lineHeight: 25 },
+  nextText: { color: colors.orange, fontSize: 25, lineHeight: 25 },
   primaryButton: { height: 68, borderRadius: 16, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 12, ...shadow.card },
   primaryArrow: { fontFamily: fonts.regular, fontSize: 25, color: colors.surface },
   primaryText: { fontFamily: fonts.regular, fontSize: 19, color: colors.surface },

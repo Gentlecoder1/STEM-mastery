@@ -7,7 +7,8 @@ import MasteryRing from '../components/MasteryRing';
 import { ArrowLeftIcon, CheckCircleIcon, SparklesIcon } from '../components/icons';
 import { MessageTextIcon, RotateCcwIcon, ShareIcon } from '../components/glyphs';
 import { Pill, ProgressBar, SectionHeading } from '../components/PracticeUI';
-import { colors, fonts, shadow } from '../theme';
+import { colors, fonts, shadow, type ColorToken } from '../theme';
+import { useTheme, useThemedStyles } from '../themeContext';
 import { navigateToTab } from '../navigation/tabs';
 import type { RootScreenProps } from '../navigation/types';
 
@@ -16,55 +17,57 @@ const CONCEPTS = [
     name: 'Distance & displacement',
     status: 'Secure',
     pct: 92,
-    tint: colors.success,
+    tint: 'success' as ColorToken,
   },
   {
     name: 'Speed vs velocity',
     status: 'Developing',
     pct: 72,
-    tint: colors.blue,
+    tint: 'blue' as ColorToken,
   },
   {
     name: 'Displacement-time graphs',
     status: 'Practise',
     pct: 58,
-    tint: colors.orange,
+    tint: 'orange' as ColorToken,
   },
   {
     name: 'Acceleration',
     status: 'Needs support',
     pct: 41,
-    tint: colors.danger,
+    tint: 'danger' as ColorToken,
   },
-] as const;
+];
 
 const SIGNALS = [
   {
     value: '82%',
     label: 'MCQ accuracy',
-    tint: colors.success,
+    tint: 'success' as ColorToken,
     Icon: CheckCircleIcon,
   },
   {
     value: '71%',
     label: 'Explanations',
-    tint: colors.blue,
+    tint: 'blue' as ColorToken,
     Icon: MessageTextIcon,
   },
   {
     value: '3',
     label: 'Reviews',
-    tint: colors.primary,
+    tint: 'primary' as ColorToken,
     Icon: RotateCcwIcon,
   },
-] as const;
+];
 
 export default function ConceptProgressScreen({ navigation }: RootScreenProps<'ConceptProgress'>) {
   const insets = useSafeAreaInsets();
+  const { statusBarStyle } = useTheme();
+  const styles = useThemedStyles(createStyles);
 
   return (
     <View style={styles.root}>
-      <StatusBar style="dark" />
+      <StatusBar style={statusBarStyle} />
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
@@ -105,11 +108,11 @@ export default function ConceptProgressScreen({ navigation }: RootScreenProps<'C
             <View key={name} style={styles.conceptRow}>
               <View style={styles.conceptHeader}>
                 <Text style={styles.conceptName}>{name}</Text>
-                <Text style={[styles.conceptStatus, { color: tint }]}>
+                <Text style={[styles.conceptStatus, { color: colors[tint] }]}>
                   {status} {pct}%
                 </Text>
               </View>
-              <ProgressBar progress={pct} track={colors.border} fill={tint} style={styles.conceptBar} />
+              <ProgressBar progress={pct} track={colors.border} fill={colors[tint]} style={styles.conceptBar} />
             </View>
           ))}
         </View>
@@ -119,7 +122,7 @@ export default function ConceptProgressScreen({ navigation }: RootScreenProps<'C
           {SIGNALS.map(({ value, label, tint, Icon }) => (
             <View key={label} style={styles.signalCard}>
               <View style={[styles.signalIcon, { backgroundColor: 'transparent' }]}>
-                <Icon size={22} color={tint} />
+                <Icon size={22} color={colors[tint]} />
               </View>
               <Text style={styles.signalValue}>{value}</Text>
               <Text style={styles.signalLabel}>{label}</Text>
@@ -142,7 +145,7 @@ export default function ConceptProgressScreen({ navigation }: RootScreenProps<'C
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = () => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.canvas },
   content: { paddingHorizontal: 18, gap: 13 },
 

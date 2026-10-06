@@ -3,8 +3,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fonts, radius, shadow } from '../theme';
 import { AtomIcon, TelescopeIcon, MailIcon } from '../components/icons';
 import type { RootScreenProps } from '../navigation/types';
+import { useThemedStyles } from '../themeContext';
 
 function Brand() {
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={styles.brand}>
       <View style={styles.mark}>
@@ -16,6 +19,8 @@ function Brand() {
 }
 
 function LearningIllustration() {
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={styles.illustration}>
       <View style={styles.orbit} />
@@ -30,6 +35,8 @@ function LearningIllustration() {
 }
 
 function Hero() {
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={styles.hero}>
       <LearningIllustration />
@@ -43,6 +50,7 @@ function Hero() {
 
 export default function SplashScreen({ navigation }: RootScreenProps<'Splash'>) {
   const insets = useSafeAreaInsets();
+  const styles = useThemedStyles(createStyles);
 
   return (
     <View style={styles.screen}>
@@ -76,7 +84,7 @@ export default function SplashScreen({ navigation }: RootScreenProps<'Splash'>) 
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = () => StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.primary,

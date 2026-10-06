@@ -16,7 +16,8 @@ import {
   VideoIcon,
 } from '../components/glyphs';
 import { Pill } from '../components/PracticeUI';
-import { colors, fonts, shadow } from '../theme';
+import { colors, fonts, shadow, type ColorToken } from '../theme';
+import { useTheme, useThemedStyles } from '../themeContext';
 import { navigateToTab } from '../navigation/tabs';
 import type { RootScreenProps } from '../navigation/types';
 
@@ -32,52 +33,54 @@ const RESULTS = [
     title: 'Speed vs velocity',
     subtitle: 'Concept • Physics • 72% mastery',
     Icon: GaugeIcon,
-    tint: colors.blue,
-    soft: colors.blueSoft,
-    right: <Pill bg={colors.blueSoft} tint={colors.blue}>CONCEPT</Pill>,
+    tint: 'blue' as ColorToken,
+    soft: 'blueSoft' as ColorToken,
+    kind: 'pill',
   },
   {
     title: 'Understanding velocity',
     subtitle: 'Lesson • 7 min • completed',
     Icon: BookOpenIcon,
-    tint: colors.success,
-    soft: colors.greenSoft,
-    right: <CheckCircleIcon size={19} color={colors.success} />,
+    tint: 'success' as ColorToken,
+    soft: 'greenSoft' as ColorToken,
+    kind: 'check',
   },
   {
     title: 'Velocity-time graphs',
     subtitle: 'Concept • Physics • locked',
     Icon: LineChartIcon,
-    tint: colors.orange,
-    soft: 'rgba(255,159,28,0.09)',
-    right: <LockIcon size={16} color={colors.slate} />,
+    tint: 'orange' as ColorToken,
+    soft: 'orangeSoft' as ColorToken,
+    kind: 'lock',
   },
   {
     title: 'Velocity quick practice',
     subtitle: 'Practice • 6 questions • +60 XP',
     Icon: BrainIcon,
-    tint: colors.primary,
-    soft: colors.primarySoft,
-    right: <Pill bg={colors.primarySoft} tint={colors.primary}>START</Pill>,
+    tint: 'primary' as ColorToken,
+    soft: 'primarySoft' as ColorToken,
+    kind: 'start',
   },
   {
     title: 'Velocity in everyday motion',
     subtitle: 'Video • 4:12 • Physics',
     Icon: VideoIcon,
-    tint: colors.violet,
-    soft: colors.violetSoft,
-    right: <PlayIcon size={18} color={colors.primary} />,
+    tint: 'violet' as ColorToken,
+    soft: 'violetSoft' as ColorToken,
+    kind: 'play',
   },
-] as const;
+];
 
 export default function SearchScreen({ navigation }: RootScreenProps<'Search'>) {
   const insets = useSafeAreaInsets();
+  const { statusBarStyle } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [query, setQuery] = useState('velocity');
   const [activeFilter, setActiveFilter] = useState('ALL');
 
   return (
     <View style={styles.root}>
-      <StatusBar style="dark" />
+      <StatusBar style={statusBarStyle} />
       <ScrollView
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -130,21 +133,31 @@ export default function SearchScreen({ navigation }: RootScreenProps<'Search'>) 
         </View>
 
         <View style={styles.resultList}>
-          {RESULTS.map(({ title, subtitle, Icon, tint, soft, right }) => (
+          {RESULTS.map(({ title, subtitle, Icon, tint, soft, kind }) => (
             <Pressable
               key={title}
               style={styles.resultRow}
               onPress={() => navigation.navigate('Practice')}
               accessibilityRole="button"
             >
-              <View style={[styles.resultIcon, { backgroundColor: soft }]}>
-                <Icon size={19} color={tint} />
+              <View style={[styles.resultIcon, { backgroundColor: colors[soft] }]}>
+                <Icon size={19} color={colors[tint]} />
               </View>
               <View style={styles.resultCopy}>
                 <Text style={styles.resultTitle}>{title}</Text>
                 <Text style={styles.resultSubtitle}>{subtitle}</Text>
               </View>
-              {right}
+              {kind === 'pill' ? (
+                <Pill bg={colors.blueSoft} tint={colors.blue}>CONCEPT</Pill>
+              ) : kind === 'check' ? (
+                <CheckCircleIcon size={19} color={colors.success} />
+              ) : kind === 'lock' ? (
+                <LockIcon size={16} color={colors.slate} />
+              ) : kind === 'start' ? (
+                <Pill bg={colors.primarySoft} tint={colors.primary}>START</Pill>
+              ) : (
+                <PlayIcon size={18} color={colors.primary} />
+              )}
             </Pressable>
           ))}
         </View>
@@ -164,7 +177,7 @@ export default function SearchScreen({ navigation }: RootScreenProps<'Search'>) 
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = () => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.canvas },
   content: { paddingHorizontal: 18, gap: 13 },
 

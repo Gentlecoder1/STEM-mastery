@@ -15,6 +15,7 @@ import { ArrowLeftIcon } from '../components/icons';
 import { ActionButton, Pill, SectionHeading } from '../components/PracticeUI';
 import { colors, fonts, shadow } from '../theme';
 import type { RootScreenProps } from '../navigation/types';
+import { useThemedStyles, useTheme } from '../themeContext';
 
 const EVIDENCE = [
   { value: '2', text: 'quiz answers mixed up velocity and acceleration' },
@@ -26,10 +27,12 @@ export default function PracticeRecommendationScreen({
   navigation,
 }: RootScreenProps<'PracticeRecommendation'>) {
   const insets = useSafeAreaInsets();
+  const styles = useThemedStyles(createStyles);
+  const { statusBarStyle } = useTheme();
 
   return (
     <View style={styles.root}>
-      <StatusBar style="dark" />
+      <StatusBar style={statusBarStyle} />
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
@@ -126,7 +129,7 @@ export default function PracticeRecommendationScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = () => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.canvas },
   content: { paddingHorizontal: 18, gap: 13 },
 

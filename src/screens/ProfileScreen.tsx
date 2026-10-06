@@ -15,52 +15,55 @@ import {
   UserIcon,
 } from '../components/glyphs';
 import { Pill, SectionHeading } from '../components/PracticeUI';
-import { colors, fonts, shadow } from '../theme';
+import { colors, fonts, shadow, type ColorToken } from '../theme';
+import { useTheme, useThemedStyles } from '../themeContext';
 import { navigateToTab } from '../navigation/tabs';
 import type { RootScreenProps } from '../navigation/types';
 
 const STATS = [
-  { value: '1,840', label: 'Total XP', tint: colors.orange },
-  { value: '7', label: 'Best streak', tint: colors.danger },
-  { value: '18', label: 'Badges', tint: colors.primary },
-] as const;
+  { value: '1,840', label: 'Total XP', tint: 'orange' as ColorToken },
+  { value: '7', label: 'Best streak', tint: 'danger' as ColorToken },
+  { value: '18', label: 'Badges', tint: 'primary' as ColorToken },
+];
 
 const ACHIEVEMENTS = [
-  { label: 'Graph reader', Icon: MedalIcon, bg: colors.blueSoft, tint: colors.blue },
-  { label: '7-day streak', Icon: FlameIcon, bg: colors.orangeSoft, tint: colors.orange },
-  { label: 'Deep thinker', Icon: BrainIcon, bg: colors.primarySoft, tint: colors.primary },
-] as const;
+  { label: 'Graph reader', Icon: MedalIcon, bg: 'blueSoft' as ColorToken, tint: 'blue' as ColorToken },
+  { label: '7-day streak', Icon: FlameIcon, bg: 'orangeSoft' as ColorToken, tint: 'orange' as ColorToken },
+  { label: 'Deep thinker', Icon: BrainIcon, bg: 'primarySoft' as ColorToken, tint: 'primary' as ColorToken },
+];
 
 const MENU = [
   {
     title: 'Class and subjects',
     subtitle: 'SS1 • Mathematics, Physics, Chemistry',
     Icon: GraduationCapIcon,
-    bg: colors.blueSoft,
-    tint: colors.blue,
+    bg: 'blueSoft' as ColorToken,
+    tint: 'blue' as ColorToken,
   },
   {
     title: 'Learning goals',
     subtitle: '20 minutes a day • 5 days a week',
     Icon: TargetIcon,
-    bg: 'rgba(255,159,28,0.09)',
-    tint: colors.orange,
+    bg: 'orangeSoft' as ColorToken,
+    tint: 'orange' as ColorToken,
   },
   {
     title: 'Offline learning',
     subtitle: '6 lessons downloaded',
     Icon: DownloadIcon,
-    bg: colors.violetSoft,
-    tint: colors.violet,
+    bg: 'violetSoft' as ColorToken,
+    tint: 'violet' as ColorToken,
   },
-] as const;
+];
 
 export default function ProfileScreen({ navigation }: RootScreenProps<'Profile'>) {
   const insets = useSafeAreaInsets();
+  const { statusBarStyle } = useTheme();
+  const styles = useThemedStyles(createStyles);
 
   return (
     <View style={styles.root}>
-      <StatusBar style="dark" />
+      <StatusBar style={statusBarStyle} />
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
@@ -100,7 +103,7 @@ export default function ProfileScreen({ navigation }: RootScreenProps<'Profile'>
             <View key={label} style={styles.statRow}>
               {index > 0 ? <View style={styles.statDivider} /> : null}
               <View style={styles.stat}>
-                <Text style={[styles.statValue, { color: tint }]}>{value}</Text>
+                <Text style={[styles.statValue, { color: colors[tint] }]}>{value}</Text>
                 <Text style={styles.statLabel}>{label}</Text>
               </View>
             </View>
@@ -111,8 +114,8 @@ export default function ProfileScreen({ navigation }: RootScreenProps<'Profile'>
         <View style={styles.achievementRow}>
           {ACHIEVEMENTS.map(({ label, Icon, bg, tint }) => (
             <View key={label} style={styles.achievementCard}>
-              <View style={[styles.badge, { backgroundColor: bg }]}>
-                <Icon size={20} color={tint} />
+              <View style={[styles.badge, { backgroundColor: colors[bg] }]}>
+                <Icon size={20} color={colors[tint]} />
               </View>
               <Text style={styles.achievementLabel}>{label}</Text>
             </View>
@@ -123,8 +126,8 @@ export default function ProfileScreen({ navigation }: RootScreenProps<'Profile'>
         <View style={styles.menuList}>
           {MENU.map(({ title, subtitle, Icon, bg, tint }) => (
             <Pressable key={title} style={styles.menuRow} accessibilityRole="button">
-              <View style={[styles.menuIcon, { backgroundColor: bg }]}>
-                <Icon size={19} color={tint} />
+              <View style={[styles.menuIcon, { backgroundColor: colors[bg] }]}>
+                <Icon size={19} color={colors[tint]} />
               </View>
               <View style={styles.menuCopy}>
                 <Text style={styles.menuTitle}>{title}</Text>
@@ -141,7 +144,7 @@ export default function ProfileScreen({ navigation }: RootScreenProps<'Profile'>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = () => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.canvas },
   content: { paddingHorizontal: 18, gap: 13 },
 

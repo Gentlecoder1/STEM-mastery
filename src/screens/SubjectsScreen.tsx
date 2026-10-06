@@ -1,5 +1,5 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { StatusBar } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import BottomNav from '../components/BottomNav';
@@ -12,10 +12,11 @@ import {
   CalendarIcon,
 } from '../components/glyphs';
 import { colors, fonts, shadow } from '../theme';
-import type { SubjectId } from '../theme';
+import type { ColorToken, SubjectId } from '../theme';
 import type { RootScreenProps } from '../navigation/types';
 import type { IconProps } from '../components/icons';
 import { navigateToTab } from '../navigation/tabs';
+import { useThemedStyles, useTheme } from '../themeContext';
 
 type IconComponent = (props: IconProps) => React.JSX.Element;
 
@@ -23,10 +24,10 @@ type Subject = {
   id: SubjectId;
   name: string;
   Icon: IconComponent;
-  tint: string;
-  badge: string;
-  card: string;
-  border: string;
+  tint: ColorToken;
+  badge: ColorToken;
+  card: ColorToken;
+  border: ColorToken;
   borderWidth: number;
   detail: string;
   mastery: number;
@@ -38,10 +39,10 @@ const SUBJECTS: readonly Subject[] = [
     id: 'physics',
     name: 'Physics',
     Icon: AtomIcon,
-    tint: '#2979FF',
-    badge: '#E8F1FF',
-    card: colors.surface,
-    border: colors.border,
+    tint: 'blue',
+    badge: 'blueSoft',
+    card: 'surface',
+    border: 'border',
     borderWidth: 1,
     detail: '4 of 8 topics active',
     mastery: 68,
@@ -51,10 +52,10 @@ const SUBJECTS: readonly Subject[] = [
     id: 'mathematics',
     name: 'Mathematics',
     Icon: SigmaIcon,
-    tint: '#00A887',
-    badge: '#DFF8F1',
-    card: colors.surface,
-    border: colors.border,
+    tint: 'green',
+    badge: 'greenSoft',
+    card: 'surface',
+    border: 'border',
     borderWidth: 1,
     detail: '6 of 10 topics active',
     mastery: 74,
@@ -63,10 +64,10 @@ const SUBJECTS: readonly Subject[] = [
     id: 'chemistry',
     name: 'Chemistry',
     Icon: FlaskIcon,
-    tint: '#9A54E8',
-    badge: '#F2E9FC',
-    card: colors.surface,
-    border: colors.border,
+    tint: 'violet',
+    badge: 'violetSoft',
+    card: 'surface',
+    border: 'border',
     borderWidth: 1,
     detail: '3 of 9 topics active',
     mastery: 55,
@@ -79,6 +80,7 @@ type SubjectCardProps = {
 };
 
 function SubjectCard({ subject, onPress }: SubjectCardProps) {
+  const styles = useThemedStyles(createStyles);
   const { Icon } = subject;
   const active = Boolean(subject.action);
 
@@ -90,14 +92,14 @@ function SubjectCard({ subject, onPress }: SubjectCardProps) {
       style={[
         styles.card,
         {
-          backgroundColor: subject.card,
-          borderColor: subject.border,
+          backgroundColor: colors[subject.card],
+          borderColor: colors[subject.border],
           borderWidth: subject.borderWidth,
         },
       ]}
     >
-      <View style={[styles.badge, { backgroundColor: subject.badge }]}>
-        <Icon size={25} color={subject.tint} />
+      <View style={[styles.badge, { backgroundColor: colors[subject.badge] }]}>
+        <Icon size={25} color={colors[subject.tint]} />
       </View>
 
       <View style={styles.details}>
@@ -105,7 +107,9 @@ function SubjectCard({ subject, onPress }: SubjectCardProps) {
           <Text style={styles.cardName}>{subject.name}</Text>
           {active && subject.action ? (
             <View style={styles.actionPill}>
-              <Text style={[styles.actionLabel, { color: subject.tint }]}>{subject.action}</Text>
+              <Text style={[styles.actionLabel, { color: colors[subject.tint] }]}>
+                {subject.action}
+              </Text>
             </View>
           ) : null}
         </View>
@@ -117,11 +121,13 @@ function SubjectCard({ subject, onPress }: SubjectCardProps) {
             <View
               style={[
                 styles.fill,
-                { width: `${subject.mastery}%`, backgroundColor: subject.tint },
+                { width: `${subject.mastery}%`, backgroundColor: colors[subject.tint] },
               ]}
             />
           </View>
-          <Text style={[styles.masteryValue, { color: subject.tint }]}>{subject.mastery}%</Text>
+          <Text style={[styles.masteryValue, { color: colors[subject.tint] }]}>
+            {subject.mastery}%
+          </Text>
         </View>
       </View>
     </Pressable>
@@ -130,10 +136,12 @@ function SubjectCard({ subject, onPress }: SubjectCardProps) {
 
 export default function SubjectsScreen({ navigation }: RootScreenProps<'Subjects'>) {
   const insets = useSafeAreaInsets();
+  const styles = useThemedStyles(createStyles);
+  const { statusBarStyle } = useTheme();
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar style={statusBarStyle} />
       <View style={styles.body}>
         <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
           <View style={styles.headerCopy}>
@@ -177,7 +185,7 @@ export default function SubjectsScreen({ navigation }: RootScreenProps<'Subjects
             onPress={() => navigation.navigate('Challenge')}
             accessibilityRole="button"
           >
-            <CalendarIcon size={24} color="#FF9F1C" />
+            <CalendarIcon size={24} color={colors.orange} />
             <View style={styles.challengeCopy}>
               <Text style={styles.challengeTitle}>Friday STEM challenge</Text>
               <Text style={styles.challengeText}>Unlocks after one more lesson</Text>
@@ -194,7 +202,7 @@ export default function SubjectsScreen({ navigation }: RootScreenProps<'Subjects
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = () => StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.canvas,
@@ -379,12 +387,12 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFF0D8',
+    backgroundColor: colors.orangeSoft,
   },
   challengeLabel: {
     fontFamily: fonts.regular,
     fontSize: 10,
     lineHeight: 12,
-    color: '#FF9F1C',
+    color: colors.orange,
   },
 });

@@ -17,29 +17,30 @@ import {
 import { Pill, ProgressBar, SectionHeading } from '../components/PracticeUI';
 import { colors, fonts, shadow } from '../theme';
 import type { RootScreenProps } from '../navigation/types';
+import { useThemedStyles, useTheme } from '../themeContext';
 
 const MODES = [
   {
     id: 'weak',
     title: 'Weak concepts',
     subtitle: 'Adaptive questions from your gaps.',
-    bg: colors.blueSoft,
-    border: colors.blueBorder,
+    bg: 'blueSoft',
+    border: 'blueBorder',
     iconBg: 'transparent',
-    tint: colors.blue,
+    tint: 'blue',
     Icon: TargetIcon,
-    pill: { bg: colors.surface, tint: colors.blue, label: '5 READY' },
+    pill: { bg: 'surface', tint: 'blue', label: '5 READY' },
   },
   {
     id: 'speed',
     title: 'Speed round',
     subtitle: '10 quick MCQs against time.',
-    bg: colors.orangeSoft,
-    border: '#FFD8A0',
+    bg: 'orangeSoft',
+    border: 'orangeBorder',
     iconBg: 'transparent',
-    tint: colors.orange,
+    tint: 'orange',
     Icon: TimerIcon,
-    pill: { bg: colors.surface, tint: colors.orange, label: '2 MIN' },
+    pill: { bg: 'surface', tint: 'orange', label: '2 MIN' },
   },
 ] as const;
 
@@ -48,39 +49,41 @@ const SETS = [
     id: 'graphs',
     title: 'Displacement-time graphs',
     subtitle: 'Physics • 6 questions • 43% mastery',
-    bg: 'rgba(41,121,255,0.09)',
-    tint: colors.blue,
+    bg: 'blueSoft',
+    tint: 'blue',
     Icon: LineChartIcon,
-    pill: { bg: colors.blueSoft, tint: colors.blue, label: '+60 XP' },
+    pill: { bg: 'blueSoft', tint: 'blue', label: '+60 XP' },
   },
   {
     id: 'accel',
     title: 'Acceleration basics',
     subtitle: 'Physics • 5 questions • 41% mastery',
-    bg: 'rgba(255,159,28,0.09)',
-    tint: colors.orange,
+    bg: 'orangeSoft',
+    tint: 'orange',
     Icon: TrendingUpIcon,
-    pill: { bg: colors.orangeSoft, tint: colors.orange, label: '+50 XP' },
+    pill: { bg: 'orangeSoft', tint: 'orange', label: '+50 XP' },
   },
   {
     id: 'equations',
     title: 'Linear equations',
     subtitle: 'Mathematics • 8 questions • 64% mastery',
-    bg: 'rgba(0,168,135,0.09)',
-    tint: colors.green,
+    bg: 'greenSoft',
+    tint: 'green',
     Icon: DivideIcon,
-    pill: { bg: colors.greenSoft, tint: colors.green, label: '+80 XP' },
+    pill: { bg: 'greenSoft', tint: 'green', label: '+80 XP' },
   },
 ] as const;
 
 export default function PracticeHomeScreen({ navigation }: RootScreenProps<'Practice'>) {
   const insets = useSafeAreaInsets();
+  const styles = useThemedStyles(createStyles);
+  const { statusBarStyle } = useTheme();
 
   const startDailyMix = () => navigation.navigate('PracticeQuestion', { index: 0 });
 
   return (
     <View style={styles.root}>
-      <StatusBar style="dark" />
+      <StatusBar style={statusBarStyle} />
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
@@ -125,16 +128,19 @@ export default function PracticeHomeScreen({ navigation }: RootScreenProps<'Prac
             <Pressable
               key={title}
               onPress={startDailyMix}
-              style={[styles.modeCard, { backgroundColor: bg, borderColor: border }]}
+              style={[
+                styles.modeCard,
+                { backgroundColor: colors[bg], borderColor: colors[border] },
+              ]}
               accessibilityRole="button"
             >
               <View style={styles.modeIcon}>
-                <Icon size={25} color={tint} />
+                <Icon size={25} color={colors[tint]} />
               </View>
               <Text style={styles.modeTitle}>{title}</Text>
               <Text style={styles.modeSubtitle}>{subtitle}</Text>
               <View style={styles.modePillWrap}>
-                <Pill bg={pill.bg} tint={pill.tint}>
+                <Pill bg={colors[pill.bg]} tint={colors[pill.tint]}>
                   {pill.label}
                 </Pill>
               </View>
@@ -146,14 +152,14 @@ export default function PracticeHomeScreen({ navigation }: RootScreenProps<'Prac
         <View style={styles.setList}>
           {SETS.map(({ title, subtitle, bg, tint, Icon, pill }) => (
             <Pressable key={title} style={styles.setRow} onPress={startDailyMix} accessibilityRole="button">
-              <View style={[styles.setIcon, { backgroundColor: bg }]}>
-                <Icon size={19} color={tint} />
+              <View style={[styles.setIcon, { backgroundColor: colors[bg] }]}>
+                <Icon size={19} color={colors[tint]} />
               </View>
               <View style={styles.setCopy}>
                 <Text style={styles.setTitle}>{title}</Text>
                 <Text style={styles.setSubtitle}>{subtitle}</Text>
               </View>
-              <Pill bg={pill.bg} tint={pill.tint}>
+              <Pill bg={colors[pill.bg]} tint={colors[pill.tint]}>
                 {pill.label}
               </Pill>
             </Pressable>
@@ -176,7 +182,7 @@ export default function PracticeHomeScreen({ navigation }: RootScreenProps<'Prac
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = () => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.canvas },
   content: { paddingHorizontal: 18, gap: 13 },
 

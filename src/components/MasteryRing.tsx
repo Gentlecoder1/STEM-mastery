@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { colors, fonts } from '../theme';
+import { useThemedStyles } from '../themeContext';
 
 const SIZE = 44;
 const STROKE = 7;
@@ -15,6 +16,7 @@ type MasteryRingProps = {
 };
 
 export default function MasteryRing({ percent, color, size = SIZE, labelColor = colors.ink }: MasteryRingProps) {
+  const styles = useThemedStyles(createStyles);
   const scale = size / SIZE;
   const clamped = Math.min(100, Math.max(0, percent));
 
@@ -41,7 +43,7 @@ export default function MasteryRing({ percent, color, size = SIZE, labelColor = 
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = () => StyleSheet.create({
   value: {
     position: 'absolute',
     top: 0,

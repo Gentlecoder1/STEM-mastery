@@ -1,5 +1,5 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { StatusBar } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import BottomNav from '../components/BottomNav';
@@ -16,7 +16,8 @@ import {
   SigmaIcon,
   FlaskIcon,
 } from '../components/glyphs';
-import { colors, fonts, shadow } from '../theme';
+import { colors, fonts, shadow, type ColorToken } from '../theme';
+import { useTheme, useThemedStyles } from '../themeContext';
 import type { RootScreenProps } from '../navigation/types';
 import type { IconProps } from '../components/icons';
 
@@ -25,8 +26,8 @@ type SubjectIconKey = 'atom' | 'sigma' | 'flask';
 type DashboardSubject = {
   name: string;
   icon: SubjectIconKey;
-  tint: string;
-  soft: string;
+  tint: ColorToken;
+  soft: ColorToken;
   mastery: number;
   subtitle: string;
 };
@@ -43,24 +44,24 @@ const SUBJECTS: readonly DashboardSubject[] = [
   {
     name: 'Physics',
     icon: 'atom',
-    tint: '#2979FF',
-    soft: 'rgba(41,121,255,0.0941)',
+    tint: 'blue',
+    soft: 'blueSoft',
     mastery: 68,
     subtitle: '68% mastery • 2 topics in progress',
   },
   {
     name: 'Mathematics',
     icon: 'sigma',
-    tint: '#00A887',
-    soft: 'rgba(0,168,135,0.0941)',
+    tint: 'green',
+    soft: 'greenSoft',
     mastery: 74,
     subtitle: '74% mastery • Keep your streak alive',
   },
   {
     name: 'Chemistry',
     icon: 'flask',
-    tint: '#9A54E8',
-    soft: 'rgba(154,84,232,0.0941)',
+    tint: 'violet',
+    soft: 'violetSoft',
     mastery: 55,
     subtitle: '55% mastery • Review atomic structure',
   },
@@ -68,17 +69,17 @@ const SUBJECTS: readonly DashboardSubject[] = [
 
 type Stat = {
   key: string;
-  bg: string;
-  tint: string;
+  bg: ColorToken;
+  tint: ColorToken;
   Icon: IconComponent;
   value: string;
   label: string;
 };
 
 const STATS: readonly Stat[] = [
-  { key: 'xp', bg: '#FFF0D8', tint: '#FF9F1C', Icon: StarIcon, value: '120 XP', label: 'Today' },
-  { key: 'goal', bg: '#DDF8F3', tint: '#0FAF9A', Icon: TargetIcon, value: '3 / 4', label: 'Daily goal' },
-  { key: 'league', bg: '#EEECFF', tint: '#5B4CF0', Icon: TrophyIcon, value: '#12', label: 'League' },
+  { key: 'xp', bg: 'orangeSoft' as ColorToken, tint: 'orange' as ColorToken, Icon: StarIcon, value: '120 XP', label: 'Today' },
+  { key: 'goal', bg: 'greenSoft' as ColorToken, tint: 'teal' as ColorToken, Icon: TargetIcon, value: '3 / 4', label: 'Daily goal' },
+  { key: 'league', bg: 'primarySoft' as ColorToken, tint: 'primary' as ColorToken, Icon: TrophyIcon, value: '#12', label: 'League' },
 ];
 
 type SubjectIconProps = {
@@ -89,31 +90,33 @@ type SubjectIconProps = {
 };
 
 function SubjectIcon({ subject, size = 19, box = 38, radius = 12 }: SubjectIconProps) {
+  const styles = useThemedStyles(createStyles);
   const Icon = SUBJECT_ICONS[subject.icon];
   return (
     <View
       style={[
         styles.leadingIcon,
-        { width: box, height: box, borderRadius: radius, backgroundColor: subject.soft },
+        { width: box, height: box, borderRadius: radius, backgroundColor: colors[subject.soft] },
       ]}
     >
-      <Icon size={size} color={subject.tint} />
+      <Icon size={size} color={colors[subject.tint]} />
     </View>
   );
 }
 
 type StatCardProps = {
-  bg: string;
-  tint: string;
+  bg: ColorToken;
+  tint: ColorToken;
   Icon: IconComponent;
   value: string;
   label: string;
 };
 
 function StatCard({ bg, tint, Icon, value, label }: StatCardProps) {
+  const styles = useThemedStyles(createStyles);
   return (
-    <View style={[styles.stat, { backgroundColor: bg }]}>
-      <Icon size={18} color={tint} />
+    <View style={[styles.stat, { backgroundColor: colors[bg] }]}>
+      <Icon size={18} color={colors[tint]} />
       <Text style={styles.statValue}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
     </View>
@@ -122,12 +125,14 @@ function StatCard({ bg, tint, Icon, value, label }: StatCardProps) {
 
 export default function HomeDashboardScreen({ navigation }: RootScreenProps<'Home'>) {
   const insets = useSafeAreaInsets();
+  const { statusBarStyle } = useTheme();
+  const styles = useThemedStyles(createStyles);
 
   const openSubjects = () => navigation.navigate('Subjects');
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar style={statusBarStyle} />
       <View style={styles.body}>
         <ScrollView
           contentContainerStyle={[
@@ -195,7 +200,7 @@ export default function HomeDashboardScreen({ navigation }: RootScreenProps<'Hom
                   <Text style={styles.subjectName}>{subject.name}</Text>
                   <Text style={styles.subjectSubtitle}>{subject.subtitle}</Text>
                 </View>
-                <MasteryRing percent={subject.mastery} color={subject.tint} />
+                <MasteryRing percent={subject.mastery} color={colors[subject.tint]} />
               </Pressable>
             ))}
           </View>
@@ -207,7 +212,7 @@ export default function HomeDashboardScreen({ navigation }: RootScreenProps<'Hom
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = () => StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.canvas,
@@ -247,13 +252,13 @@ const styles = StyleSheet.create({
     height: 34,
     paddingHorizontal: 11,
     borderRadius: 999,
-    backgroundColor: '#FFF0D8',
+    backgroundColor: colors.orangeSoft,
   },
   streakValue: {
     fontFamily: fonts.extrabold,
     fontSize: 13,
     lineHeight: 16,
-    color: '#FF9F1C',
+    color: colors.orange,
   },
 
   hero: {

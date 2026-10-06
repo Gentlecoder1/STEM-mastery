@@ -6,9 +6,11 @@ import { PrimaryButton } from '../components/Form';
 import Link from '../components/Link';
 import { GoogleButton } from '../components/SocialButtons';
 import type { RootScreenProps } from '../navigation/types';
+import { useThemedStyles } from '../themeContext';
 
 export default function LoginScreen({ navigation }: RootScreenProps<'Login'>) {
   const insets = useSafeAreaInsets();
+  const styles = useThemedStyles(createStyles);
   const [email, setEmail] = useState('');
 
   return (
@@ -57,7 +59,7 @@ export default function LoginScreen({ navigation }: RootScreenProps<'Login'>) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = () => StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.canvas },
   content: { flex: 1, paddingHorizontal: 20, justifyContent: 'space-between' },
   top: { gap: 8 },

@@ -8,13 +8,14 @@ import {
   shadow,
   CLASSES,
   HOUR_OPTIONS,
-  SUBJECTS,
+  getSubjects,
   type ClassLevel,
   type SubjectId,
 } from '../theme';
 import { PrimaryButton } from '../components/Form';
 import { ArrowRightIcon, CheckIcon } from '../components/icons';
 import type { RootScreenProps } from '../navigation/types';
+import { useThemedStyles } from '../themeContext';
 
 type QuizQuestion = {
   subject: string;
@@ -63,6 +64,7 @@ type QuizOptionProps = {
 };
 
 function QuizOption({ text, status, onPress }: QuizOptionProps) {
+  const styles = useThemedStyles(createStyles);
   const shake = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -113,6 +115,9 @@ type StepContentProps = {
 };
 
 function StepContent({ step, state, setState, wrongPick }: StepContentProps) {
+  const styles = useThemedStyles(createStyles);
+  const subjects = getSubjects();
+
   if (step === 1) {
     return (
       <View style={styles.section}>
@@ -144,7 +149,7 @@ function StepContent({ step, state, setState, wrongPick }: StepContentProps) {
             <Text style={styles.hint}>{state.subjects.length} selected</Text>
           </View>
           <View style={styles.subjectList}>
-            {SUBJECTS.map((s) => {
+            {subjects.map((s) => {
               const sel = state.subjects.includes(s.id);
               return (
                 <Pressable
@@ -280,6 +285,7 @@ function StepBody({ step, state, setState, wrongPick }: StepBodyProps) {
 }
 
 function SuccessBody({ state }: { state: OnboardingState }) {
+  const styles = useThemedStyles(createStyles);
   const scale = useRef(new Animated.Value(0.8)).current;
   const fade = useRef(new Animated.Value(0)).current;
 
@@ -307,11 +313,12 @@ function SuccessBody({ state }: { state: OnboardingState }) {
 
 export default function OnboardingFlow({ navigation }: RootScreenProps<'Onboarding'>) {
   const insets = useSafeAreaInsets();
+  const styles = useThemedStyles(createStyles);
   const [step, setStep] = useState(1);
   const [wrongPick, setWrongPick] = useState<number | null>(null);
   const [state, setState] = useState<OnboardingState>({
     klass: 'SS1',
-    subjects: SUBJECTS.map((s) => s.id),
+    subjects: getSubjects().map((s) => s.id),
     hours: 1,
     answers: {},
   });
@@ -407,7 +414,7 @@ export default function OnboardingFlow({ navigation }: RootScreenProps<'Onboardi
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = () => StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.canvas },
   body: { flex: 1, paddingHorizontal: 20, gap: 16 },
 
@@ -536,10 +543,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   optionSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
-  optionWrong: { borderColor: '#E5484D', borderWidth: 2, backgroundColor: colors.surface },
+  optionWrong: { borderColor: colors.danger, borderWidth: 2, backgroundColor: colors.surface },
   optionText: { fontFamily: fonts.regular, fontSize: 15, color: colors.slate },
   optionTextSelected: { color: colors.surface },
-  optionTextWrong: { color: '#E5484D', fontFamily: fonts.medium },
+  optionTextWrong: { color: colors.danger, fontFamily: fonts.medium },
 
   success: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   successMark: {

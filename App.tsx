@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { ActivityIndicator, StatusBar, StyleSheet, View } from 'react-native';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -12,6 +13,7 @@ import {
 } from '@expo-google-fonts/inter';
 
 import { colors } from './src/theme';
+import { ThemeProvider, useTheme, useThemedStyles } from './src/themeContext';
 import SplashScreen from './src/screens/SplashScreen';
 import SignUpScreen from './src/screens/SignUpScreen';
 import LoginScreen from './src/screens/LoginScreen';
@@ -39,19 +41,7 @@ import type { RootStackParamList } from './src/navigation/types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-const navTheme = {
-  ...DefaultTheme,
-  colors: {
-    ...DefaultTheme.colors,
-    background: 'transparent',
-    card: colors.canvas,
-    text: colors.ink,
-    primary: colors.primary,
-    border: 'transparent',
-  },
-};
-
-export default function App() {
+function AppShell() {
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
@@ -59,6 +49,23 @@ export default function App() {
     Inter_700Bold,
     Inter_800ExtraBold,
   });
+  const { mode } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
+  const navTheme = useMemo(
+    () => ({
+      ...DefaultTheme,
+      colors: {
+        ...DefaultTheme.colors,
+        background: 'transparent',
+        card: colors.canvas,
+        text: colors.ink,
+        primary: colors.primary,
+        border: 'transparent',
+      },
+    }),
+    [mode],
+  );
 
   if (!fontsLoaded) {
     return (
@@ -109,7 +116,15 @@ export default function App() {
   );
 }
 
-const styles = StyleSheet.create({
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AppShell />
+    </ThemeProvider>
+  );
+}
+
+const createStyles = () => StyleSheet.create({
   loader: {
     flex: 1,
     alignItems: 'center',

@@ -1,5 +1,7 @@
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { colors, fonts, shadow } from '../theme';
+import { useThemedStyles } from '../themeContext';
+import type { ThemeColors } from '../theme';
 import type { ReactNode } from 'react';
 
 type PillProps = {
@@ -12,6 +14,7 @@ type PillProps = {
 };
 
 export function Pill({ children, bg, tint, size = 10, gap = 5, style }: PillProps) {
+  const styles = useThemedStyles(createStyles);
   const isText = typeof children === 'string';
   return (
     <View style={[styles.pill, { backgroundColor: bg, gap, paddingHorizontal: 10, paddingVertical: 6 }, style]}>
@@ -31,6 +34,7 @@ type SectionHeadingProps = {
 };
 
 export function SectionHeading({ title, action, onAction }: SectionHeadingProps) {
+  const styles = useThemedStyles(createStyles);
   return (
     <View style={styles.sectionHeading}>
       <Text style={styles.sectionTitle}>{title}</Text>
@@ -51,6 +55,7 @@ type ProgressBarProps = {
 };
 
 export function ProgressBar({ progress, track = colors.border, fill = colors.primary, style }: ProgressBarProps) {
+  const styles = useThemedStyles(createStyles);
   return (
     <View style={[styles.track, { backgroundColor: track }, style]}>
       <View
@@ -80,6 +85,7 @@ export function ActionButton({
   leading,
   style,
 }: ButtonProps) {
+  const styles = useThemedStyles(createStyles);
   return (
     <Pressable
       accessibilityRole="button"
@@ -100,7 +106,7 @@ export function ActionButton({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -121,13 +127,13 @@ const styles = StyleSheet.create({
     fontFamily: fonts.regular,
     fontSize: 17,
     lineHeight: 21,
-    color: colors.ink,
+    color: c.ink,
   },
   sectionAction: {
     fontFamily: fonts.bold,
     fontSize: 14,
     lineHeight: 17,
-    color: colors.primary,
+    color: c.primary,
   },
   track: {
     height: 10,
@@ -162,6 +168,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.regular,
     fontSize: 15,
     lineHeight: 18,
-    color: colors.surface,
+    color: c.surface,
   },
 });

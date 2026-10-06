@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import {
   HouseIcon,
   BookOpenIcon,
@@ -7,6 +7,7 @@ import {
   UserIcon,
 } from './glyphs';
 import { colors, fonts } from '../theme';
+import { useThemedStyles } from '../themeContext';
 import type { TabKey } from '../navigation/types';
 import type { IconProps } from './icons';
 
@@ -30,6 +31,40 @@ type BottomNavProps = {
 };
 
 export default function BottomNav({ active, onSelect }: BottomNavProps) {
+  const styles = useThemedStyles((c) => ({
+    bar: {
+      flexDirection: 'row',
+      justifyContent: 'space-evenly',
+      alignItems: 'center',
+      backgroundColor: c.surface,
+      borderTopWidth: 1,
+      borderTopColor: c.border,
+      paddingTop: 8,
+      paddingBottom: 10,
+      paddingHorizontal: 12,
+    },
+    item: {
+      width: 64,
+      height: 58,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 4,
+    },
+    itemActive: {
+      backgroundColor: c.primarySoft,
+    },
+    label: {
+      fontFamily: fonts.regular,
+      fontSize: 10,
+      lineHeight: 12,
+      color: c.slate,
+    },
+    labelActive: {
+      color: c.primary,
+    },
+  }));
+
   return (
     <View style={styles.bar}>
       {TABS.map(({ key, label, Icon }) => {
@@ -50,37 +85,3 @@ export default function BottomNav({ active, onSelect }: BottomNavProps) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  bar: {
-    flexDirection: 'row',
-    justifyContent: 'space-evenly',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: 8,
-    paddingBottom: 10,
-    paddingHorizontal: 12,
-  },
-  item: {
-    width: 64,
-    height: 58,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-  },
-  itemActive: {
-    backgroundColor: colors.primarySoft,
-  },
-  label: {
-    fontFamily: fonts.regular,
-    fontSize: 10,
-    lineHeight: 12,
-    color: colors.slate,
-  },
-  labelActive: {
-    color: colors.primary,
-  },
-});

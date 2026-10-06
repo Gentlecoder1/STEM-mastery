@@ -620,3 +620,17 @@ export function HelpCircleIcon({ size = 19, color = colors.ink, strokeWidth = 1.
     </Svg>
   );
 }
+
+export function MoonIcon({ size = 19, color = colors.ink, strokeWidth = 1.5, style }: GlyphProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path
+        d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}

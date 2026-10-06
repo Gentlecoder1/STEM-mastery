@@ -16,15 +16,18 @@ import {
 import { ActionButton, Pill, ProgressBar } from '../components/PracticeUI';
 import { colors, fonts, shadow } from '../theme';
 import type { RootScreenProps } from '../navigation/types';
+import { useThemedStyles, useTheme } from '../themeContext';
 
 export default function PracticeLessonScreen({
   navigation,
 }: RootScreenProps<'PracticeLesson'>) {
   const insets = useSafeAreaInsets();
+  const styles = useThemedStyles(createStyles);
+  const { statusBarStyle } = useTheme();
 
   return (
     <View style={styles.root}>
-      <StatusBar style="dark" />
+      <StatusBar style={statusBarStyle} />
       <View style={[styles.header, { paddingTop: insets.top + 2 }]}>
         <Pressable
           style={styles.closeButton}
@@ -102,7 +105,7 @@ export default function PracticeLessonScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = () => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.canvas },
   missing: { alignItems: 'center', justifyContent: 'center' },
 

@@ -29,12 +29,15 @@ import { colors, fonts, shadow } from '../theme';
 import { getPracticeQuestion, PRACTICE_SET_SIZE } from '../data/practice';
 import type { PracticeOption } from '../data/practice';
 import type { RootScreenProps } from '../navigation/types';
+import { useThemedStyles, useTheme } from '../themeContext';
 
 export default function PracticeQuestionScreen({
   navigation,
   route,
 }: RootScreenProps<'PracticeQuestion'>) {
   const insets = useSafeAreaInsets();
+  const styles = useThemedStyles(createStyles);
+  const { statusBarStyle } = useTheme();
   const { index } = route.params;
   const question = useMemo(() => getPracticeQuestion(index), [index]);
 
@@ -64,7 +67,7 @@ export default function PracticeQuestionScreen({
 
   return (
     <View style={styles.root}>
-      <StatusBar style="dark" />
+      <StatusBar style={statusBarStyle} />
       <View style={[styles.header, { paddingTop: insets.top + 2 }]}>
         <Pressable
           style={styles.closeButton}
@@ -198,6 +201,8 @@ type OptionRowProps = {
 };
 
 function OptionRow({ option, selected, onPress }: OptionRowProps) {
+  const styles = useThemedStyles(createStyles);
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -215,7 +220,7 @@ function OptionRow({ option, selected, onPress }: OptionRowProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = () => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.canvas },
   missing: { alignItems: 'center', justifyContent: 'center' },
   missingText: { fontFamily: fonts.medium, fontSize: 14, lineHeight: 17, color: colors.slate },

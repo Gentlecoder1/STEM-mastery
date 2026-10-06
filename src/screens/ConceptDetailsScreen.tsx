@@ -6,11 +6,14 @@ import MasteryRing from '../components/MasteryRing';
 import { ArrowLeftIcon, ArrowRightIcon, CheckCircleIcon } from '../components/icons';
 import { BookOpenIcon } from '../components/glyphs';
 import { colors, fonts, shadow } from '../theme';
+import { useTheme, useThemedStyles } from '../themeContext';
 import { CONTENT_LABELS, getConcept } from '../data/learning';
 import type { RootScreenProps } from '../navigation/types';
 
 export default function ConceptDetailsScreen({ navigation, route }: RootScreenProps<'ConceptDetails'>) {
   const insets = useSafeAreaInsets();
+  const { statusBarStyle } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const concept = getConcept(route.params.conceptId);
 
   if (!concept) {
@@ -25,7 +28,7 @@ export default function ConceptDetailsScreen({ navigation, route }: RootScreenPr
 
   return (
     <View style={styles.root}>
-      <StatusBar style="dark" />
+      <StatusBar style={statusBarStyle} />
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
@@ -50,10 +53,10 @@ export default function ConceptDetailsScreen({ navigation, route }: RootScreenPr
 
         <View style={styles.hero}>
           <View style={styles.heroRing}>
-            <MasteryRing percent={concept.mastery} color={concept.tint} size={76} />
+            <MasteryRing percent={concept.mastery} color={colors[concept.tint]} size={76} />
           </View>
           <View style={styles.heroCopy}>
-            <Text style={[styles.heroStatus, { color: concept.tint }]}>
+            <Text style={[styles.heroStatus, { color: colors[concept.tint] }]}>
               {concept.mastery === 0
                 ? 'NOT STARTED'
                 : concept.mastery >= 80
@@ -68,7 +71,7 @@ export default function ConceptDetailsScreen({ navigation, route }: RootScreenPr
         </View>
 
         <Text style={styles.sectionTitle}>Short definition</Text>
-        <View style={[styles.card, { borderLeftColor: concept.tint }]}>
+        <View style={[styles.card, { borderLeftColor: colors[concept.tint] }]}>
           <Text style={styles.cardBody}>{concept.definition}</Text>
         </View>
 
@@ -137,7 +140,7 @@ export default function ConceptDetailsScreen({ navigation, route }: RootScreenPr
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = () => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.canvas },
   missing: { alignItems: 'center', justifyContent: 'center' },
   missingText: { fontFamily: fonts.medium, fontSize: 14, color: colors.slate },

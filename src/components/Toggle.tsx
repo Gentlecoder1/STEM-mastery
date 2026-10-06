@@ -1,5 +1,5 @@
-import { Pressable, StyleSheet, View } from 'react-native';
-import { colors } from '../theme';
+import { Pressable, View } from 'react-native';
+import { useThemedStyles } from '../themeContext';
 
 type ToggleProps = {
   value: boolean;
@@ -8,6 +8,34 @@ type ToggleProps = {
 };
 
 export default function Toggle({ value, onValueChange, label }: ToggleProps) {
+  const styles = useThemedStyles((c) => ({
+    track: {
+      width: 46,
+      height: 28,
+      borderRadius: 999,
+      backgroundColor: c.border,
+      padding: 2,
+      justifyContent: 'center',
+    },
+    trackOn: {
+      backgroundColor: c.primary,
+    },
+    knob: {
+      width: 24,
+      height: 24,
+      borderRadius: 999,
+      backgroundColor: c.surface,
+      shadowColor: '#000000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.15,
+      shadowRadius: 2,
+      elevation: 2,
+    },
+    knobOn: {
+      alignSelf: 'flex-end',
+    },
+  }));
+
   return (
     <Pressable
       accessibilityRole="switch"
@@ -21,31 +49,3 @@ export default function Toggle({ value, onValueChange, label }: ToggleProps) {
     </Pressable>
   );
 }
-
-const styles = StyleSheet.create({
-  track: {
-    width: 46,
-    height: 28,
-    borderRadius: 999,
-    backgroundColor: colors.border,
-    padding: 2,
-    justifyContent: 'center',
-  },
-  trackOn: {
-    backgroundColor: colors.primary,
-  },
-  knob: {
-    width: 24,
-    height: 24,
-    borderRadius: 999,
-    backgroundColor: colors.surface,
-    shadowColor: '#20294A',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.12,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  knobOn: {
-    alignSelf: 'flex-end',
-  },
-});

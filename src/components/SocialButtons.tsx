@@ -1,5 +1,7 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
-import { colors, fonts, radius, shadow } from '../theme';
+import { fonts, radius, shadow } from '../theme';
+import { useThemedStyles } from '../themeContext';
+import type { ThemeColors } from '../theme';
 import { GoogleIcon } from './GoogleIcon';
 
 type GoogleButtonProps = {
@@ -8,6 +10,7 @@ type GoogleButtonProps = {
 };
 
 export function GoogleButton({ title = 'Sign up with Google', onPress }: GoogleButtonProps) {
+  const styles = useThemedStyles(createStyles);
   return (
     <Pressable
       accessibilityRole="button"
@@ -20,13 +23,13 @@ export function GoogleButton({ title = 'Sign up with Google', onPress }: GoogleB
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   btn: {
     height: 52,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    borderColor: c.border,
+    backgroundColor: c.surface,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -37,7 +40,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.regular,
     fontSize: 15,
     lineHeight: 18.1534,
-    color: colors.ink,
+    color: c.ink,
   },
   pressed: { opacity: 0.85 },
 });

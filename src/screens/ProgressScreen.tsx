@@ -7,7 +7,8 @@ import MasteryRing from '../components/MasteryRing';
 import { AtomIcon, CheckIcon, FlaskIcon, SigmaIcon } from '../components/icons';
 import { CalendarIcon, FlameIcon, MedalIcon } from '../components/glyphs';
 import { Pill, SectionHeading } from '../components/PracticeUI';
-import { colors, fonts, shadow } from '../theme';
+import { colors, fonts, shadow, type ColorToken } from '../theme';
+import { useTheme, useThemedStyles } from '../themeContext';
 import { navigateToTab } from '../navigation/tabs';
 import type { RootScreenProps } from '../navigation/types';
 
@@ -15,40 +16,42 @@ const DAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'] as const;
 const DONE_DAYS = 4;
 
 const METRICS = [
-  { value: '23', label: 'Lessons', tint: colors.blue },
-  { value: '86%', label: 'Accuracy', tint: colors.success },
-  { value: '6h 42m', label: 'Learning', tint: colors.primary },
+  { value: '23', label: 'Lessons', tint: 'blue' as ColorToken },
+  { value: '86%', label: 'Accuracy', tint: 'success' as ColorToken },
+  { value: '6h 42m', label: 'Learning', tint: 'primary' as ColorToken },
 ] as const;
 
 const MASTERY = [
-  { name: 'Mathematics', Icon: SigmaIcon, tint: colors.green, soft: colors.greenSoft, delta: '+4% this month', percent: 74 },
-  { name: 'Physics', Icon: AtomIcon, tint: colors.blue, soft: colors.blueSoft, delta: '+6% this month', percent: 68 },
-  { name: 'Chemistry', Icon: FlaskIcon, tint: colors.violet, soft: colors.violetSoft, delta: '+2% this month', percent: 55 },
+  { name: 'Mathematics', Icon: SigmaIcon, tint: 'green' as ColorToken, soft: 'greenSoft' as ColorToken, delta: '+4% this month', percent: 74 },
+  { name: 'Physics', Icon: AtomIcon, tint: 'blue' as ColorToken, soft: 'blueSoft' as ColorToken, delta: '+6% this month', percent: 68 },
+  { name: 'Chemistry', Icon: FlaskIcon, tint: 'violet' as ColorToken, soft: 'violetSoft' as ColorToken, delta: '+2% this month', percent: 55 },
 ] as const;
 
 const MILESTONES = [
   {
     title: 'Graph reader',
     subtitle: '75% mastery reached',
-    bg: colors.yellowSoft,
+    bg: 'yellowSoft' as ColorToken,
     Icon: MedalIcon,
-    tint: colors.orange,
+    tint: 'orange' as ColorToken,
   },
   {
     title: 'Week warrior',
     subtitle: '4 days in a row',
-    bg: colors.primarySoft,
+    bg: 'primarySoft' as ColorToken,
     Icon: FlameIcon,
-    tint: colors.primary,
+    tint: 'primary' as ColorToken,
   },
 ] as const;
 
 export default function ProgressScreen({ navigation }: RootScreenProps<'Progress'>) {
   const insets = useSafeAreaInsets();
+  const { statusBarStyle } = useTheme();
+  const styles = useThemedStyles(createStyles);
 
   return (
     <View style={styles.root}>
-      <StatusBar style="dark" />
+      <StatusBar style={statusBarStyle} />
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
@@ -99,7 +102,7 @@ export default function ProgressScreen({ navigation }: RootScreenProps<'Progress
             <View key={label} style={styles.metricsRow}>
               {index > 0 ? <View style={styles.metricDivider} /> : null}
               <View style={styles.metric}>
-                <Text style={[styles.metricValue, { color: tint }]}>{value}</Text>
+                <Text style={[styles.metricValue, { color: colors[tint] }]}>{value}</Text>
                 <Text style={styles.metricLabel}>{label}</Text>
               </View>
             </View>
@@ -115,14 +118,14 @@ export default function ProgressScreen({ navigation }: RootScreenProps<'Progress
               onPress={() => navigation.navigate('ConceptProgress')}
               accessibilityRole="button"
             >
-              <View style={[styles.masteryIcon, { backgroundColor: soft }]}>
-                <Icon size={19} color={tint} />
+              <View style={[styles.masteryIcon, { backgroundColor: colors[soft] }]}>
+                <Icon size={19} color={colors[tint]} />
               </View>
               <View style={styles.masteryCopy}>
                 <Text style={styles.masteryName}>{name}</Text>
                 <Text style={[styles.masteryDelta, { color: colors.success }]}>{delta}</Text>
               </View>
-              <MasteryRing percent={percent} color={tint} size={46} />
+              <MasteryRing percent={percent} color={colors[tint]} size={46} />
             </Pressable>
           ))}
         </View>
@@ -130,9 +133,9 @@ export default function ProgressScreen({ navigation }: RootScreenProps<'Progress
         <SectionHeading title="Recent milestones" />
         <View style={styles.milestoneRow}>
           {MILESTONES.map(({ title, subtitle, bg, Icon, tint }) => (
-            <View key={title} style={[styles.milestoneCard, { backgroundColor: bg }]}>
+            <View key={title} style={[styles.milestoneCard, { backgroundColor: colors[bg] }]}>
               <View style={styles.milestoneIcon}>
-                <Icon size={24} color={tint} />
+                <Icon size={24} color={colors[tint]} />
               </View>
               <Text style={styles.milestoneTitle}>{title}</Text>
               <Text style={styles.milestoneSubtitle}>{subtitle}</Text>
@@ -146,7 +149,7 @@ export default function ProgressScreen({ navigation }: RootScreenProps<'Progress
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = () => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.canvas },
   content: { paddingHorizontal: 18, gap: 13 },
 

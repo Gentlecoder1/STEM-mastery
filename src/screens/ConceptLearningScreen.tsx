@@ -10,29 +10,33 @@ import {
   ClockIcon,
 } from '../components/icons';
 import { colors, fonts, shadow } from '../theme';
+import type { ColorToken } from '../theme';
 import { CONTENT_LABELS, getConceptContent, getConcept } from '../data/learning';
 import type { ContentType, LearningContent } from '../data/learning';
 import type { RootScreenProps } from '../navigation/types';
+import { useThemedStyles, useTheme } from '../themeContext';
 
-const TYPE_TINT: Record<ContentType, string> = {
-  DEFINITION: colors.blue,
-  EXPLANATION: colors.primary,
-  FORMULA: colors.ink,
-  WORKED_EXAMPLE: colors.teal,
-  MEDIA: colors.violet,
-  QUESTION: colors.primary,
+const TYPE_TINT: Record<ContentType, ColorToken> = {
+  DEFINITION: 'blue',
+  EXPLANATION: 'primary',
+  FORMULA: 'ink',
+  WORKED_EXAMPLE: 'teal',
+  MEDIA: 'violet',
+  QUESTION: 'primary',
 };
 
-const TYPE_BADGE: Record<ContentType, string> = {
-  DEFINITION: colors.blueSoft,
-  EXPLANATION: colors.primarySoft,
-  FORMULA: colors.canvas,
-  WORKED_EXAMPLE: colors.greenSoft,
-  MEDIA: colors.violetSoft,
-  QUESTION: colors.primarySoft,
+const TYPE_BADGE: Record<ContentType, ColorToken> = {
+  DEFINITION: 'blueSoft',
+  EXPLANATION: 'primarySoft',
+  FORMULA: 'canvas',
+  WORKED_EXAMPLE: 'greenSoft',
+  MEDIA: 'violetSoft',
+  QUESTION: 'primarySoft',
 };
 
 function MediaBlock({ item }: { item: LearningContent }) {
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={styles.mediaFrame}>
       <View style={styles.mediaPlaceholder}>
@@ -48,6 +52,8 @@ function MediaBlock({ item }: { item: LearningContent }) {
 }
 
 function FormulaBlock({ text }: { text: string }) {
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={styles.formula}>
       <Text style={styles.formulaText}>{text}</Text>
@@ -56,12 +62,15 @@ function FormulaBlock({ text }: { text: string }) {
 }
 
 function ContentCard({ item }: { item: LearningContent }) {
-  const tint = TYPE_TINT[item.contentType];
+  const styles = useThemedStyles(createStyles);
+  const tint = colors[TYPE_TINT[item.contentType]];
 
   return (
     <View style={styles.card}>
       <View style={styles.cardHead}>
-        <View style={[styles.badge, { backgroundColor: TYPE_BADGE[item.contentType] }]}>
+        <View
+          style={[styles.badge, { backgroundColor: colors[TYPE_BADGE[item.contentType]] }]}
+        >
           <Text style={[styles.badgeText, { color: tint }]}>
             {CONTENT_LABELS[item.contentType].toUpperCase()}
           </Text>
@@ -100,6 +109,8 @@ export default function ConceptLearningScreen({
   route,
 }: RootScreenProps<'ConceptLearning'>) {
   const insets = useSafeAreaInsets();
+  const styles = useThemedStyles(createStyles);
+  const { statusBarStyle } = useTheme();
   const { conceptId } = route.params;
 
   const items = useMemo(() => getConceptContent(conceptId), [conceptId]);
@@ -129,7 +140,7 @@ export default function ConceptLearningScreen({
 
   return (
     <View style={styles.root}>
-      <StatusBar style="dark" />
+      <StatusBar style={statusBarStyle} />
       <View style={[styles.header, { paddingTop: insets.top + 4 }]}>
         <Pressable
           style={styles.closeButton}
@@ -190,7 +201,7 @@ export default function ConceptLearningScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = () => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.canvas },
   missing: { alignItems: 'center', justifyContent: 'center' },
   missingText: { fontFamily: fonts.medium, fontSize: 14, color: colors.slate },
@@ -249,7 +260,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: '#EDEFF2',
+    backgroundColor: colors.border,
     alignItems: 'center',
   },
   formulaText: { fontFamily: fonts.semibold, fontSize: 17, lineHeight: 24, color: colors.ink },

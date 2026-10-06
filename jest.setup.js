@@ -4,6 +4,10 @@ jest.mock('expo-font', () => ({
   useFonts: jest.fn(() => [true, null]),
 }));
 
+jest.mock('@react-native-async-storage/async-storage', () =>
+  require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
+);
+
 jest.mock('expo-status-bar', () => {
   const { View } = require('react-native');
   return { StatusBar: () => null, __esModule: true, default: () => null };

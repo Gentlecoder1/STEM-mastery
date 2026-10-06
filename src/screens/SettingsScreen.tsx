@@ -11,13 +11,15 @@ import {
   DownloadIcon,
   HelpCircleIcon,
   LanguagesIcon,
+  MoonIcon,
   ShieldCheckIcon,
   SlidersIcon,
   TargetIcon,
   TypeIcon,
   VolumeIcon,
 } from '../components/glyphs';
-import { colors, fonts } from '../theme';
+import { colors, fonts, type ColorToken } from '../theme';
+import { useTheme, useThemedStyles } from '../themeContext';
 import { navigateToTab } from '../navigation/tabs';
 import type { RootScreenProps } from '../navigation/types';
 
@@ -26,19 +28,19 @@ type Row = {
   title: string;
   subtitle: string;
   Icon: (props: { size?: number; color?: string; strokeWidth?: number }) => React.JSX.Element;
-  tint: string;
-  soft: string;
+  tint: ColorToken;
+  soft: ColorToken;
   trailing: 'change' | 'toggle' | 'chevron';
   toggleKey?: 'reminders' | 'adaptive' | 'readAloud' | 'wifi';
 };
 
 const SOFT = {
-  orange: 'rgba(255,159,28,0.09)',
-  blue: 'rgba(41,121,255,0.09)',
-  violet: 'rgba(154,84,232,0.09)',
-  teal: 'rgba(15,175,154,0.09)',
-  success: 'rgba(33,163,101,0.09)',
-} as const;
+  orange: 'orangeSoft' as ColorToken,
+  blue: 'blueSoft' as ColorToken,
+  violet: 'violetSoft' as ColorToken,
+  teal: 'greenSoft' as ColorToken,
+  success: 'greenSoft' as ColorToken,
+};
 
 const GROUPS: { label: string; rows: Row[] }[] = [
   {
@@ -49,7 +51,7 @@ const GROUPS: { label: string; rows: Row[] }[] = [
         title: 'Daily goal',
         subtitle: '20 minutes',
         Icon: TargetIcon,
-        tint: colors.orange,
+        tint: 'orange',
         soft: SOFT.orange,
         trailing: 'change',
       },
@@ -58,7 +60,7 @@ const GROUPS: { label: string; rows: Row[] }[] = [
         title: 'Study reminders',
         subtitle: 'Weekdays at 6:00 PM',
         Icon: BellIcon,
-        tint: colors.blue,
+        tint: 'blue',
         soft: SOFT.blue,
         trailing: 'toggle',
         toggleKey: 'reminders',
@@ -68,7 +70,7 @@ const GROUPS: { label: string; rows: Row[] }[] = [
         title: 'Adaptive difficulty',
         subtitle: 'Adjust questions as I improve',
         Icon: SlidersIcon,
-        tint: colors.violet,
+        tint: 'violet',
         soft: SOFT.violet,
         trailing: 'toggle',
         toggleKey: 'adaptive',
@@ -83,7 +85,7 @@ const GROUPS: { label: string; rows: Row[] }[] = [
         title: 'Text size',
         subtitle: 'Standard',
         Icon: TypeIcon,
-        tint: colors.teal,
+        tint: 'teal',
         soft: SOFT.teal,
         trailing: 'chevron',
       },
@@ -92,7 +94,7 @@ const GROUPS: { label: string; rows: Row[] }[] = [
         title: 'Read lessons aloud',
         subtitle: 'Audio support for lesson text',
         Icon: VolumeIcon,
-        tint: colors.success,
+        tint: 'success',
         soft: SOFT.success,
         trailing: 'toggle',
         toggleKey: 'readAloud',
@@ -102,7 +104,7 @@ const GROUPS: { label: string; rows: Row[] }[] = [
         title: 'Download on Wi-Fi',
         subtitle: 'Save lessons for offline use',
         Icon: DownloadIcon,
-        tint: colors.blue,
+        tint: 'blue',
         soft: SOFT.blue,
         trailing: 'toggle',
         toggleKey: 'wifi',
@@ -112,7 +114,7 @@ const GROUPS: { label: string; rows: Row[] }[] = [
         title: 'Language',
         subtitle: 'English',
         Icon: LanguagesIcon,
-        tint: colors.violet,
+        tint: 'violet',
         soft: SOFT.violet,
         trailing: 'chevron',
       },
@@ -126,7 +128,7 @@ const GROUPS: { label: string; rows: Row[] }[] = [
         title: 'Privacy and learning data',
         subtitle: 'What we store and how it is used',
         Icon: ShieldCheckIcon,
-        tint: colors.success,
+        tint: 'success',
         soft: SOFT.success,
         trailing: 'chevron',
       },
@@ -135,7 +137,7 @@ const GROUPS: { label: string; rows: Row[] }[] = [
         title: 'Help and feedback',
         subtitle: 'Contact support or share ideas',
         Icon: HelpCircleIcon,
-        tint: colors.orange,
+        tint: 'orange',
         soft: SOFT.orange,
         trailing: 'chevron',
       },
@@ -145,6 +147,8 @@ const GROUPS: { label: string; rows: Row[] }[] = [
 
 export default function SettingsScreen({ navigation }: RootScreenProps<'Settings'>) {
   const insets = useSafeAreaInsets();
+  const { statusBarStyle, isDark, setMode } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [toggles, setToggles] = useState({
     reminders: true,
     adaptive: true,
@@ -157,7 +161,7 @@ export default function SettingsScreen({ navigation }: RootScreenProps<'Settings
 
   return (
     <View style={styles.root}>
-      <StatusBar style="dark" />
+      <StatusBar style={statusBarStyle} />
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
@@ -181,6 +185,28 @@ export default function SettingsScreen({ navigation }: RootScreenProps<'Settings
           <View style={styles.headerSpacer} />
         </View>
 
+        <View style={styles.group}>
+          <Text style={styles.groupLabel}>APPEARANCE</Text>
+          <View style={styles.groupList}>
+            <View style={styles.row}>
+              <View style={[styles.rowIcon, { backgroundColor: colors.primarySoft }]}>
+                <MoonIcon size={19} color={colors.primary} />
+              </View>
+              <View style={styles.rowCopy}>
+                <Text style={styles.rowTitle}>Dark mode</Text>
+                <Text style={styles.rowSubtitle}>
+                  {isDark ? 'On — easy on your eyes' : 'Off — light theme'}
+                </Text>
+              </View>
+              <Toggle
+                value={isDark}
+                onValueChange={(value) => setMode(value ? 'dark' : 'light')}
+                label="Dark mode"
+              />
+            </View>
+          </View>
+        </View>
+
         {GROUPS.map(({ label, rows }) => (
           <View key={label} style={styles.group}>
             <Text style={styles.groupLabel}>{label}</Text>
@@ -192,8 +218,8 @@ export default function SettingsScreen({ navigation }: RootScreenProps<'Settings
                   accessibilityRole={toggleKey ? 'switch' : 'button'}
                   accessibilityState={toggleKey ? { checked: toggles[toggleKey] } : undefined}
                 >
-                  <View style={[styles.rowIcon, { backgroundColor: soft }]}>
-                    <Icon size={19} color={tint} />
+                  <View style={[styles.rowIcon, { backgroundColor: colors[soft] }]}>
+                    <Icon size={19} color={colors[tint]} />
                   </View>
                   <View style={styles.rowCopy}>
                     <Text style={styles.rowTitle}>{title}</Text>
@@ -220,7 +246,7 @@ export default function SettingsScreen({ navigation }: RootScreenProps<'Settings
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = () => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.canvas },
   content: { paddingHorizontal: 18, gap: 14 },
 
