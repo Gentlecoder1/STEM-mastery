@@ -12,6 +12,13 @@ import PracticeQuestionScreen from '../src/screens/PracticeQuestionScreen';
 import PracticeFeedbackScreen from '../src/screens/PracticeFeedbackScreen';
 import PracticeRecommendationScreen from '../src/screens/PracticeRecommendationScreen';
 import PracticeLessonScreen from '../src/screens/PracticeLessonScreen';
+import PracticeQuizResultScreen from '../src/screens/PracticeQuizResultScreen';
+import ProgressScreen from '../src/screens/ProgressScreen';
+import ConceptProgressScreen from '../src/screens/ConceptProgressScreen';
+import ChallengeScreen from '../src/screens/ChallengeScreen';
+import SearchScreen from '../src/screens/SearchScreen';
+import ProfileScreen from '../src/screens/ProfileScreen';
+import SettingsScreen from '../src/screens/SettingsScreen';
 import SplashScreen from '../src/screens/SplashScreen';
 import SignUpScreen from '../src/screens/SignUpScreen';
 import LoginScreen from '../src/screens/LoginScreen';
@@ -81,6 +88,14 @@ const CASES = [
   }),
   screenCase('PracticeRecommendation', PracticeRecommendationScreen),
   screenCase('PracticeLesson', PracticeLessonScreen),
+  screenCase('PracticeQuizResult', PracticeQuizResultScreen),
+  screenCase('PracticeQuizResult', PracticeQuizResultScreen, { correct: 7, xp: 90 }),
+  screenCase('Progress', ProgressScreen),
+  screenCase('ConceptProgress', ConceptProgressScreen),
+  screenCase('Challenge', ChallengeScreen),
+  screenCase('Search', SearchScreen),
+  screenCase('Profile', ProfileScreen),
+  screenCase('Settings', SettingsScreen),
 ];
 
 function renderAndCollect(element: React.JSX.Element): string[] {

@@ -18,6 +18,13 @@ export type RootStackParamList = {
   PracticeFeedback: { index: number; selected?: string; writtenText?: string };
   PracticeRecommendation: undefined;
   PracticeLesson: undefined;
+  PracticeQuizResult: { correct?: number; xp?: number } | undefined;
+  Progress: undefined;
+  ConceptProgress: undefined;
+  Challenge: undefined;
+  Search: undefined;
+  Profile: undefined;
+  Settings: undefined;
 };
 
 export type RootScreenProps<T extends keyof RootStackParamList> = NativeStackScreenProps<

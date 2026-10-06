@@ -38,7 +38,7 @@ export default function PracticeFeedbackScreen({
 
   const next = () => {
     if (finished) {
-      navigation.navigate('PracticeRecommendation');
+      navigation.navigate('PracticeQuizResult');
     } else {
       navigation.navigate('PracticeQuestion', { index: index + 1 });
     }

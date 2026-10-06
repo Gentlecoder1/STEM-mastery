@@ -15,6 +15,7 @@ import { colors, fonts, shadow } from '../theme';
 import type { SubjectId } from '../theme';
 import type { RootScreenProps } from '../navigation/types';
 import type { IconProps } from '../components/icons';
+import { navigateToTab } from '../navigation/tabs';
 
 type IconComponent = (props: IconProps) => React.JSX.Element;
 
@@ -139,7 +140,12 @@ export default function SubjectsScreen({ navigation }: RootScreenProps<'Subjects
             <Text style={styles.headerTitle}>Subjects</Text>
             <Text style={styles.headerSubtitle}>SS1 • Your learning library</Text>
           </View>
-          <Pressable style={styles.headerAction} accessibilityRole="button" accessibilityLabel="Search subjects">
+          <Pressable
+            style={styles.headerAction}
+            onPress={() => navigation.navigate('Search')}
+            accessibilityRole="button"
+            accessibilityLabel="Search subjects"
+          >
             <SearchIcon size={20} color={colors.primary} />
           </Pressable>
         </View>
@@ -166,7 +172,11 @@ export default function SubjectsScreen({ navigation }: RootScreenProps<'Subjects
             />
           ))}
 
-          <View style={styles.challenge}>
+          <Pressable
+            style={styles.challenge}
+            onPress={() => navigation.navigate('Challenge')}
+            accessibilityRole="button"
+          >
             <CalendarIcon size={24} color="#FF9F1C" />
             <View style={styles.challengeCopy}>
               <Text style={styles.challengeTitle}>Friday STEM challenge</Text>
@@ -175,11 +185,11 @@ export default function SubjectsScreen({ navigation }: RootScreenProps<'Subjects
             <View style={styles.challengePill}>
               <Text style={styles.challengeLabel}>1 LEFT</Text>
             </View>
-          </View>
+          </Pressable>
         </ScrollView>
       </View>
 
-      <BottomNav active="Subjects" onSelect={(k) => { if (k === 'Home') navigation.navigate('Home'); else if (k === 'Practice') navigation.navigate('Practice'); }} />
+      <BottomNav active="Subjects" onSelect={navigateToTab(navigation, 'Subjects')} />
     </View>
   );
 }

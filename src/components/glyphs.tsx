@@ -1,4 +1,4 @@
-import Svg, { Circle, Line, Path, Polygon, type SvgProps } from 'react-native-svg';
+import Svg, { Circle, Line, Path, Polygon, Rect, type SvgProps } from 'react-native-svg';
 import { colors } from '../theme';
 
 export type GlyphProps = {
@@ -446,6 +446,177 @@ export function InfoIcon({ size = 20, color = colors.ink, strokeWidth = 1.4, sty
       <Circle cx="10" cy="10" r="8.25" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
       <Path d="M10 13.875V9.375" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
       <Circle cx="10" cy="6.375" r="0.625" fill={color} />
+    </Svg>
+  );
+}
+
+export function ShareIcon({ size = 20, color = colors.ink, strokeWidth = 1.5, style }: GlyphProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Circle cx="18" cy="5" r="3" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+      <Circle cx="6" cy="12" r="3" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+      <Circle cx="18" cy="19" r="3" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M8.59 13.51L15.42 17.49M15.41 6.51L8.59 10.49" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+export function RotateCcwIcon({ size = 19, color = colors.ink, strokeWidth = 1.5, style }: GlyphProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M3 3v5h5" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+export function SlidersIcon({ size = 20, color = colors.ink, strokeWidth = 1.5, style }: GlyphProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path d="M21 4h-7M10 4H3M21 12h-9M8 12H3M21 20h-5M12 20H3" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M14 2v4M8 10v4M16 18v4" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+export function BrainIcon({ size = 19, color = colors.ink, strokeWidth = 1.5, style }: GlyphProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path
+        d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+export function ChartSplineIcon({ size = 19, color = colors.ink, strokeWidth = 1.5, style }: GlyphProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path d="M3 3v16a2 2 0 0 0 2 2h16" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M7 16c2.5-5 5.5-7 8-5s4.5 1 6-3" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+export function ArrowUpIcon({ size = 17, color = colors.ink, strokeWidth = 1.5, style }: GlyphProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path d="m5 12 7-7 7 7" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M12 19V5" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+export function VideoIcon({ size = 19, color = colors.ink, strokeWidth = 1.5, style }: GlyphProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M22 8l-6 4 6 4V8Z" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+      <Rect x="2" y="6" width="14" height="12" rx="2" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+export function SettingsIcon({ size = 20, color = colors.ink, strokeWidth = 1.5, style }: GlyphProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path
+        d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Circle cx="12" cy="12" r="3" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+export function GraduationCapIcon({ size = 19, color = colors.ink, strokeWidth = 1.5, style }: GlyphProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M22 10v6" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+export function DownloadIcon({ size = 19, color = colors.ink, strokeWidth = 1.5, style }: GlyphProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="m7 10 5 5 5-5" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M12 15V3" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+export function BellIcon({ size = 19, color = colors.ink, strokeWidth = 1.5, style }: GlyphProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+export function TypeIcon({ size = 19, color = colors.ink, strokeWidth = 1.5, style }: GlyphProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path d="M4 7V4h16v3" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M9 20h6M12 4v16" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+export function VolumeIcon({ size = 19, color = colors.ink, strokeWidth = 1.5, style }: GlyphProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path d="M11 5 6 9H2v6h4l5 4V5Z" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M15.54 8.46a5 5 0 0 1 0 7.07" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M19.07 4.93a10 10 0 0 1 0 14.14" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+export function LanguagesIcon({ size = 19, color = colors.ink, strokeWidth = 1.5, style }: GlyphProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path d="m5 8 6 6" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="m4 14 6-6 2-3" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M2 5h12M7 2h1" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="m22 22-5-10-5 10M14 18h6" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+export function ShieldCheckIcon({ size = 19, color = colors.ink, strokeWidth = 1.5, style }: GlyphProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="m9 12 2 2 4-4" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+export function HelpCircleIcon({ size = 19, color = colors.ink, strokeWidth = 1.5, style }: GlyphProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Circle cx="12" cy="12" r="10" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M12 17h.01" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
     </Svg>
   );
 }

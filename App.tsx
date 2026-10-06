@@ -28,6 +28,13 @@ import PracticeQuestionScreen from './src/screens/PracticeQuestionScreen';
 import PracticeFeedbackScreen from './src/screens/PracticeFeedbackScreen';
 import PracticeRecommendationScreen from './src/screens/PracticeRecommendationScreen';
 import PracticeLessonScreen from './src/screens/PracticeLessonScreen';
+import PracticeQuizResultScreen from './src/screens/PracticeQuizResultScreen';
+import ProgressScreen from './src/screens/ProgressScreen';
+import ConceptProgressScreen from './src/screens/ConceptProgressScreen';
+import ChallengeScreen from './src/screens/ChallengeScreen';
+import SearchScreen from './src/screens/SearchScreen';
+import ProfileScreen from './src/screens/ProfileScreen';
+import SettingsScreen from './src/screens/SettingsScreen';
 import type { RootStackParamList } from './src/navigation/types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -89,6 +96,13 @@ export default function App() {
           <Stack.Screen name="PracticeFeedback" component={PracticeFeedbackScreen} options={{ animation: 'slide_from_bottom' }} />
           <Stack.Screen name="PracticeRecommendation" component={PracticeRecommendationScreen} options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="PracticeLesson" component={PracticeLessonScreen} options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="PracticeQuizResult" component={PracticeQuizResultScreen} options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="Progress" component={ProgressScreen} options={{ animation: 'fade' }} />
+          <Stack.Screen name="ConceptProgress" component={ConceptProgressScreen} options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="Challenge" component={ChallengeScreen} options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="Search" component={SearchScreen} options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="Profile" component={ProfileScreen} options={{ animation: 'fade' }} />
+          <Stack.Screen name="Settings" component={SettingsScreen} options={{ animation: 'slide_from_right' }} />
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>

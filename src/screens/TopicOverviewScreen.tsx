@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import BottomNav from '../components/BottomNav';
+import { navigateToTab } from '../navigation/tabs';
 import { GaugeIcon } from '../components/glyphs';
 import { ArrowLeftIcon, BookmarkIcon, CheckCircleIcon, ChevronRightIcon, LockIcon, SparklesIcon } from '../components/icons';
 import { colors, fonts, shadow } from '../theme';
@@ -59,7 +60,7 @@ export default function TopicOverviewScreen({ navigation }: RootScreenProps<'Top
         <View style={styles.conceptList}>{concepts.map((concept) => <ConceptRow key={concept.title} concept={concept} onPress={concept.state === 'locked' ? undefined : () => navigation.navigate('ConceptDetails', { conceptId: concept.id })} />)}</View>
         <Pressable style={styles.primaryButton} onPress={() => undefined}><Text style={styles.primaryArrow}>→</Text><Text style={styles.primaryText}>Continue topic</Text></Pressable>
       </ScrollView>
-      <BottomNav active="Subjects" onSelect={(key) => key === 'Home' ? navigation.navigate('Home') : key === 'Subjects' ? navigation.goBack() : key === 'Practice' ? navigation.navigate('Practice') : undefined} />
+      <BottomNav active="Subjects" onSelect={navigateToTab(navigation, 'Subjects')} />
     </View>
   );
 }

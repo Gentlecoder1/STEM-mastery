@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import BottomNav from '../components/BottomNav';
+import { navigateToTab } from '../navigation/tabs';
 import {
   CalendarIcon,
   DivideIcon,
@@ -170,14 +171,7 @@ export default function PracticeHomeScreen({ navigation }: RootScreenProps<'Prac
         </View>
       </ScrollView>
 
-      <BottomNav
-        active="Practice"
-        onSelect={(key) => {
-          if (key === 'Home') navigation.navigate('Home');
-          else if (key === 'Subjects') navigation.navigate('Subjects');
-          else if (key === 'Practice') navigation.navigate('Practice');
-        }}
-      />
+      <BottomNav active="Practice" onSelect={navigateToTab(navigation, 'Practice')} />
     </View>
   );
 }

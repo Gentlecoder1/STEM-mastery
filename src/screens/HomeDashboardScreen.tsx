@@ -3,6 +3,7 @@ import { StatusBar } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import BottomNav from '../components/BottomNav';
+import { navigateToTab } from '../navigation/tabs';
 import MasteryRing from '../components/MasteryRing';
 import {
   FlameIcon,
@@ -201,7 +202,7 @@ export default function HomeDashboardScreen({ navigation }: RootScreenProps<'Hom
         </ScrollView>
       </View>
 
-      <BottomNav active="Home" onSelect={(k) => { if (k === 'Subjects') openSubjects(); else if (k === 'Practice') navigation.navigate('Practice'); }} />
+      <BottomNav active="Home" onSelect={navigateToTab(navigation, 'Home')} />
     </View>
   );
 }

@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import BottomNav from '../components/BottomNav';
+import { navigateToTab } from '../navigation/tabs';
 import MasteryRing from '../components/MasteryRing';
 import { GaugeIcon, ChartIcon, BookOpenIcon } from '../components/glyphs';
 import { CheckCircleIcon, ChevronRightIcon, LockIcon, MoreIcon, ArrowLeftIcon, ClockIcon, SparklesIcon } from '../components/icons';
@@ -98,7 +99,7 @@ export default function SubjectDashboardScreen({ navigation, route }: RootScreen
           <View style={[styles.stat, { backgroundColor: colors.primarySoft }]}><ClockIcon size={21} color={colors.primary} /><Text style={styles.statValue}>4h 20m</Text><Text style={styles.statLabel}>Learned</Text></View>
         </View>
       </ScrollView>
-      <BottomNav active="Subjects" onSelect={(key) => { if (key === 'Home') navigation.navigate('Home'); else if (key === 'Practice') navigation.navigate('Practice'); }} />
+      <BottomNav active="Subjects" onSelect={navigateToTab(navigation, 'Subjects')} />
     </View>
   );
 }
