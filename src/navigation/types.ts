@@ -13,6 +13,11 @@ export type RootStackParamList = {
   TopicOverview: undefined;
   ConceptDetails: { conceptId: string };
   ConceptLearning: { conceptId: string; startAt?: number };
+  Practice: undefined;
+  PracticeQuestion: { index: number };
+  PracticeFeedback: { index: number; selected?: string; writtenText?: string };
+  PracticeRecommendation: undefined;
+  PracticeLesson: undefined;
 };
 
 export type RootScreenProps<T extends keyof RootStackParamList> = NativeStackScreenProps<

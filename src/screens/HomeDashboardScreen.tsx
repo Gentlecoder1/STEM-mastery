@@ -201,7 +201,7 @@ export default function HomeDashboardScreen({ navigation }: RootScreenProps<'Hom
         </ScrollView>
       </View>
 
-      <BottomNav active="Home" onSelect={(k) => k === 'Subjects' && openSubjects()} />
+      <BottomNav active="Home" onSelect={(k) => { if (k === 'Subjects') openSubjects(); else if (k === 'Practice') navigation.navigate('Practice'); }} />
     </View>
   );
 }

@@ -179,7 +179,7 @@ export default function SubjectsScreen({ navigation }: RootScreenProps<'Subjects
         </ScrollView>
       </View>
 
-      <BottomNav active="Subjects" onSelect={(k) => k === 'Home' && navigation.navigate('Home')} />
+      <BottomNav active="Subjects" onSelect={(k) => { if (k === 'Home') navigation.navigate('Home'); else if (k === 'Practice') navigation.navigate('Practice'); }} />
     </View>
   );
 }

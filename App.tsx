@@ -23,6 +23,11 @@ import SubjectDashboardScreen from './src/screens/SubjectDashboardScreen';
 import TopicOverviewScreen from './src/screens/TopicOverviewScreen';
 import ConceptDetailsScreen from './src/screens/ConceptDetailsScreen';
 import ConceptLearningScreen from './src/screens/ConceptLearningScreen';
+import PracticeHomeScreen from './src/screens/PracticeHomeScreen';
+import PracticeQuestionScreen from './src/screens/PracticeQuestionScreen';
+import PracticeFeedbackScreen from './src/screens/PracticeFeedbackScreen';
+import PracticeRecommendationScreen from './src/screens/PracticeRecommendationScreen';
+import PracticeLessonScreen from './src/screens/PracticeLessonScreen';
 import type { RootStackParamList } from './src/navigation/types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -79,6 +84,11 @@ export default function App() {
           <Stack.Screen name="TopicOverview" component={TopicOverviewScreen} options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="ConceptDetails" component={ConceptDetailsScreen} options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="ConceptLearning" component={ConceptLearningScreen} options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="Practice" component={PracticeHomeScreen} options={{ animation: 'fade' }} />
+          <Stack.Screen name="PracticeQuestion" component={PracticeQuestionScreen} options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="PracticeFeedback" component={PracticeFeedbackScreen} options={{ animation: 'slide_from_bottom' }} />
+          <Stack.Screen name="PracticeRecommendation" component={PracticeRecommendationScreen} options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="PracticeLesson" component={PracticeLessonScreen} options={{ animation: 'slide_from_right' }} />
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>

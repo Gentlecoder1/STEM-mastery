@@ -33,6 +33,9 @@ yarn-error.*
 # local env files
 .env*.local
 
+# opencode config (contains Figma API token)
+opencode.json
+
 # typescript
 *.tsbuildinfo
 

@@ -7,6 +7,11 @@ import SubjectDashboardScreen from '../src/screens/SubjectDashboardScreen';
 import TopicOverviewScreen from '../src/screens/TopicOverviewScreen';
 import ConceptDetailsScreen from '../src/screens/ConceptDetailsScreen';
 import ConceptLearningScreen from '../src/screens/ConceptLearningScreen';
+import PracticeHomeScreen from '../src/screens/PracticeHomeScreen';
+import PracticeQuestionScreen from '../src/screens/PracticeQuestionScreen';
+import PracticeFeedbackScreen from '../src/screens/PracticeFeedbackScreen';
+import PracticeRecommendationScreen from '../src/screens/PracticeRecommendationScreen';
+import PracticeLessonScreen from '../src/screens/PracticeLessonScreen';
 import SplashScreen from '../src/screens/SplashScreen';
 import SignUpScreen from '../src/screens/SignUpScreen';
 import LoginScreen from '../src/screens/LoginScreen';
@@ -65,6 +70,17 @@ const CASES = [
   screenCase('Login', LoginScreen),
   screenCase('OTPScreen', OTPScreen, { email: 'a@b.com' }),
   screenCase('Onboarding', OnboardingFlow),
+  screenCase('Practice', PracticeHomeScreen),
+  screenCase('PracticeQuestion', PracticeQuestionScreen, { index: 3 }),
+  screenCase('PracticeQuestion', PracticeQuestionScreen, { index: 0 }),
+  screenCase('PracticeQuestion', PracticeQuestionScreen, { index: 5 }),
+  screenCase('PracticeFeedback', PracticeFeedbackScreen, { index: 3, selected: 'b' }),
+  screenCase('PracticeFeedback', PracticeFeedbackScreen, {
+    index: 5,
+    writtenText: 'The line gets steeper, so velocity increases.',
+  }),
+  screenCase('PracticeRecommendation', PracticeRecommendationScreen),
+  screenCase('PracticeLesson', PracticeLessonScreen),
 ];
 
 function renderAndCollect(element: React.JSX.Element): string[] {

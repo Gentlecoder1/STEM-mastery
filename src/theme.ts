@@ -21,6 +21,17 @@ export const colors = {
   violet: '#9A54E8',
   violetSoft: '#F2E9FC',
 
+  orange: '#FF9F1C',
+  orangeSoft: '#FFF0D8',
+  success: '#21A365',
+  danger: '#EF5B5B',
+  pinkSoft: '#FFE9E9',
+  pinkBorder: '#FFCACA',
+  yellowSoft: '#FFF8D6',
+  lavender: '#DDD9FF',
+  blueBorder: '#C8DDFF',
+  orangeBorder: '#FFD49A',
+
   scrim: 'rgba(32, 41, 74, 0.08)',
 } as const;
 
