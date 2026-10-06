@@ -59,7 +59,7 @@ export default function SignUpScreen({ navigation }: RootScreenProps<'SignUp'>) 
         <View style={styles.actions}>
           <PrimaryButton
             title="Create account"
-            onPress={() => navigation.navigate('Home')}
+            onPress={() => navigation.navigate('OTPScreen', { email })}
             disabled={!fullName || !email}
           />
           <View style={styles.linkWrap}>

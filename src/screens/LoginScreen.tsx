@@ -16,7 +16,7 @@ export default function LoginScreen({ navigation }: RootScreenProps<'Login'>) {
       <View style={[styles.content, { paddingTop: insets.top + 42, paddingBottom: Math.max(insets.bottom, 24) }]}>
         <View style={styles.top}>
           <Text style={styles.title}>Log in</Text>
-          <Text style={styles.subtitle}>Enter your email to receive a verification code and log in.</Text>
+          <Text style={styles.subtitle}>Enter your email and password to log in.</Text>
         </View>
 
         <View style={styles.middle}>
@@ -44,8 +44,8 @@ export default function LoginScreen({ navigation }: RootScreenProps<'Login'>) {
 
         <View style={styles.actions}>
           <PrimaryButton
-            title="Send verification code"
-            onPress={() => navigation.navigate('OTPScreen', { email })}
+            title="Log in"
+            onPress={() => navigation.navigate('Home')}
             disabled={!email}
           />
           <View style={styles.linkWrap}>
