@@ -6,14 +6,36 @@ import BottomNav from '../components/BottomNav';
 import { GaugeIcon } from '../components/glyphs';
 import { ArrowLeftIcon, BookmarkIcon, CheckCircleIcon, ChevronRightIcon, LockIcon, SparklesIcon } from '../components/icons';
 import { colors, fonts, shadow } from '../theme';
+import { CONCEPTS } from '../data/learning';
+import type { Concept } from '../data/learning';
 import type { RootScreenProps } from '../navigation/types';
 
-const concepts = [
-  { title: 'Distance and displacement', subtitle: 'Mastered • prerequisite', tint: colors.green, soft: colors.greenSoft, trailing: '92%', state: 'done' },
-  { title: 'Speed vs velocity', subtitle: 'Current concept • 68%', tint: colors.blue, soft: '#DDE7FF', trailing: 'CONTINUE', state: 'current' },
-  { title: 'Displacement-time graphs', subtitle: 'Recommended next • 43%', tint: '#FF9F1C', soft: '#FFF4E5', trailing: '✧', state: 'next' },
-  { title: 'Acceleration', subtitle: 'Unlock after graphs', tint: colors.slate, soft: '#F0F2F4', trailing: '', state: 'locked' },
-] as const;
+const SUBTITLES: Record<Concept['state'], string> = {
+  done: 'Mastered • prerequisite',
+  current: 'Current concept',
+  next: 'Recommended next',
+  locked: 'Unlock after graphs',
+};
+
+const TRAILING: Record<Concept['state'], string> = {
+  done: '92%',
+  current: 'CONTINUE',
+  next: '✧',
+  locked: '',
+};
+
+const concepts = CONCEPTS.map((concept) => ({
+  id: concept.id,
+  title: concept.title,
+  subtitle:
+    concept.state === 'current'
+      ? `${SUBTITLES[concept.state]} • ${concept.mastery}%`
+      : SUBTITLES[concept.state],
+  tint: concept.tint,
+  soft: concept.soft,
+  trailing: concept.state === 'done' ? `${concept.mastery}%` : TRAILING[concept.state],
+  state: concept.state,
+}));
 
 export default function TopicOverviewScreen({ navigation }: RootScreenProps<'TopicOverview'>) {
   const insets = useSafeAreaInsets();
@@ -34,7 +56,7 @@ export default function TopicOverviewScreen({ navigation }: RootScreenProps<'Top
         <Text style={styles.sectionTitle}>What you’ll master</Text>
         <View style={styles.masterCard}>{['Distinguish speed from velocity', 'Read displacement-time graphs', 'Calculate acceleration from motion data'].map((item) => <View key={item} style={styles.masterRow}><View style={styles.check}><CheckCircleIcon size={18} color={colors.green} /></View><Text style={styles.masterText}>{item}</Text></View>)}</View>
         <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Your concept path</Text><Text style={styles.link}>Open map</Text></View>
-        <View style={styles.conceptList}>{concepts.map((concept) => <ConceptRow key={concept.title} concept={concept} onPress={concept.state === 'current' ? () => undefined : undefined} />)}</View>
+        <View style={styles.conceptList}>{concepts.map((concept) => <ConceptRow key={concept.title} concept={concept} onPress={concept.state === 'locked' ? undefined : () => navigation.navigate('ConceptDetails', { conceptId: concept.id })} />)}</View>
         <Pressable style={styles.primaryButton} onPress={() => undefined}><Text style={styles.primaryArrow}>→</Text><Text style={styles.primaryText}>Continue topic</Text></Pressable>
       </ScrollView>
       <BottomNav active="Subjects" onSelect={(key) => key === 'Home' ? navigation.navigate('Home') : key === 'Subjects' ? navigation.goBack() : undefined} />

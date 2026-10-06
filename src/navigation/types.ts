@@ -11,6 +11,8 @@ export type RootStackParamList = {
   Subjects: undefined;
   SubjectDashboard: { subjectId: SubjectId };
   TopicOverview: undefined;
+  ConceptDetails: { conceptId: string };
+  ConceptLearning: { conceptId: string; startAt?: number };
 };
 
 export type RootScreenProps<T extends keyof RootStackParamList> = NativeStackScreenProps<

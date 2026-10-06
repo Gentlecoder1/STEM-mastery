@@ -5,6 +5,8 @@ import HomeDashboardScreen from '../src/screens/HomeDashboardScreen';
 import SubjectsScreen from '../src/screens/SubjectsScreen';
 import SubjectDashboardScreen from '../src/screens/SubjectDashboardScreen';
 import TopicOverviewScreen from '../src/screens/TopicOverviewScreen';
+import ConceptDetailsScreen from '../src/screens/ConceptDetailsScreen';
+import ConceptLearningScreen from '../src/screens/ConceptLearningScreen';
 import SplashScreen from '../src/screens/SplashScreen';
 import SignUpScreen from '../src/screens/SignUpScreen';
 import LoginScreen from '../src/screens/LoginScreen';
@@ -56,6 +58,8 @@ const CASES = [
   screenCase('Subjects', SubjectsScreen),
   screenCase('SubjectDashboard', SubjectDashboardScreen, { subjectId: 'physics' }),
   screenCase('TopicOverview', TopicOverviewScreen),
+  screenCase('ConceptDetails', ConceptDetailsScreen, { conceptId: 'concept-velocity' }),
+  screenCase('ConceptLearning', ConceptLearningScreen, { conceptId: 'concept-velocity' }),
   screenCase('Splash', SplashScreen),
   screenCase('SignUp', SignUpScreen),
   screenCase('Login', LoginScreen),

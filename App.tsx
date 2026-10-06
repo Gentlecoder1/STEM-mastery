@@ -21,6 +21,8 @@ import HomeDashboardScreen from './src/screens/HomeDashboardScreen';
 import SubjectsScreen from './src/screens/SubjectsScreen';
 import SubjectDashboardScreen from './src/screens/SubjectDashboardScreen';
 import TopicOverviewScreen from './src/screens/TopicOverviewScreen';
+import ConceptDetailsScreen from './src/screens/ConceptDetailsScreen';
+import ConceptLearningScreen from './src/screens/ConceptLearningScreen';
 import type { RootStackParamList } from './src/navigation/types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -75,6 +77,8 @@ export default function App() {
           <Stack.Screen name="Subjects" component={SubjectsScreen} options={{ animation: 'fade' }} />
           <Stack.Screen name="SubjectDashboard" component={SubjectDashboardScreen} options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="TopicOverview" component={TopicOverviewScreen} options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="ConceptDetails" component={ConceptDetailsScreen} options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="ConceptLearning" component={ConceptLearningScreen} options={{ animation: 'slide_from_right' }} />
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>
