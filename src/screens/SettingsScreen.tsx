@@ -195,7 +195,7 @@ export default function SettingsScreen({ navigation }: RootScreenProps<'Settings
               <View style={styles.rowCopy}>
                 <Text style={styles.rowTitle}>Dark mode</Text>
                 <Text style={styles.rowSubtitle}>
-                  {isDark ? 'On — easy on your eyes' : 'Off — light theme'}
+                  {isDark ? 'On — dark theme' : 'Off — light theme'}
                 </Text>
               </View>
               <Toggle

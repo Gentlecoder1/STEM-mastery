@@ -14,7 +14,7 @@ import {
   TrendingUpIcon,
 } from '../components/glyphs';
 import { Pill, ProgressBar, SectionHeading } from '../components/PracticeUI';
-import { colors, fonts, shadow, type ColorToken } from '../theme';
+import { colors, fonts, lightColors, shadow, type ColorToken } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
 import { navigateToTab } from '../navigation/tabs';
 import type { RootScreenProps } from '../navigation/types';
@@ -106,7 +106,7 @@ export default function ChallengeScreen({ navigation }: RootScreenProps<'Challen
         >
           <View style={styles.heroRow}>
             <View style={styles.heroIcon}>
-              <SparklesIcon size={30} color={colors.inkDeep} />
+              <SparklesIcon size={30} color={lightColors.inkDeep} />
             </View>
             <View style={styles.heroCopy}>
               <Pill bg="rgba(255,216,77,0.13)" tint={colors.yellow}>
@@ -117,7 +117,7 @@ export default function ChallengeScreen({ navigation }: RootScreenProps<'Challen
             </View>
           </View>
           <View style={styles.heroReason}>
-            <TargetIcon size={16} color={colors.lavender} />
+            <TargetIcon size={16} color={lightColors.lavender} />
             <Text style={styles.heroReasonText}>Chosen to strengthen your 41% acceleration mastery.</Text>
           </View>
         </Pressable>
@@ -206,7 +206,7 @@ const createStyles = () => StyleSheet.create({
   heroCard: {
     padding: 16,
     borderRadius: 18,
-    backgroundColor: colors.primary,
+    backgroundColor: lightColors.primary,
     gap: 12,
     ...shadow.frame,
   },
@@ -220,8 +220,8 @@ const createStyles = () => StyleSheet.create({
     justifyContent: 'center',
   },
   heroCopy: { flex: 1, gap: 4 },
-  heroTitle: { fontFamily: fonts.regular, fontSize: 17, lineHeight: 21, color: colors.surface },
-  heroMeta: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 15, color: colors.lavender },
+  heroTitle: { fontFamily: fonts.regular, fontSize: 17, lineHeight: 21, color: lightColors.surface },
+  heroMeta: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 15, color: lightColors.lavender },
   heroReason: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -235,7 +235,7 @@ const createStyles = () => StyleSheet.create({
     fontFamily: fonts.regular,
     fontSize: 11,
     lineHeight: 14,
-    color: colors.onPrimaryMuted,
+    color: lightColors.onPrimaryMuted,
   },
 
   pathList: { gap: 8 },

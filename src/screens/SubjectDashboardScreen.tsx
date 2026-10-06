@@ -7,7 +7,7 @@ import { navigateToTab } from '../navigation/tabs';
 import MasteryRing from '../components/MasteryRing';
 import { GaugeIcon, ChartIcon, BookOpenIcon } from '../components/glyphs';
 import { CheckCircleIcon, ChevronRightIcon, LockIcon, MoreIcon, ArrowLeftIcon, ClockIcon, SparklesIcon } from '../components/icons';
-import { colors, fonts, shadow, type SubjectId } from '../theme';
+import { colors, fonts, lightColors, shadow, type SubjectId } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
 import type { RootScreenProps } from '../navigation/types';
 
@@ -76,9 +76,9 @@ export default function SubjectDashboardScreen({ navigation, route }: RootScreen
         </View>
 
         <View style={styles.hero}>
-          <MasteryRing percent={subject.mastery} color={colors.yellow} size={100} labelColor={colors.surface} />
+          <MasteryRing percent={subject.mastery} color={colors.yellow} size={100} labelColor={lightColors.surface} />
           <View style={styles.heroCopy}>
-            <View style={styles.statusPill}><SparklesIcon size={15} color={colors.ink} /><Text style={styles.statusLabel}>ON TRACK</Text></View>
+            <View style={styles.statusPill}><SparklesIcon size={15} color={lightColors.ink} /><Text style={styles.statusLabel}>ON TRACK</Text></View>
             <Text style={styles.heroTitle}>Your {subject.focus} skills are growing</Text>
             <Text style={styles.heroSubtitle}>12 concepts mastered • 5 developing</Text>
           </View>
@@ -116,12 +116,12 @@ const createStyles = () => StyleSheet.create({
   headerCopy: { flex: 1, gap: 2 },
   title: { fontFamily: fonts.regular, fontSize: 22, lineHeight: 25, color: colors.ink },
   subtitle: { fontFamily: fonts.medium, fontSize: 12, lineHeight: 16, color: colors.slate },
-  hero: { flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 154, padding: 17, borderRadius: 18, backgroundColor: colors.blue, ...shadow.card },
+  hero: { flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 154, padding: 17, borderRadius: 18, backgroundColor: lightColors.blue, ...shadow.card },
   heroCopy: { flex: 1, gap: 7 },
   statusPill: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, height: 32, borderRadius: 999, backgroundColor: colors.yellow },
-  statusLabel: { fontFamily: fonts.medium, fontSize: 12, color: colors.ink },
-  heroTitle: { fontFamily: fonts.extrabold, fontSize: 17, lineHeight: 21, color: colors.surface },
-  heroSubtitle: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 15, color: colors.surface },
+  statusLabel: { fontFamily: fonts.medium, fontSize: 12, color: lightColors.ink },
+  heroTitle: { fontFamily: fonts.extrabold, fontSize: 17, lineHeight: 21, color: lightColors.surface },
+  heroSubtitle: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 15, color: lightColors.surface },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
   sectionTitle: { fontFamily: fonts.regular, fontSize: 17, lineHeight: 21, color: colors.ink },
   link: { fontFamily: fonts.bold, fontSize: 14, color: colors.primary },

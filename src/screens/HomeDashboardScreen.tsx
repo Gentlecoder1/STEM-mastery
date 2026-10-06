@@ -16,7 +16,7 @@ import {
   SigmaIcon,
   FlaskIcon,
 } from '../components/glyphs';
-import { colors, fonts, shadow, type ColorToken } from '../theme';
+import { colors, fonts, lightColors, shadow, type ColorToken } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
 import type { RootScreenProps } from '../navigation/types';
 import type { IconProps } from '../components/icons';
@@ -262,7 +262,7 @@ const createStyles = () => StyleSheet.create({
   },
 
   hero: {
-    backgroundColor: colors.inkDeep,
+    backgroundColor: lightColors.inkDeep,
     borderRadius: 18,
     padding: 17,
     gap: 12,
@@ -305,7 +305,7 @@ const createStyles = () => StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.blue,
+    backgroundColor: lightColors.blue,
   },
   lessonCopy: {
     flex: 1,
@@ -321,7 +321,7 @@ const createStyles = () => StyleSheet.create({
     fontFamily: fonts.extrabold,
     fontSize: 17,
     lineHeight: 21,
-    color: colors.surface,
+    color: lightColors.surface,
   },
   progressRow: {
     flexDirection: 'row',
@@ -344,7 +344,7 @@ const createStyles = () => StyleSheet.create({
     fontFamily: fonts.regular,
     fontSize: 12,
     lineHeight: 15,
-    color: colors.surface,
+    color: lightColors.surface,
   },
 
   stats: {

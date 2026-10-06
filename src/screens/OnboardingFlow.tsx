@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   colors,
   fonts,
+  lightColors,
   radius,
   shadow,
   CLASSES,
@@ -179,7 +180,7 @@ function StepContent({ step, state, setState, wrongPick }: StepContentProps) {
                       !sel && styles.checkDotEmpty,
                     ]}
                   >
-                    {sel ? <CheckIcon size={15} color={colors.surface} /> : null}
+                    {sel ? <CheckIcon size={15} color={lightColors.surface} /> : null}
                   </View>
                 </Pressable>
               );
@@ -299,7 +300,7 @@ function SuccessBody({ state }: { state: OnboardingState }) {
   return (
     <Animated.View style={[styles.success, { opacity: fade, transform: [{ scale }] }]}>
       <View style={styles.successMark}>
-        <CheckIcon size={28} color={colors.surface} />
+        <CheckIcon size={28} color={colors.onPrimary} />
       </View>
       <Text style={styles.successTitle}>Congratulations!</Text>
       <Text style={styles.subtitle}>
@@ -404,7 +405,7 @@ export default function OnboardingFlow({ navigation }: RootScreenProps<'Onboardi
         <View style={styles.footer}>
           <PrimaryButton
             title={primaryLabel}
-            icon={isDone ? <ArrowRightIcon size={18} color={colors.surface} /> : undefined}
+            icon={isDone ? <ArrowRightIcon size={18} color={colors.onPrimary} /> : undefined}
             onPress={handlePrimary}
             disabled={!isDone && !canProceed()}
           />
@@ -465,7 +466,7 @@ const createStyles = () => StyleSheet.create({
   },
   classOptionActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   classText: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 15.733, color: colors.slate },
-  classTextActive: { color: colors.surface },
+  classTextActive: { color: colors.onPrimary },
 
   subjectList: { gap: 10 },
   subjectOption: {
@@ -513,7 +514,7 @@ const createStyles = () => StyleSheet.create({
   },
   hourChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   hourText: { fontFamily: fonts.regular, fontSize: 13, color: colors.slate },
-  hourTextActive: { color: colors.surface },
+  hourTextActive: { color: colors.onPrimary },
 
   quizBadge: {
     alignSelf: 'flex-start',
@@ -545,7 +546,7 @@ const createStyles = () => StyleSheet.create({
   optionSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
   optionWrong: { borderColor: colors.danger, borderWidth: 2, backgroundColor: colors.surface },
   optionText: { fontFamily: fonts.regular, fontSize: 15, color: colors.slate },
-  optionTextSelected: { color: colors.surface },
+  optionTextSelected: { color: colors.onPrimary },
   optionTextWrong: { color: colors.danger, fontFamily: fonts.medium },
 
   success: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },

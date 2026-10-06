@@ -34,7 +34,7 @@ export function PrimaryButton({
         pressed && !disabled && styles.pressed,
       ]}
     >
-      {icon ?? <ArrowRightIcon size={18} color={colors.surface} />}
+      {icon ?? <ArrowRightIcon size={18} color={colors.onPrimary} />}
       <Text style={styles.buttonLabel}>{title}</Text>
     </Pressable>
   );
@@ -58,7 +58,7 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     fontFamily: fonts.regular,
     fontSize: 15,
     lineHeight: 18.1534,
-    color: c.surface,
+    color: c.onPrimary,
   },
   buttonDisabled: {
     opacity: 0.5,

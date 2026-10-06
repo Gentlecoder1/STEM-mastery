@@ -13,7 +13,7 @@ import {
 } from '../components/glyphs';
 import { ArrowLeftIcon } from '../components/icons';
 import { ActionButton, Pill, SectionHeading } from '../components/PracticeUI';
-import { colors, fonts, shadow } from '../theme';
+import { colors, fonts, lightColors, shadow } from '../theme';
 import type { RootScreenProps } from '../navigation/types';
 import { useThemedStyles, useTheme } from '../themeContext';
 
@@ -56,7 +56,7 @@ export default function PracticeRecommendationScreen({
         <View style={styles.diagnosticCard}>
           <View style={styles.diagnosticTop}>
             <View style={styles.diagnosticIcon}>
-              <ScanSearchIcon size={29} color={colors.surface} />
+              <ScanSearchIcon size={29} color={lightColors.surface} />
             </View>
             <View style={styles.diagnosticCopy}>
               <Pill bg={colors.surface} tint={colors.orange} style={styles.diagnosticPill}>
@@ -96,7 +96,7 @@ export default function PracticeRecommendationScreen({
           </View>
           <ActionButton
             onPress={() => navigation.navigate('PracticeLesson')}
-            leading={<PlayIcon size={18} color={colors.surface} />}
+            leading={<PlayIcon size={18} color={colors.onPrimary} />}
           >
             Start mini lesson
           </ActionButton>

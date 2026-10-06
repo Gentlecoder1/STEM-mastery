@@ -15,7 +15,7 @@ import {
   ZapIcon,
 } from '../components/glyphs';
 import { Pill, ProgressBar, SectionHeading } from '../components/PracticeUI';
-import { colors, fonts, shadow } from '../theme';
+import { colors, fonts, lightColors, shadow } from '../theme';
 import type { RootScreenProps } from '../navigation/types';
 import { useThemedStyles, useTheme } from '../themeContext';
 
@@ -104,7 +104,7 @@ export default function PracticeHomeScreen({ navigation }: RootScreenProps<'Prac
         <Pressable style={styles.dailyCard} onPress={startDailyMix} accessibilityRole="button">
           <View style={styles.dailyRow}>
             <View style={styles.challengeIcon}>
-              <ZapIcon size={33} color={colors.ink} strokeWidth={1} />
+              <ZapIcon size={33} color={lightColors.ink} strokeWidth={1} />
             </View>
             <View style={styles.challengeCopy}>
               <Pill bg="rgba(255,216,77,0.13)" tint={colors.yellow}>
@@ -209,7 +209,7 @@ const createStyles = () => StyleSheet.create({
   dailyCard: {
     padding: 16,
     borderRadius: 18,
-    backgroundColor: colors.primary,
+    backgroundColor: lightColors.primary,
     gap: 12,
     ...shadow.frame,
   },
@@ -223,8 +223,8 @@ const createStyles = () => StyleSheet.create({
     justifyContent: 'center',
   },
   challengeCopy: { flex: 1, gap: 4 },
-  dailyTitle: { fontFamily: fonts.regular, fontSize: 17, lineHeight: 21, color: colors.surface },
-  dailyMeta: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 15, color: colors.lavender },
+  dailyTitle: { fontFamily: fonts.regular, fontSize: 17, lineHeight: 21, color: lightColors.surface },
+  dailyMeta: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 15, color: lightColors.lavender },
   dailyProgress: { marginTop: 2 },
 
   modeRow: { flexDirection: 'row', gap: 10 },

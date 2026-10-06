@@ -168,6 +168,6 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     fontFamily: fonts.regular,
     fontSize: 15,
     lineHeight: 18,
-    color: c.surface,
+    color: c.onPrimary,
   },
 });

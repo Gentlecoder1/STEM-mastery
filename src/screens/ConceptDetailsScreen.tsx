@@ -131,9 +131,9 @@ export default function ConceptDetailsScreen({ navigation, route }: RootScreenPr
           }
           accessibilityRole="button"
         >
-          <BookOpenIcon size={18} color={colors.surface} />
+          <BookOpenIcon size={18} color={colors.onPrimary} />
           <Text style={styles.primaryText}>Start Learning</Text>
-          <ArrowRightIcon size={18} color={colors.surface} />
+          <ArrowRightIcon size={18} color={colors.onPrimary} />
         </Pressable>
       </View>
     </View>
@@ -260,5 +260,5 @@ const createStyles = () => StyleSheet.create({
     backgroundColor: colors.primary,
     ...shadow.card,
   },
-  primaryText: { fontFamily: fonts.regular, fontSize: 15, lineHeight: 18, color: colors.surface },
+  primaryText: { fontFamily: fonts.regular, fontSize: 15, lineHeight: 18, color: colors.onPrimary },
 });

@@ -6,7 +6,7 @@ import BottomNav from '../components/BottomNav';
 import { navigateToTab } from '../navigation/tabs';
 import { GaugeIcon } from '../components/glyphs';
 import { ArrowLeftIcon, BookmarkIcon, CheckCircleIcon, ChevronRightIcon, LockIcon, SparklesIcon } from '../components/icons';
-import { colors, fonts, shadow } from '../theme';
+import { colors, fonts, lightColors, shadow } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
 import { CONCEPTS } from '../data/learning';
 import type { Concept } from '../data/learning';
@@ -53,7 +53,7 @@ export default function TopicOverviewScreen({ navigation }: RootScreenProps<'Top
           <Pressable style={styles.iconButton} accessibilityLabel="Bookmark topic"><BookmarkIcon size={21} color={colors.primary} /></Pressable>
         </View>
         <View style={styles.hero}>
-          <View style={styles.heroIcon}><GaugeIcon size={34} color={colors.surface} /></View>
+          <View style={styles.heroIcon}><GaugeIcon size={34} color={lightColors.surface} /></View>
           <View style={styles.heroCopy}><Text style={styles.eyebrow}>IN PROGRESS</Text><Text style={styles.heroTitle}>Understand how motion changes over time.</Text><Text style={styles.meta}>5 lessons <Text style={styles.dot}>•</Text> 42 min</Text></View>
           <View style={styles.track}><View style={styles.fill} /></View>
         </View>
@@ -111,6 +111,6 @@ const createStyles = () => StyleSheet.create({
   trailingText: { fontFamily: fonts.medium, fontSize: 12, color: colors.green },
   nextText: { color: colors.orange, fontSize: 25, lineHeight: 25 },
   primaryButton: { height: 68, borderRadius: 16, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 12, ...shadow.card },
-  primaryArrow: { fontFamily: fonts.regular, fontSize: 25, color: colors.surface },
-  primaryText: { fontFamily: fonts.regular, fontSize: 19, color: colors.surface },
+  primaryArrow: { fontFamily: fonts.regular, fontSize: 25, color: colors.onPrimary },
+  primaryText: { fontFamily: fonts.regular, fontSize: 19, color: colors.onPrimary },
 });

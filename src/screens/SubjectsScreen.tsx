@@ -11,7 +11,7 @@ import {
   FlaskIcon,
   CalendarIcon,
 } from '../components/glyphs';
-import { colors, fonts, shadow } from '../theme';
+import { colors, fonts, lightColors, shadow } from '../theme';
 import type { ColorToken, SubjectId } from '../theme';
 import type { RootScreenProps } from '../navigation/types';
 import type { IconProps } from '../components/icons';
@@ -164,7 +164,7 @@ export default function SubjectsScreen({ navigation }: RootScreenProps<'Subjects
         >
           <View style={styles.summary}>
             <View style={styles.summaryIcon}>
-              <MedalIcon size={26} color={colors.inkDeep} />
+              <MedalIcon size={26} color={lightColors.inkDeep} />
             </View>
             <View style={styles.summaryCopy}>
               <Text style={styles.summaryTitle}>Strong week, Iseoluwa!</Text>

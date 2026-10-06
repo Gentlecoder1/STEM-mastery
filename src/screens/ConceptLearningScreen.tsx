@@ -191,9 +191,9 @@ export default function ConceptLearningScreen({
         >
           <Text style={styles.primaryText}>{isLast ? 'Finish' : 'Next'}</Text>
           {isLast ? (
-            <CheckCircleIcon size={18} color={colors.surface} />
+            <CheckCircleIcon size={18} color={colors.onPrimary} />
           ) : (
-            <ArrowRightIcon size={18} color={colors.surface} />
+            <ArrowRightIcon size={18} color={colors.onPrimary} />
           )}
         </Pressable>
       </View>
@@ -328,5 +328,5 @@ const createStyles = () => StyleSheet.create({
     backgroundColor: colors.primary,
     ...shadow.card,
   },
-  primaryText: { fontFamily: fonts.regular, fontSize: 15, lineHeight: 18, color: colors.surface },
+  primaryText: { fontFamily: fonts.regular, fontSize: 15, lineHeight: 18, color: colors.onPrimary },
 });

@@ -7,7 +7,7 @@ import MasteryRing from '../components/MasteryRing';
 import { AtomIcon, CheckIcon, FlaskIcon, SigmaIcon } from '../components/icons';
 import { CalendarIcon, FlameIcon, MedalIcon } from '../components/glyphs';
 import { Pill, SectionHeading } from '../components/PracticeUI';
-import { colors, fonts, shadow, type ColorToken } from '../theme';
+import { colors, fonts, lightColors, shadow, type ColorToken } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
 import { navigateToTab } from '../navigation/tabs';
 import type { RootScreenProps } from '../navigation/types';
@@ -73,7 +73,7 @@ export default function ProgressScreen({ navigation }: RootScreenProps<'Progress
           <Text style={styles.streakEyebrow}>THIS WEEK</Text>
           <View style={styles.streakRow}>
             <Text style={styles.streakTitle}>4-day streak 🔥</Text>
-            <Pill bg={colors.yellow} tint={colors.inkDeep} size={11}>
+            <Pill bg={colors.yellow} tint={lightColors.inkDeep} size={11}>
               +340 XP
             </Pill>
           </View>
@@ -84,7 +84,7 @@ export default function ProgressScreen({ navigation }: RootScreenProps<'Progress
                 <View key={`${day}-${index}`} style={styles.dayWrap}>
                   <View style={[styles.dayDot, !done && styles.dayDotPending]}>
                     {done ? (
-                      <CheckIcon size={14} color={colors.surface} strokeWidth={2} />
+                      <CheckIcon size={14} color={lightColors.surface} strokeWidth={2} />
                     ) : (
                       <Text style={styles.dayLetter}>{day}</Text>
                     )}
@@ -176,7 +176,7 @@ const createStyles = () => StyleSheet.create({
   streakCard: {
     padding: 16,
     borderRadius: 18,
-    backgroundColor: colors.inkDeep,
+    backgroundColor: lightColors.inkDeep,
     gap: 12,
     ...shadow.frame,
   },
@@ -185,10 +185,10 @@ const createStyles = () => StyleSheet.create({
     fontSize: 10,
     lineHeight: 12,
     letterSpacing: 1.2,
-    color: colors.lavender,
+    color: lightColors.lavender,
   },
   streakRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  streakTitle: { fontFamily: fonts.regular, fontSize: 19, lineHeight: 23, color: colors.surface },
+  streakTitle: { fontFamily: fonts.regular, fontSize: 19, lineHeight: 23, color: lightColors.surface },
   daysRow: { flexDirection: 'row', justifyContent: 'space-between' },
   dayWrap: { alignItems: 'center', gap: 5 },
   dayDot: {
@@ -204,7 +204,7 @@ const createStyles = () => StyleSheet.create({
     fontFamily: fonts.semibold,
     fontSize: 11,
     lineHeight: 13,
-    color: colors.slate,
+    color: lightColors.slate,
   },
   dayLabel: {
     fontFamily: fonts.medium,

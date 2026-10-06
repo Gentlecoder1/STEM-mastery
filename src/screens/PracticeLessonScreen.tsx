@@ -14,7 +14,7 @@ import {
   XCircleIcon,
 } from '../components/glyphs';
 import { ActionButton, Pill, ProgressBar } from '../components/PracticeUI';
-import { colors, fonts, shadow } from '../theme';
+import { colors, fonts, lightColors, shadow } from '../theme';
 import type { RootScreenProps } from '../navigation/types';
 import { useThemedStyles, useTheme } from '../themeContext';
 
@@ -68,13 +68,13 @@ export default function PracticeLessonScreen({
 
         <View style={styles.visualPanel}>
           <View style={styles.panel}>
-            <GaugeIcon size={34} color={colors.surface} />
+            <GaugeIcon size={34} color={lightColors.surface} />
             <Text style={styles.panelTitle}>Velocity</Text>
             <Text style={styles.panelCaption}>How fast and which direction now</Text>
             <Text style={styles.velocityValue}>5 m/s →</Text>
           </View>
           <View style={styles.panel}>
-            <TrendingUpIcon size={34} color={colors.surface} />
+            <TrendingUpIcon size={34} color={lightColors.surface} />
             <Text style={styles.panelTitle}>Acceleration</Text>
             <Text style={styles.panelCaption}>How quickly velocity changes</Text>
             <Text style={styles.accelValue}>+2 m/s²</Text>
@@ -96,7 +96,7 @@ export default function PracticeLessonScreen({
       <View style={[styles.footer, { paddingBottom: insets.bottom + 14 }]}>
         <ActionButton
           onPress={() => navigation.navigate('Practice')}
-          leading={<ArrowRightIcon size={18} color={colors.surface} />}
+          leading={<ArrowRightIcon size={18} color={colors.onPrimary} />}
         >
           Try a quick check
         </ActionButton>
@@ -180,7 +180,7 @@ const createStyles = () => StyleSheet.create({
     gap: 12,
     padding: 14,
     borderRadius: 24,
-    backgroundColor: colors.inkDeep,
+    backgroundColor: lightColors.inkDeep,
   },
   panel: {
     flex: 1,
@@ -196,7 +196,7 @@ const createStyles = () => StyleSheet.create({
     fontFamily: fonts.extrabold,
     fontSize: 13,
     lineHeight: 16,
-    color: colors.surface,
+    color: lightColors.surface,
   },
   panelCaption: {
     fontFamily: fonts.medium,
@@ -206,7 +206,7 @@ const createStyles = () => StyleSheet.create({
     textAlign: 'center',
   },
   velocityValue: { fontFamily: fonts.regular, fontSize: 17, lineHeight: 21, color: colors.yellow },
-  accelValue: { fontFamily: fonts.regular, fontSize: 17, lineHeight: 21, color: colors.teal },
+  accelValue: { fontFamily: fonts.regular, fontSize: 17, lineHeight: 21, color: lightColors.teal },
 
   rememberCard: {
     flexDirection: 'row',

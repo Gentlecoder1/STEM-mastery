@@ -13,7 +13,7 @@ import {
   TrophyIcon,
 } from '../components/glyphs';
 import { Pill } from '../components/PracticeUI';
-import { colors, fonts, shadow, type ColorToken } from '../theme';
+import { colors, fonts, lightColors, shadow, type ColorToken } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
 import type { RootScreenProps } from '../navigation/types';
 
@@ -68,7 +68,7 @@ export default function PracticeQuizResultScreen({
         </Pill>
 
         <View style={styles.trophyTile}>
-          <TrophyIcon size={55} color={colors.inkDeep} />
+          <TrophyIcon size={55} color={lightColors.inkDeep} />
         </View>
 
         <View style={styles.headingWrap}>
@@ -130,7 +130,7 @@ export default function PracticeQuizResultScreen({
             onPress={() => navigation.navigate('PracticeRecommendation')}
             accessibilityRole="button"
           >
-            <SparklesIcon size={18} color={colors.surface} />
+            <SparklesIcon size={18} color={colors.onPrimary} />
             <Text style={styles.reviewButtonText}>See recommended review</Text>
           </Pressable>
           <Pressable
@@ -244,7 +244,7 @@ const createStyles = () => StyleSheet.create({
     gap: 8,
     ...shadow.card,
   },
-  reviewButtonText: { fontFamily: fonts.regular, fontSize: 15, lineHeight: 18, color: colors.surface },
+  reviewButtonText: { fontFamily: fonts.regular, fontSize: 15, lineHeight: 18, color: colors.onPrimary },
   practiceButton: {
     height: 52,
     paddingHorizontal: 22,

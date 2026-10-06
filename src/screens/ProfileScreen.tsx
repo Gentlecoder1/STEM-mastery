@@ -15,7 +15,7 @@ import {
   UserIcon,
 } from '../components/glyphs';
 import { Pill, SectionHeading } from '../components/PracticeUI';
-import { colors, fonts, shadow, type ColorToken } from '../theme';
+import { colors, fonts, lightColors, shadow, type ColorToken } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
 import { navigateToTab } from '../navigation/tabs';
 import type { RootScreenProps } from '../navigation/types';
@@ -187,11 +187,11 @@ const createStyles = () => StyleSheet.create({
     borderRadius: 999,
     backgroundColor: colors.yellow,
     borderWidth: 2,
-    borderColor: colors.surface,
+    borderColor: lightColors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  levelText: { fontFamily: fonts.extrabold, fontSize: 10, lineHeight: 12, color: colors.inkDeep },
+  levelText: { fontFamily: fonts.extrabold, fontSize: 10, lineHeight: 12, color: lightColors.inkDeep },
   name: { fontFamily: fonts.regular, fontSize: 22, lineHeight: 26, color: colors.ink },
   tagline: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 15, color: colors.slate },
   roleText: { fontFamily: fonts.extrabold, fontSize: 10, lineHeight: 12, color: colors.primary },

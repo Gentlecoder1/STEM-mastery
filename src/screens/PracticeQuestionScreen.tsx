@@ -185,7 +185,7 @@ export default function PracticeQuestionScreen({
         <ActionButton
           onPress={submit}
           disabled={!canSubmit}
-          leading={!isMcq ? <SendIcon size={18} color={colors.surface} /> : undefined}
+          leading={!isMcq ? <SendIcon size={18} color={colors.onPrimary} /> : undefined}
         >
           {isMcq ? 'Check answer' : 'Submit explanation'}
         </ActionButton>
@@ -328,7 +328,7 @@ const createStyles = () => StyleSheet.create({
   },
   optionLabelSelected: { backgroundColor: colors.blue },
   optionLabelText: { fontFamily: fonts.extrabold, fontSize: 13, lineHeight: 16, color: colors.slate },
-  optionLabelTextSelected: { color: colors.surface },
+  optionLabelTextSelected: { color: colors.onPrimary },
   optionText: {
     flex: 1,
     fontFamily: fonts.regular,

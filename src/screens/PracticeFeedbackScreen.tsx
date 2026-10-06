@@ -7,7 +7,7 @@ import MasteryRing from '../components/MasteryRing';
 import { ArrowRightIcon, CheckCircleIcon, CheckIcon } from '../components/icons';
 import { LightbulbIcon, StarIcon } from '../components/glyphs';
 import { ActionButton } from '../components/PracticeUI';
-import { colors, fonts, shadow } from '../theme';
+import { colors, fonts, lightColors, shadow } from '../theme';
 import { getPracticeQuestion, PRACTICE_SET_SIZE } from '../data/practice';
 import type { RootScreenProps } from '../navigation/types';
 import { useThemedStyles, useTheme } from '../themeContext';
@@ -61,7 +61,7 @@ export default function PracticeFeedbackScreen({
       >
         <View style={styles.celebration}>
           <View style={[styles.successIcon, { backgroundColor: successBg }]}>
-            <CheckIcon size={48} color={colors.surface} strokeWidth={1.6} />
+            <CheckIcon size={48} color={lightColors.surface} strokeWidth={1.6} />
           </View>
           <View style={styles.xpPill}>
             <StarIcon size={13} color={colors.orange} />
@@ -112,7 +112,7 @@ export default function PracticeFeedbackScreen({
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 14 }]}>
-        <ActionButton bg={colors.success} onPress={next} leading={<ArrowRightIcon size={18} color={colors.surface} />}>
+        <ActionButton bg={colors.success} onPress={next} leading={<ArrowRightIcon size={18} color={colors.onPrimary} />}>
           {finished ? 'See your next step' : 'Next question'}
         </ActionButton>
       </View>
@@ -186,7 +186,7 @@ const createStyles = () => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  optionBadgeText: { fontFamily: fonts.extrabold, fontSize: 13, lineHeight: 16, color: colors.surface },
+  optionBadgeText: { fontFamily: fonts.extrabold, fontSize: 13, lineHeight: 16, color: lightColors.surface },
   answerText: {
     flex: 1,
     fontFamily: fonts.regular,

@@ -119,7 +119,7 @@ export default function SearchScreen({ navigation }: RootScreenProps<'Search'>) 
             const on = label === activeFilter;
             return (
               <Pressable key={label} onPress={() => setActiveFilter(label)} accessibilityRole="button">
-                <Pill bg={on ? colors.primary : colors.surface} tint={on ? colors.surface : colors.slate}>
+                <Pill bg={on ? colors.primary : colors.surface} tint={on ? colors.onPrimary : colors.slate}>
                   {label} {count}
                 </Pill>
               </Pressable>

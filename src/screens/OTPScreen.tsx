@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Animated, Easing, Modal, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, fonts, radius, shadow } from '../theme';
+import { colors, fonts, lightColors, radius, shadow } from '../theme';
 import { PrimaryButton } from '../components/Form';
 import Link from '../components/Link';
 import { CheckIcon } from '../components/icons';
@@ -93,7 +93,7 @@ export default function OTPScreen({ route, navigation }: NativeStackScreenProps<
         {verified ? (
           <View style={styles.verifiedWrap}>
             <View style={styles.verifiedMark}>
-              <CheckIcon size={30} color={colors.surface} />
+              <CheckIcon size={30} color={lightColors.surface} />
             </View>
             <Text style={styles.verifiedTitle}>Email verified</Text>
             <Text style={styles.subtitle}>
