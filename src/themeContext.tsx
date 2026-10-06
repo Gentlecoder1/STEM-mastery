@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -42,12 +43,22 @@ function writeStoredMode(mode: ThemeMode) {
   STORAGE.setItem(THEME_STORAGE_KEY, mode).catch(() => {});
 }
 
+export type ThemeReveal = {
+  x: number;
+  y: number;
+  next: ThemeMode;
+};
+
 export type ThemeContextValue = {
   mode: ThemeMode;
   isDark: boolean;
   statusBarStyle: 'light' | 'dark';
   setMode: (mode: ThemeMode) => void;
   toggleTheme: () => void;
+  reveal: ThemeReveal | null;
+  startThemeReveal: (x: number, y: number) => void;
+  commitThemeReveal: () => void;
+  clearThemeReveal: () => void;
 };
 
 const ThemeContext = createContext<ThemeContextValue>({
@@ -56,10 +67,17 @@ const ThemeContext = createContext<ThemeContextValue>({
   statusBarStyle: 'dark',
   setMode: () => {},
   toggleTheme: () => {},
+  reveal: null,
+  startThemeReveal: () => {},
+  commitThemeReveal: () => {},
+  clearThemeReveal: () => {},
 });
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [mode, setModeState] = useState<ThemeMode>('light');
+  const [reveal, setReveal] = useState<ThemeReveal | null>(null);
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
 
   useEffect(() => {
     let mounted = true;
@@ -79,6 +97,25 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     writeStoredMode(next);
   }, []);
 
+  const startThemeReveal = useCallback(
+    (x: number, y: number) => {
+      setReveal((prev) => {
+        if (prev) return prev;
+        const current = modeRef.current;
+        return { x, y, next: current === 'dark' ? 'light' : 'dark' };
+      });
+    },
+    [],
+  );
+
+  const commitThemeReveal = useCallback(() => {
+    if (reveal) setMode(reveal.next);
+  }, [reveal, setMode]);
+
+  const clearThemeReveal = useCallback(() => {
+    setReveal(null);
+  }, []);
+
   const value = useMemo<ThemeContextValue>(
     () => ({
       mode,
@@ -86,8 +123,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       statusBarStyle: mode === 'dark' ? 'light' : 'dark',
       setMode,
       toggleTheme: () => setMode(mode === 'dark' ? 'light' : 'dark'),
+      reveal,
+      startThemeReveal,
+      commitThemeReveal,
+      clearThemeReveal,
     }),
-    [mode, setMode],
+    [mode, setMode, reveal, startThemeReveal, commitThemeReveal, clearThemeReveal],
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

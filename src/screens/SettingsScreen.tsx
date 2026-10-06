@@ -1,4 +1,4 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState } from 'react';
@@ -147,7 +147,7 @@ const GROUPS: { label: string; rows: Row[] }[] = [
 
 export default function SettingsScreen({ navigation }: RootScreenProps<'Settings'>) {
   const insets = useSafeAreaInsets();
-  const { statusBarStyle, isDark, setMode } = useTheme();
+  const { statusBarStyle, isDark, startThemeReveal } = useTheme();
   const styles = useThemedStyles(createStyles);
   const [toggles, setToggles] = useState({
     reminders: true,
@@ -200,7 +200,12 @@ export default function SettingsScreen({ navigation }: RootScreenProps<'Settings
               </View>
               <Toggle
                 value={isDark}
-                onValueChange={(value) => setMode(value ? 'dark' : 'light')}
+                onValueChange={(_value, event) => {
+                  const { width, height } = Dimensions.get('window');
+                  const x = event?.nativeEvent.pageX ?? width / 2;
+                  const y = event?.nativeEvent.pageY ?? height / 2;
+                  startThemeReveal(x, y);
+                }}
                 label="Dark mode"
               />
             </View>
