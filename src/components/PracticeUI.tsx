@@ -3,6 +3,7 @@ import { colors, fonts, shadow } from '../theme';
 import { useThemedStyles } from '../themeContext';
 import type { ThemeColors } from '../theme';
 import type { ReactNode } from 'react';
+import { Children } from 'react';
 
 type PillProps = {
   children: ReactNode;
@@ -15,11 +16,12 @@ type PillProps = {
 
 export function Pill({ children, bg, tint, size = 10, gap = 5, style }: PillProps) {
   const styles = useThemedStyles(createStyles);
-  const isText = typeof children === 'string';
+  const parts = Children.toArray(children);
+  const isText = parts.length > 0 && parts.every((part) => typeof part === 'string' || typeof part === 'number');
   return (
     <View style={[styles.pill, { backgroundColor: bg, gap, paddingHorizontal: 10, paddingVertical: 6 }, style]}>
       {isText ? (
-        <Text style={[styles.pillText, { color: tint, fontSize: size }]}>{children}</Text>
+        <Text style={[styles.pillText, { color: tint, fontSize: size }]}>{parts}</Text>
       ) : (
         children
       )}

@@ -59,9 +59,15 @@ export default function TopicOverviewScreen({ navigation }: RootScreenProps<'Top
         </View>
         <Text style={styles.sectionTitle}>What you’ll master</Text>
         <View style={styles.masterCard}>{['Distinguish speed from velocity', 'Read displacement-time graphs', 'Calculate acceleration from motion data'].map((item) => <View key={item} style={styles.masterRow}><View style={styles.check}><CheckCircleIcon size={18} color={colors.green} /></View><Text style={styles.masterText}>{item}</Text></View>)}</View>
-        <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Your concept path</Text><Text style={styles.link}>Open map</Text></View>
-        <View style={styles.conceptList}>{concepts.map((concept) => <ConceptRow key={concept.title} concept={concept} onPress={concept.state === 'locked' ? undefined : () => navigation.navigate('ConceptDetails', { conceptId: concept.id })} />)}</View>
-        <Pressable style={styles.primaryButton} onPress={() => undefined}><Text style={styles.primaryArrow}>→</Text><Text style={styles.primaryText}>Continue topic</Text></Pressable>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Your concept path</Text>
+          <Text style={styles.link}>Open map</Text>
+        </View>
+
+        <View style={styles.conceptList}>
+          {concepts.map((concept) => <ConceptRow key={concept.title} concept={concept} onPress={concept.state === 'locked' ? undefined : () => navigation.navigate('ConceptDetails', { conceptId: concept.id })} />)}
+        </View>
+    
       </ScrollView>
       <BottomNav active="Subjects" onSelect={navigateToTab(navigation, 'Subjects')} />
     </View>
@@ -102,8 +108,8 @@ const createStyles = () => StyleSheet.create({
   conceptCurrent: { borderColor: colors.border, borderWidth: 1, backgroundColor: colors.surface },
   conceptIcon: { width: 50, height: 50, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   conceptCopy: { flex: 1, gap: 3 },
-  conceptTitle: { fontFamily: fonts.regular, fontSize: 16, lineHeight: 20, color: colors.ink },
-  conceptSubtitle: { fontFamily: fonts.medium, fontSize: 12, lineHeight: 15, color: colors.slate },
+  conceptTitle: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 16, color: colors.ink },
+  conceptSubtitle: { fontFamily: fonts.medium, fontSize: 10, lineHeight: 13, color: colors.slate },
   play: { fontFamily: fonts.regular, fontSize: 27, color: colors.blue },
   trailing: { minWidth: 48, height: 30, paddingHorizontal: 11, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
   masteryPill: { backgroundColor: colors.greenSoft },

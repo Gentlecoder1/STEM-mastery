@@ -310,8 +310,8 @@ const createStyles = () => StyleSheet.create({
   },
   cardName: {
     fontFamily: fonts.regular,
-    fontSize: 17,
-    lineHeight: 21,
+    fontSize: 13,
+    lineHeight: 16,
     color: colors.ink,
   },
   actionPill: {
@@ -329,8 +329,8 @@ const createStyles = () => StyleSheet.create({
   },
   detail: {
     fontFamily: fonts.medium,
-    fontSize: 12,
-    lineHeight: 15,
+    fontSize: 10,
+    lineHeight: 13,
     color: colors.slate,
   },
   masteryRow: {
@@ -351,8 +351,8 @@ const createStyles = () => StyleSheet.create({
   },
   masteryValue: {
     fontFamily: fonts.regular,
-    fontSize: 12,
-    lineHeight: 15,
+    fontSize: 10,
+    lineHeight: 13,
   },
 
   challenge: {
