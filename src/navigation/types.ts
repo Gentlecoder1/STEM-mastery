@@ -13,6 +13,7 @@ export type RootStackParamList = {
   TopicOverview: undefined;
   ConceptDetails: { conceptId: string };
   ConceptLearning: { conceptId: string; startAt?: number };
+  ConceptQuiz: { conceptId: string };
   Practice: undefined;
   PracticeQuestion: { index: number };
   PracticeFeedback: { index: number; selected?: string; writtenText?: string };

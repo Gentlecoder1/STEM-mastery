@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BottomNav from '../components/BottomNav';
 import { navigateToTab } from '../navigation/tabs';
 import { GaugeIcon } from '../components/glyphs';
+import { ProgressBar } from '../components/PracticeUI';
 import { ArrowLeftIcon, BookmarkIcon, CheckCircleIcon, ChevronRightIcon, LockIcon, SparklesIcon } from '../components/icons';
 import { colors, fonts, lightColors, shadow } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
@@ -55,7 +56,7 @@ export default function TopicOverviewScreen({ navigation }: RootScreenProps<'Top
         <View style={styles.hero}>
           <View style={styles.heroIcon}><GaugeIcon size={34} color={lightColors.surface} /></View>
           <View style={styles.heroCopy}><Text style={styles.eyebrow}>IN PROGRESS</Text><Text style={styles.heroTitle}>Understand how motion changes over time.</Text><Text style={styles.meta}>5 lessons <Text style={styles.dot}>•</Text> 42 min</Text></View>
-          <View style={styles.track}><View style={styles.fill} /></View>
+          <ProgressBar progress={68} track={colors.surface} fill={colors.blue} style={styles.heroBar} />
         </View>
         <Text style={styles.sectionTitle}>What you’ll master</Text>
         <View style={styles.masterCard}>{['Distinguish speed from velocity', 'Read displacement-time graphs', 'Calculate acceleration from motion data'].map((item) => <View key={item} style={styles.masterRow}><View style={styles.check}><CheckCircleIcon size={18} color={colors.green} /></View><Text style={styles.masterText}>{item}</Text></View>)}</View>
@@ -94,8 +95,7 @@ const createStyles = () => StyleSheet.create({
   heroTitle: { fontFamily: fonts.extrabold, fontSize: 17, lineHeight: 21, color: colors.ink },
   meta: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 15, color: colors.slate },
   dot: { fontFamily: fonts.bold, color: colors.slate },
-  track: { width: '100%', height: 12, borderRadius: 999, backgroundColor: colors.surface, overflow: 'hidden' },
-  fill: { width: '68%', height: '100%', borderRadius: 999, backgroundColor: colors.blue },
+  heroBar: { width: '100%', height: 12 },
   sectionTitle: { fontFamily: fonts.regular, fontSize: 17, lineHeight: 21, color: colors.ink },
   masterCard: { padding: 16, borderRadius: 22, backgroundColor: colors.surface, gap: 12, ...shadow.frame },
   masterRow: { flexDirection: 'row', alignItems: 'center', gap: 11 },

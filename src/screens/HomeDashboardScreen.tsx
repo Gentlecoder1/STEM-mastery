@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import BottomNav from '../components/BottomNav';
+import { ProgressBar } from '../components/PracticeUI';
 import { navigateToTab } from '../navigation/tabs';
 import MasteryRing from '../components/MasteryRing';
 import {
@@ -172,9 +173,12 @@ export default function HomeDashboardScreen({ navigation }: RootScreenProps<'Hom
             </View>
 
             <View style={styles.progressRow}>
-              <View style={styles.heroTrack}>
-                <View style={[styles.heroFill, { width: '62%' }]} />
-              </View>
+              <ProgressBar
+                progress={62}
+                track="rgba(255,255,255,0.1451)"
+                fill={colors.yellow}
+                style={styles.heroBar}
+              />
               <Text style={styles.progressValue}>62%</Text>
             </View>
           </View>
@@ -328,17 +332,8 @@ const createStyles = () => StyleSheet.create({
     alignItems: 'center',
     gap: 10,
   },
-  heroTrack: {
+  heroBar: {
     flex: 1,
-    height: 10,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.1451)',
-    overflow: 'hidden',
-  },
-  heroFill: {
-    height: '100%',
-    borderRadius: 999,
-    backgroundColor: colors.yellow,
   },
   progressValue: {
     fontFamily: fonts.regular,

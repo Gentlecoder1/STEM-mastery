@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import BottomNav from '../components/BottomNav';
+import { ProgressBar } from '../components/PracticeUI';
 import {
   SearchIcon,
   MedalIcon,
@@ -117,14 +118,7 @@ function SubjectCard({ subject, onPress }: SubjectCardProps) {
         <Text style={styles.detail}>{subject.detail}</Text>
 
         <View style={styles.masteryRow}>
-          <View style={styles.track}>
-            <View
-              style={[
-                styles.fill,
-                { width: `${subject.mastery}%`, backgroundColor: colors[subject.tint] },
-              ]}
-            />
-          </View>
+          <ProgressBar progress={subject.mastery} fill={colors[subject.tint]} style={styles.masteryBar} />
           <Text style={[styles.masteryValue, { color: colors[subject.tint] }]}>
             {subject.mastery}%
           </Text>
@@ -338,16 +332,8 @@ const createStyles = () => StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  track: {
+  masteryBar: {
     flex: 1,
-    height: 10,
-    borderRadius: 999,
-    backgroundColor: colors.border,
-    overflow: 'hidden',
-  },
-  fill: {
-    height: '100%',
-    borderRadius: 999,
   },
   masteryValue: {
     fontFamily: fonts.regular,

@@ -26,6 +26,7 @@ import SubjectDashboardScreen from './src/screens/SubjectDashboardScreen';
 import TopicOverviewScreen from './src/screens/TopicOverviewScreen';
 import ConceptDetailsScreen from './src/screens/ConceptDetailsScreen';
 import ConceptLearningScreen from './src/screens/ConceptLearningScreen';
+import ConceptQuizScreen from './src/screens/ConceptQuizScreen';
 import PracticeHomeScreen from './src/screens/PracticeHomeScreen';
 import PracticeQuestionScreen from './src/screens/PracticeQuestionScreen';
 import PracticeFeedbackScreen from './src/screens/PracticeFeedbackScreen';
@@ -58,7 +59,7 @@ function AppShell() {
       ...DefaultTheme,
       colors: {
         ...DefaultTheme.colors,
-        background: 'transparent',
+        background: colors.canvas,
         card: colors.canvas,
         text: colors.ink,
         primary: colors.primary,
@@ -85,7 +86,12 @@ function AppShell() {
           screenOptions={{
             headerShown: false,
             animation: 'slide_from_right',
-            contentStyle: { backgroundColor: 'transparent' },
+            animationDuration: 300,
+            animationMatchesGesture: true,
+            gestureEnabled: true,
+            freezeOnBlur: false,
+            presentation: 'card',
+            contentStyle: { backgroundColor: colors.canvas },
           }}
         >
           <Stack.Screen name="Splash" component={SplashScreen} />
@@ -93,24 +99,25 @@ function AppShell() {
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="OTPScreen" component={OTPScreen} />
           <Stack.Screen name="Onboarding" component={OnboardingFlow} />
-          <Stack.Screen name="Home" component={HomeDashboardScreen} options={{ animation: 'fade' }} />
-          <Stack.Screen name="Subjects" component={SubjectsScreen} options={{ animation: 'fade' }} />
-          <Stack.Screen name="SubjectDashboard" component={SubjectDashboardScreen} options={{ animation: 'slide_from_right' }} />
-          <Stack.Screen name="TopicOverview" component={TopicOverviewScreen} options={{ animation: 'slide_from_right' }} />
-          <Stack.Screen name="ConceptDetails" component={ConceptDetailsScreen} options={{ animation: 'slide_from_right' }} />
-          <Stack.Screen name="ConceptLearning" component={ConceptLearningScreen} options={{ animation: 'slide_from_right' }} />
-          <Stack.Screen name="Practice" component={PracticeHomeScreen} options={{ animation: 'fade' }} />
-          <Stack.Screen name="PracticeQuestion" component={PracticeQuestionScreen} options={{ animation: 'slide_from_right' }} />
-          <Stack.Screen name="PracticeFeedback" component={PracticeFeedbackScreen} options={{ animation: 'slide_from_bottom' }} />
-          <Stack.Screen name="PracticeRecommendation" component={PracticeRecommendationScreen} options={{ animation: 'slide_from_right' }} />
-          <Stack.Screen name="PracticeLesson" component={PracticeLessonScreen} options={{ animation: 'slide_from_right' }} />
-          <Stack.Screen name="PracticeQuizResult" component={PracticeQuizResultScreen} options={{ animation: 'slide_from_right' }} />
-          <Stack.Screen name="Progress" component={ProgressScreen} options={{ animation: 'fade' }} />
-          <Stack.Screen name="ConceptProgress" component={ConceptProgressScreen} options={{ animation: 'slide_from_right' }} />
-          <Stack.Screen name="Challenge" component={ChallengeScreen} options={{ animation: 'slide_from_right' }} />
-          <Stack.Screen name="Search" component={SearchScreen} options={{ animation: 'slide_from_right' }} />
-          <Stack.Screen name="Profile" component={ProfileScreen} options={{ animation: 'fade' }} />
-          <Stack.Screen name="Settings" component={SettingsScreen} options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="Home" component={HomeDashboardScreen} />
+          <Stack.Screen name="Subjects" component={SubjectsScreen} />
+          <Stack.Screen name="SubjectDashboard" component={SubjectDashboardScreen} />
+          <Stack.Screen name="TopicOverview" component={TopicOverviewScreen} />
+          <Stack.Screen name="ConceptDetails" component={ConceptDetailsScreen} />
+          <Stack.Screen name="ConceptLearning" component={ConceptLearningScreen} />
+          <Stack.Screen name="ConceptQuiz" component={ConceptQuizScreen} />
+          <Stack.Screen name="Practice" component={PracticeHomeScreen} />
+          <Stack.Screen name="PracticeQuestion" component={PracticeQuestionScreen} />
+          <Stack.Screen name="PracticeFeedback" component={PracticeFeedbackScreen} />
+          <Stack.Screen name="PracticeRecommendation" component={PracticeRecommendationScreen} />
+          <Stack.Screen name="PracticeLesson" component={PracticeLessonScreen} />
+          <Stack.Screen name="PracticeQuizResult" component={PracticeQuizResultScreen} />
+          <Stack.Screen name="Progress" component={ProgressScreen} />
+          <Stack.Screen name="ConceptProgress" component={ConceptProgressScreen} />
+          <Stack.Screen name="Challenge" component={ChallengeScreen} />
+          <Stack.Screen name="Search" component={SearchScreen} />
+          <Stack.Screen name="Profile" component={ProfileScreen} />
+          <Stack.Screen name="Settings" component={SettingsScreen} />
         </Stack.Navigator>
       </NavigationContainer>
       <ThemeRevealOverlay />

@@ -1,8 +1,8 @@
-import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Animated, Easing, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { colors, fonts, shadow } from '../theme';
 import { useThemedStyles } from '../themeContext';
 import type { ThemeColors } from '../theme';
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { Children } from 'react';
 
 type PillProps = {
@@ -58,15 +58,24 @@ type ProgressBarProps = {
 
 export function ProgressBar({ progress, track = colors.border, fill = colors.primary, style }: ProgressBarProps) {
   const styles = useThemedStyles(createStyles);
+  const value = useRef(new Animated.Value(0)).current;
+  const clamped = Math.max(0, Math.min(100, progress));
+
+  useEffect(() => {
+    Animated.timing(value, {
+      toValue: clamped,
+      duration: 650,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [clamped, value]);
+
+  const width = value.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] });
+
   return (
-    <View style={[styles.track, { backgroundColor: track }, style]}>
-      <View
-        style={[
-          styles.fill,
-          { backgroundColor: fill, width: `${Math.max(0, Math.min(100, progress))}%` },
-        ]}
-      />
-    </View>
+    <Animated.View style={[styles.track, { backgroundColor: track }, style]}>
+      <Animated.View style={[styles.fill, { backgroundColor: fill, width }]} />
+    </Animated.View>
   );
 }
 

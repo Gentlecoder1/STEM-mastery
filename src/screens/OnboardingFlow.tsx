@@ -14,6 +14,7 @@ import {
   type SubjectId,
 } from '../theme';
 import { PrimaryButton } from '../components/Form';
+import { ProgressBar } from '../components/PracticeUI';
 import { ArrowRightIcon, CheckIcon } from '../components/icons';
 import type { RootScreenProps } from '../navigation/types';
 import { useThemedStyles } from '../themeContext';
@@ -388,11 +389,7 @@ export default function OnboardingFlow({ navigation }: RootScreenProps<'Onboardi
               </Pressable>
             </View>
 
-            <View style={styles.progressTrack}>
-              <View
-                style={[styles.progressFill, { width: `${Math.round((step / TOTAL_STEPS) * 100)}%` }]}
-              />
-            </View>
+            <ProgressBar progress={Math.round((step / TOTAL_STEPS) * 100)} />
           </>
         )}
 
@@ -436,14 +433,6 @@ const createStyles = () => StyleSheet.create({
     color: colors.primary,
   },
   skip: { fontFamily: fonts.bold, fontSize: 13, lineHeight: 15.733, color: colors.slate },
-
-  progressTrack: {
-    height: 10,
-    borderRadius: radius.pill,
-    backgroundColor: colors.border,
-    overflow: 'hidden',
-  },
-  progressFill: { height: '100%', borderRadius: radius.pill, backgroundColor: colors.primary },
 
   section: { gap: 12 },
   block: { gap: 10 },

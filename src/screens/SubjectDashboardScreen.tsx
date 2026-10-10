@@ -76,7 +76,7 @@ export default function SubjectDashboardScreen({ navigation, route }: RootScreen
         </View>
 
         <View style={styles.hero}>
-          <MasteryRing percent={subject.mastery} color={colors.yellow} size={100} labelColor={lightColors.surface} />
+          <MasteryRing percent={subject.mastery} color={colors.yellow} size={84} labelColor={lightColors.surface} />
           <View style={styles.heroCopy}>
             <View style={styles.statusPill}><SparklesIcon size={15} color={lightColors.ink} /><Text style={styles.statusLabel}>ON TRACK</Text></View>
             <Text style={styles.heroTitle}>Your {subject.focus} skills are growing</Text>

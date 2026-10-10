@@ -7,6 +7,7 @@ import SubjectDashboardScreen from '../src/screens/SubjectDashboardScreen';
 import TopicOverviewScreen from '../src/screens/TopicOverviewScreen';
 import ConceptDetailsScreen from '../src/screens/ConceptDetailsScreen';
 import ConceptLearningScreen from '../src/screens/ConceptLearningScreen';
+import ConceptQuizScreen from '../src/screens/ConceptQuizScreen';
 import PracticeHomeScreen from '../src/screens/PracticeHomeScreen';
 import PracticeQuestionScreen from '../src/screens/PracticeQuestionScreen';
 import PracticeFeedbackScreen from '../src/screens/PracticeFeedbackScreen';
@@ -72,6 +73,7 @@ const CASES = [
   screenCase('TopicOverview', TopicOverviewScreen),
   screenCase('ConceptDetails', ConceptDetailsScreen, { conceptId: 'concept-velocity' }),
   screenCase('ConceptLearning', ConceptLearningScreen, { conceptId: 'concept-velocity' }),
+  screenCase('ConceptQuiz', ConceptQuizScreen, { conceptId: 'concept-velocity' }),
   screenCase('Splash', SplashScreen),
   screenCase('SignUp', SignUpScreen),
   screenCase('Login', LoginScreen),

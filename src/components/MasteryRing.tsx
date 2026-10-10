@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { colors, fonts } from '../theme';
 import { useThemedStyles } from '../themeContext';
@@ -7,6 +8,9 @@ const SIZE = 44;
 const STROKE = 7;
 const R = (SIZE - STROKE) / 2;
 const C = 2 * Math.PI * R;
+const DURATION = 750;
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 type MasteryRingProps = {
   percent: number;
@@ -19,12 +23,24 @@ export default function MasteryRing({ percent, color, size = SIZE, labelColor = 
   const styles = useThemedStyles(createStyles);
   const scale = size / SIZE;
   const clamped = Math.min(100, Math.max(0, percent));
+  const value = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(value, {
+      toValue: clamped,
+      duration: DURATION,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [clamped, value]);
+
+  const dashOffset = value.interpolate({ inputRange: [0, 100], outputRange: [C, 0] });
 
   return (
     <View style={{ width: size, height: size }}>
       <Svg width={size} height={size} viewBox="0 0 44 44">
         <Circle cx={22} cy={22} r={R} stroke={colors.border} strokeWidth={STROKE} fill="none" />
-        <Circle
+        <AnimatedCircle
           cx={22}
           cy={22}
           r={R}
@@ -32,7 +48,8 @@ export default function MasteryRing({ percent, color, size = SIZE, labelColor = 
           strokeWidth={STROKE}
           fill="none"
           strokeLinecap="round"
-          strokeDasharray={`${(C * clamped) / 100} ${C}`}
+          strokeDasharray={`${C} ${C}`}
+          strokeDashoffset={dashOffset}
           transform="rotate(-90 22 22)"
         />
       </Svg>
