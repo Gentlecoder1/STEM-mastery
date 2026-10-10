@@ -5,7 +5,7 @@ import { useState } from 'react';
 
 import BottomNav from '../components/BottomNav';
 import BottomSheetDrawer from '../components/BottomSheetDrawer';
-import { ChevronRightIcon, SparklesIcon } from '../components/icons';
+import { ChevronRightIcon } from '../components/icons';
 import {
   BrainIcon,
   DownloadIcon,
@@ -16,7 +16,7 @@ import {
   TargetIcon,
   UserIcon,
 } from '../components/glyphs';
-import { Pill, SectionHeading } from '../components/PracticeUI';
+import { SectionHeading } from '../components/PracticeUI';
 import { colors, fonts, lightColors, shadow, type ColorToken } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
 import { navigateToTab } from '../navigation/tabs';
@@ -115,10 +115,6 @@ export default function ProfileScreen({ navigation }: RootScreenProps<'Profile'>
           </View>
           <Text style={styles.name}>{userName}</Text>
           <Text style={styles.tagline}>{classLevel} learner • {location}</Text>
-          <Pill bg={colors.primarySoft} tint={colors.primary}>
-            <SparklesIcon size={12} color={colors.primary} />
-            <Text style={styles.roleText}>CURIOUS EXPLORER</Text>
-          </Pill>
         </View>
 
         <View style={styles.statsCard}>

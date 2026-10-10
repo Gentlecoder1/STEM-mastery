@@ -12,6 +12,7 @@ import {
   DownloadIcon,
   HelpCircleIcon,
   LanguagesIcon,
+  LogOutIcon,
   MoonIcon,
   TargetIcon,
   UserIcon,
@@ -269,7 +270,9 @@ export default function SettingsScreen({ navigation }: RootScreenProps<'Settings
           style={styles.logoutButton}
           onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Login' }] })}
           accessibilityRole="button"
+          accessibilityLabel="Log out"
         >
+          <LogOutIcon size={19} color={colors.ink} />
           <Text style={styles.logoutText}>Log out</Text>
         </Pressable>
       </ScrollView>
@@ -444,8 +447,8 @@ const createStyles = () => StyleSheet.create({
   },
   saveButton: { minHeight: 50, marginTop: 8, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primary },
   saveButtonText: { fontFamily: fonts.bold, fontSize: 14, color: colors.onPrimary },
-  logoutButton: { minHeight: 50, marginTop: 4, borderRadius: 13, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.danger, backgroundColor: colors.surface },
-  logoutText: { fontFamily: fonts.bold, fontSize: 14, color: colors.danger },
+  logoutButton: { minHeight: 50, marginTop: 4, borderRadius: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  logoutText: { fontFamily: fonts.bold, fontSize: 14, color: colors.ink },
   items: { gap: 10, paddingTop: 18, paddingBottom: 8 },
   item: { padding: 14, borderRadius: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, gap: 4 },
   itemTitle: { fontFamily: fonts.semibold, fontSize: 14, lineHeight: 18, color: colors.ink },

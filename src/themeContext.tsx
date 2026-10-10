@@ -55,8 +55,11 @@ export type ThemeContextValue = {
   statusBarStyle: 'light' | 'dark';
   setMode: (mode: ThemeMode) => void;
   toggleTheme: () => void;
-  reveal: ThemeReveal | null;
   startThemeReveal: (x: number, y: number) => void;
+};
+
+export type ThemeRevealContextValue = {
+  reveal: ThemeReveal | null;
   commitThemeReveal: () => void;
   clearThemeReveal: () => void;
 };
@@ -67,8 +70,11 @@ const ThemeContext = createContext<ThemeContextValue>({
   statusBarStyle: 'dark',
   setMode: () => {},
   toggleTheme: () => {},
-  reveal: null,
   startThemeReveal: () => {},
+});
+
+const ThemeRevealContext = createContext<ThemeRevealContextValue>({
+  reveal: null,
   commitThemeReveal: () => {},
   clearThemeReveal: () => {},
 });
@@ -78,6 +84,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [reveal, setReveal] = useState<ThemeReveal | null>(null);
   const modeRef = useRef(mode);
   modeRef.current = mode;
+  const revealRef = useRef(reveal);
+  revealRef.current = reveal;
 
   useEffect(() => {
     let mounted = true;
@@ -97,45 +105,59 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     writeStoredMode(next);
   }, []);
 
-  const startThemeReveal = useCallback(
-    (x: number, y: number) => {
-      setReveal((prev) => {
-        if (prev) return prev;
-        const current = modeRef.current;
-        return { x, y, next: current === 'dark' ? 'light' : 'dark' };
-      });
-    },
-    [],
-  );
+  const startThemeReveal = useCallback((x: number, y: number) => {
+    setReveal((prev) => {
+      if (prev) return prev;
+      const current = modeRef.current;
+      return { x, y, next: current === 'dark' ? 'light' : 'dark' };
+    });
+  }, []);
 
   const commitThemeReveal = useCallback(() => {
-    if (reveal) setMode(reveal.next);
-  }, [reveal, setMode]);
+    const current = revealRef.current;
+    if (current) setMode(current.next);
+  }, [setMode]);
 
   const clearThemeReveal = useCallback(() => {
     setReveal(null);
   }, []);
 
-  const value = useMemo<ThemeContextValue>(
+  const themeValue = useMemo<ThemeContextValue>(
     () => ({
       mode,
       isDark: mode === 'dark',
       statusBarStyle: mode === 'dark' ? 'light' : 'dark',
       setMode,
       toggleTheme: () => setMode(mode === 'dark' ? 'light' : 'dark'),
-      reveal,
       startThemeReveal,
+    }),
+    [mode, setMode, startThemeReveal],
+  );
+
+  const revealValue = useMemo<ThemeRevealContextValue>(
+    () => ({
+      reveal,
       commitThemeReveal,
       clearThemeReveal,
     }),
-    [mode, setMode, reveal, startThemeReveal, commitThemeReveal, clearThemeReveal],
+    [reveal, commitThemeReveal, clearThemeReveal],
   );
 
-  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+  return (
+    <ThemeContext.Provider value={themeValue}>
+      <ThemeRevealContext.Provider value={revealValue}>
+        {children}
+      </ThemeRevealContext.Provider>
+    </ThemeContext.Provider>
+  );
 }
 
 export function useTheme(): ThemeContextValue {
   return useContext(ThemeContext);
+}
+
+export function useThemeReveal(): ThemeRevealContextValue {
+  return useContext(ThemeRevealContext);
 }
 
 export function useThemedStyles<T extends StyleSheet.NamedStyles<T>>(
