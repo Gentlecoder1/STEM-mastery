@@ -181,7 +181,7 @@ const createStyles = () => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.canvas },
   missing: { alignItems: 'center', justifyContent: 'center' },
   missingText: { fontFamily: fonts.medium, fontSize: 14, color: colors.slate },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingBottom: 10 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingBottom: 14 },
   iconButton: { width: 42, height: 42, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   headerCopy: { flex: 1, gap: 2 },
   eyebrow: { fontFamily: fonts.bold, fontSize: 10, lineHeight: 12, color: colors.primary },

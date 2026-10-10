@@ -209,8 +209,8 @@ const createStyles = () => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingBottom: 12,
-    paddingHorizontal: 20,
+    paddingBottom: 14,
+    paddingHorizontal: 18,
   },
   headerCopy: {
     flex: 1,

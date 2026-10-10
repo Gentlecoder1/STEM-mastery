@@ -14,6 +14,7 @@ import {
 
 import { colors } from './src/theme';
 import { ThemeProvider, useTheme, useThemedStyles } from './src/themeContext';
+import { PreferencesProvider } from './src/preferencesContext';
 import ThemeRevealOverlay from './src/components/ThemeRevealOverlay';
 import SplashScreen from './src/screens/SplashScreen';
 import SignUpScreen from './src/screens/SignUpScreen';
@@ -127,9 +128,11 @@ function AppShell() {
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <AppShell />
-    </ThemeProvider>
+    <PreferencesProvider>
+      <ThemeProvider>
+        <AppShell />
+      </ThemeProvider>
+    </PreferencesProvider>
   );
 }
 

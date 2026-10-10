@@ -4,14 +4,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import BottomNav from '../components/BottomNav';
 import { navigateToTab } from '../navigation/tabs';
-import { GaugeIcon } from '../components/glyphs';
+import { DownloadIcon, GaugeIcon } from '../components/glyphs';
 import { ProgressBar } from '../components/PracticeUI';
-import { ArrowLeftIcon, BookmarkIcon, CheckCircleIcon, ChevronRightIcon, LockIcon, SparklesIcon } from '../components/icons';
+import { ArrowLeftIcon, CheckCircleIcon, ChevronRightIcon, LockIcon, SparklesIcon } from '../components/icons';
 import { colors, fonts, lightColors, shadow } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
 import { CONCEPTS } from '../data/learning';
 import type { Concept } from '../data/learning';
 import type { RootScreenProps } from '../navigation/types';
+import { usePreferences } from '../preferencesContext';
 
 const SUBTITLES: Record<Concept['state'], string> = {
   done: 'Mastered • prerequisite',
@@ -44,13 +45,24 @@ export default function TopicOverviewScreen({ navigation }: RootScreenProps<'Top
   const insets = useSafeAreaInsets();
   const { statusBarStyle } = useTheme();
   const styles = useThemedStyles(createStyles);
+  const { downloadedTopics, downloadsEnabled, toggleTopicDownload } = usePreferences();
+  const isDownloaded = downloadedTopics.includes('topic-speed-velocity');
   return (
     <View style={styles.root}>
       <StatusBar style={statusBarStyle} />
       <View style={[styles.header, { paddingTop: insets.top + 4 }]}>
           <Pressable style={styles.iconButton} onPress={() => navigation.goBack()} accessibilityLabel="Go back"><ArrowLeftIcon size={23} color={colors.ink} /></Pressable>
           <View style={styles.headerCopy}><Text style={styles.title}>Speed and Velocity</Text><Text style={styles.subtitle}>Physics • Motion</Text></View>
-          <Pressable style={styles.iconButton} accessibilityLabel="Bookmark topic"><BookmarkIcon size={21} color={colors.primary} /></Pressable>
+          {downloadsEnabled ? (
+            <Pressable
+              style={[styles.iconButton, isDownloaded && styles.downloadedButton]}
+              onPress={() => toggleTopicDownload('topic-speed-velocity')}
+              accessibilityRole="button"
+              accessibilityLabel={isDownloaded ? 'Remove download' : 'Download topic'}
+            >
+              <DownloadIcon size={21} color={isDownloaded ? colors.onPrimary : colors.primary} />
+            </Pressable>
+          ) : <View style={styles.iconButtonPlaceholder} />}
       </View>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 18 }]}>
         <View style={styles.hero}>
@@ -58,7 +70,7 @@ export default function TopicOverviewScreen({ navigation }: RootScreenProps<'Top
           <View style={styles.heroCopy}><Text style={styles.eyebrow}>IN PROGRESS</Text><Text style={styles.heroTitle}>Understand how motion changes over time.</Text><Text style={styles.meta}>5 lessons <Text style={styles.dot}>•</Text> 42 min</Text></View>
           <ProgressBar progress={68} track={colors.surface} fill={colors.blue} style={styles.heroBar} />
         </View>
-        <Text style={styles.sectionTitle}>What you’ll master</Text>
+        <Text style={styles.sectionTitle}>What you'll master</Text>
         <View style={styles.masterCard}>{['Distinguish speed from velocity', 'Read displacement-time graphs', 'Calculate acceleration from motion data'].map((item) => <View key={item} style={styles.masterRow}><View style={styles.check}><CheckCircleIcon size={18} color={colors.green} /></View><Text style={styles.masterText}>{item}</Text></View>)}</View>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Your concept path</Text>
@@ -83,8 +95,16 @@ function ConceptRow({ concept, onPress }: { concept: (typeof concepts)[number]; 
 const createStyles = () => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.canvas },
   content: { paddingHorizontal: 18, gap: 14 },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingHorizontal: 18,
+    paddingBottom: 14,
+  },
   iconButton: { width: 42, height: 42, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  downloadedButton: { backgroundColor: colors.primary, borderColor: colors.primary },
+  iconButtonPlaceholder: { width: 42, height: 42 },
   headerCopy: { flex: 1, gap: 2 },
   title: { fontFamily: fonts.regular, fontSize: 22, lineHeight: 25, color: colors.ink },
   subtitle: { fontFamily: fonts.medium, fontSize: 12, lineHeight: 16, color: colors.slate },

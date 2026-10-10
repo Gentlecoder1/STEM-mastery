@@ -52,7 +52,7 @@ export default function ProgressScreen({ navigation }: RootScreenProps<'Progress
   return (
     <View style={styles.root}>
       <StatusBar style={statusBarStyle} />
-      <View style={[styles.header, { marginHorizontal: 18, paddingTop: insets.top + 8 }]}>
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <View style={styles.headerCopy}>
           <Text style={styles.title}>Your progress</Text>
           <Text style={styles.subtitle}>Keep building mastery, Iseoluwa</Text>
@@ -156,7 +156,8 @@ const createStyles = () => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingBottom: 2,
+    paddingHorizontal: 18,
+    paddingBottom: 14,
   },
   headerCopy: { flex: 1, gap: 2 },
   title: { fontFamily: fonts.regular, fontSize: 22, lineHeight: 25, color: colors.ink },

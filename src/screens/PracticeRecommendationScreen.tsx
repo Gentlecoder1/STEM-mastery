@@ -33,7 +33,7 @@ export default function PracticeRecommendationScreen({
   return (
     <View style={styles.root}>
       <StatusBar style={statusBarStyle} />
-      <View style={[styles.header, { marginHorizontal: 18, paddingTop: insets.top + 8 }]}>
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Pressable style={styles.iconButton} onPress={() => navigation.goBack()} accessibilityLabel="Go back">
           <ArrowLeftIcon size={23} color={colors.ink} />
         </Pressable>
@@ -132,7 +132,7 @@ const createStyles = () => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.canvas },
   content: { paddingHorizontal: 18, gap: 13 },
 
-  header: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 18, paddingBottom: 14 },
   iconButton: {
     width: 42,
     height: 42,

@@ -21,6 +21,9 @@ import { colors, fonts, lightColors, shadow, type ColorToken } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
 import { navigateToTab } from '../navigation/tabs';
 import type { RootScreenProps } from '../navigation/types';
+import { CLASS_OPTIONS, SUBJECT_OPTIONS, usePreferences, type ClassLevel } from '../preferencesContext';
+import type { SubjectId } from '../theme';
+import { CONCEPTS } from '../data/learning';
 
 const STATS = [
   { value: '1,840', label: 'Total XP', tint: 'orange' as ColorToken },
@@ -62,12 +65,30 @@ export default function ProfileScreen({ navigation }: RootScreenProps<'Profile'>
   const insets = useSafeAreaInsets();
   const { statusBarStyle } = useTheme();
   const styles = useThemedStyles(createStyles);
+  const {
+    classLevel,
+    subjects,
+    downloadedTopics,
+    saveClassAndSubjects,
+    userName,
+    location,
+  } = usePreferences();
   const [drawerKey, setDrawerKey] = useState<string | null>(null);
+  const [draftClass, setDraftClass] = useState<ClassLevel>(classLevel);
+  const [draftSubjects, setDraftSubjects] = useState<SubjectId[]>(subjects);
+
+  const openDrawer = (key: string) => {
+    setDrawerKey(key);
+    if (key === 'Class and subjects') {
+      setDraftClass(classLevel);
+      setDraftSubjects(subjects);
+    }
+  };
 
   return (
     <View style={styles.root}>
       <StatusBar style={statusBarStyle} />
-      <View style={[styles.header, { marginHorizontal: 18, paddingTop: insets.top + 8 }]}>
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Text style={styles.title}>Profile</Text>
         <Pressable
           style={styles.headerAction}
@@ -92,8 +113,8 @@ export default function ProfileScreen({ navigation }: RootScreenProps<'Profile'>
               <Text style={styles.levelText}>12</Text>
             </View>
           </View>
-          <Text style={styles.name}>Iseoluwa</Text>
-          <Text style={styles.tagline}>SS1 learner • Lagos, Nigeria</Text>
+          <Text style={styles.name}>{userName}</Text>
+          <Text style={styles.tagline}>{classLevel} learner • {location}</Text>
           <Pill bg={colors.primarySoft} tint={colors.primary}>
             <SparklesIcon size={12} color={colors.primary} />
             <Text style={styles.roleText}>CURIOUS EXPLORER</Text>
@@ -127,7 +148,12 @@ export default function ProfileScreen({ navigation }: RootScreenProps<'Profile'>
         <SectionHeading title="Learning profile" />
         <View style={styles.menuList}>
           {MENU.map(({ title, subtitle, Icon, bg, tint }) => (
-            <Pressable key={title} style={styles.menuRow} accessibilityRole="button" onPress={() => setDrawerKey(title)}>
+            <Pressable
+              key={title}
+              style={styles.menuRow}
+              accessibilityRole={title === 'Learning goals' ? undefined : 'button'}
+              onPress={title === 'Learning goals' ? undefined : () => openDrawer(title)}
+            >
               <View style={[styles.menuIcon, { backgroundColor: colors[bg] }]}>
                 <Icon size={19} color={colors[tint]} />
               </View>
@@ -152,24 +178,73 @@ export default function ProfileScreen({ navigation }: RootScreenProps<'Profile'>
               ? 'Set a pace that keeps your study routine realistic and consistent.'
               : 'Manage lesson downloads for learning when you are offline.'
         }
-        items={
-          drawerKey === 'Class and subjects'
-            ? [
-                { title: 'Current class', body: 'SS1 is used to tailor examples and practice difficulty.' },
-                { title: 'Your subjects', body: 'Mathematics, Physics, and Chemistry are in your learning library.' },
-              ]
-            : drawerKey === 'Learning goals'
-              ? [
-                  { title: 'Daily target', body: 'Aim for 20 minutes of focused learning each day.' },
-                  { title: 'Weekly routine', body: 'Your current routine is 5 learning days per week.' },
-                ]
-              : [
-                  { title: 'Downloaded lessons', body: '6 lessons are available for offline learning.' },
-                  { title: 'Wi-Fi downloads', body: 'Downloads are limited to Wi-Fi to help protect your data.' },
-                ]
-        }
+        items={[]}
         onClose={() => setDrawerKey(null)}
-      />
+      >
+        {drawerKey === 'Class and subjects' ? (
+          <ScrollView contentContainerStyle={styles.drawerContent}>
+            <Text style={styles.drawerLabel}>CLASS</Text>
+            {CLASS_OPTIONS.map((option) => (
+              <Pressable key={option} style={styles.choiceRow} onPress={() => setDraftClass(option)}>
+                <Text style={styles.choiceText}>{option}</Text>
+                <View style={[styles.radio, draftClass === option && styles.radioSelected]} />
+              </Pressable>
+            ))}
+            <Text style={styles.drawerLabel}>SUBJECTS</Text>
+            {SUBJECT_OPTIONS.map((subject) => {
+              const selected = draftSubjects.includes(subject.id);
+              return (
+                <Pressable
+                  key={subject.id}
+                  style={styles.choiceRow}
+                  onPress={() =>
+                    setDraftSubjects((current) =>
+                      selected ? current.filter((id) => id !== subject.id) : [...current, subject.id],
+                    )
+                  }
+                >
+                  <Text style={styles.choiceText}>{subject.label}</Text>
+                  <View style={[styles.checkbox, selected && styles.checkboxSelected]}>
+                    {selected ? <Text style={styles.checkmark}>✓</Text> : null}
+                  </View>
+                </Pressable>
+              );
+            })}
+            <Pressable
+              style={styles.saveButton}
+              onPress={() => {
+                saveClassAndSubjects(draftClass, draftSubjects);
+                setDrawerKey(null);
+              }}
+            >
+              <Text style={styles.saveButtonText}>Save changes</Text>
+            </Pressable>
+          </ScrollView>
+        ) : (
+          <ScrollView contentContainerStyle={styles.drawerContent}>
+            {downloadedTopics.length === 0 ? (
+              <Text style={styles.itemBody}>No lessons have been downloaded yet.</Text>
+            ) : (
+              CONCEPTS.filter((concept) => downloadedTopics.includes(concept.topicId)).map((concept) => (
+                <Pressable
+                  key={concept.id}
+                  style={styles.downloadedLesson}
+                  onPress={() => {
+                    setDrawerKey(null);
+                    navigation.navigate('ConceptDetails', { conceptId: concept.id });
+                  }}
+                >
+                  <View style={styles.menuCopy}>
+                    <Text style={styles.menuTitle}>{concept.title}</Text>
+                    <Text style={styles.menuSubtitle}>Physics • Speed and Velocity</Text>
+                  </View>
+                  <ChevronRightIcon size={20} color={colors.slate} />
+                </Pressable>
+              ))
+            )}
+          </ScrollView>
+        )}
+      </BottomSheetDrawer>
     </View>
   );
 }
@@ -177,13 +252,27 @@ export default function ProfileScreen({ navigation }: RootScreenProps<'Profile'>
 const createStyles = () => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.canvas },
   content: { paddingHorizontal: 18, gap: 13 },
+  drawerContent: { gap: 10, paddingTop: 18, paddingBottom: 8 },
+  drawerLabel: { fontFamily: fonts.bold, fontSize: 11, lineHeight: 14, color: colors.slate, marginTop: 8 },
+  choiceRow: { minHeight: 48, paddingHorizontal: 14, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  choiceText: { fontFamily: fonts.medium, fontSize: 14, color: colors.ink },
+  radio: { width: 22, height: 22, borderRadius: 999, borderWidth: 2, borderColor: colors.border },
+  radioSelected: { borderColor: colors.primary, backgroundColor: colors.primary },
+  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  checkboxSelected: { borderColor: colors.primary, backgroundColor: colors.primary },
+  checkmark: { fontFamily: fonts.bold, fontSize: 14, color: colors.onPrimary },
+  saveButton: { minHeight: 50, marginTop: 8, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primary },
+  saveButtonText: { fontFamily: fonts.bold, fontSize: 14, color: colors.onPrimary },
+  downloadedLesson: { minHeight: 58, paddingHorizontal: 14, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center' },
+  itemBody: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 19, color: colors.slate },
 
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
-    paddingBottom: 2,
+    paddingHorizontal: 18,
+    paddingBottom: 14,
   },
   title: { fontFamily: fonts.regular, fontSize: 28, lineHeight: 32, color: colors.ink },
   headerAction: {

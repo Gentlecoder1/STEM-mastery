@@ -29,7 +29,7 @@ export default function ConceptDetailsScreen({ navigation, route }: RootScreenPr
   return (
     <View style={styles.root}>
       <StatusBar style={statusBarStyle} />
-      <View style={[styles.header, { marginHorizontal: 18, paddingTop: insets.top + 4 }]}>
+      <View style={[styles.header, { paddingTop: insets.top + 4 }]}>
         <Pressable
           style={styles.iconButton}
           onPress={() => navigation.goBack()}
@@ -145,7 +145,7 @@ const createStyles = () => StyleSheet.create({
   missingText: { fontFamily: fonts.medium, fontSize: 14, color: colors.slate },
   content: { paddingHorizontal: 18, gap: 12 },
 
-  header: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 18, paddingBottom: 14 },
   iconButton: {
     width: 42,
     height: 42,

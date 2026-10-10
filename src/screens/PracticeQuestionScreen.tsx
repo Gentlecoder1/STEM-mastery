@@ -230,7 +230,7 @@ const createStyles = () => StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     paddingHorizontal: 18,
-    paddingBottom: 10,
+    paddingBottom: 14,
   },
   closeButton: {
     width: 40,

@@ -111,7 +111,13 @@ export default function SubjectDashboardScreen({ navigation, route }: RootScreen
 const createStyles = () => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.canvas },
   content: { paddingHorizontal: 18, gap: 14 },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 2 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingHorizontal: 18,
+    paddingBottom: 14,
+  },
   iconButton: { width: 42, height: 42, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   headerCopy: { flex: 1, gap: 2 },
   title: { fontFamily: fonts.regular, fontSize: 22, lineHeight: 25, color: colors.ink },

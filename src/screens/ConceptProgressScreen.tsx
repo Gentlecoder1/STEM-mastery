@@ -68,7 +68,7 @@ export default function ConceptProgressScreen({ navigation }: RootScreenProps<'C
   return (
     <View style={styles.root}>
       <StatusBar style={statusBarStyle} />
-      <View style={[styles.header, { marginHorizontal: 18, paddingTop: insets.top + 8 }]}>
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Pressable
           style={styles.headerAction}
           onPress={() => navigation.goBack()}
@@ -152,7 +152,8 @@ const createStyles = () => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingBottom: 2,
+    paddingHorizontal: 18,
+    paddingBottom: 14,
   },
   headerAction: {
     width: 42,

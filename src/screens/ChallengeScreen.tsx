@@ -82,7 +82,7 @@ export default function ChallengeScreen({ navigation }: RootScreenProps<'Challen
   return (
     <View style={styles.root}>
       <StatusBar style={statusBarStyle} />
-      <View style={[styles.header, { marginHorizontal: 18, paddingTop: insets.top + 8 }]}>
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <View style={styles.headerCopy}>
           <Text style={styles.title}>For you</Text>
           <Text style={styles.subtitle}>Adaptive picks for today</Text>
@@ -186,7 +186,8 @@ const createStyles = () => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingBottom: 2,
+    paddingBottom: 14,
+    paddingHorizontal: 18,
   },
   headerCopy: { flex: 1, gap: 2 },
   title: { fontFamily: fonts.regular, fontSize: 22, lineHeight: 25, color: colors.ink },

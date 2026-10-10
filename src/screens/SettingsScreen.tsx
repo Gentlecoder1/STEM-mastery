@@ -1,4 +1,4 @@
-import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Dimensions, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState } from 'react';
@@ -14,11 +14,19 @@ import {
   LanguagesIcon,
   MoonIcon,
   TargetIcon,
+  UserIcon,
 } from '../components/glyphs';
 import { colors, fonts, type ColorToken } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
 import { navigateToTab } from '../navigation/tabs';
 import type { RootScreenProps } from '../navigation/types';
+import {
+  CLASS_OPTIONS,
+  SUBJECT_OPTIONS,
+  usePreferences,
+  type ClassLevel,
+} from '../preferencesContext';
+import type { SubjectId } from '../theme';
 
 type Row = {
   key: string;
@@ -100,6 +108,15 @@ const GROUPS: { label: string; rows: Row[] }[] = [
         soft: SOFT.orange,
         trailing: 'chevron',
       },
+      {
+        key: 'profile',
+        title: 'Edit profile',
+        subtitle: 'Name and location',
+        Icon: UserIcon,
+        tint: 'blue',
+        soft: SOFT.blue,
+        trailing: 'chevron',
+      },
     ],
   },
 ];
@@ -107,20 +124,49 @@ const GROUPS: { label: string; rows: Row[] }[] = [
 export default function SettingsScreen({ navigation }: RootScreenProps<'Settings'>) {
   const insets = useSafeAreaInsets();
   const { statusBarStyle, isDark, startThemeReveal } = useTheme();
+  const {
+    classLevel,
+    subjects,
+    dailyGoal,
+    userName,
+    location,
+    saveClassAndSubjects,
+    setDailyGoal,
+    saveProfile,
+    downloadsEnabled,
+    setDownloadsEnabled,
+  } = usePreferences();
   const styles = useThemedStyles(createStyles);
   const [toggles, setToggles] = useState({
     reminders: true,
     wifi: true,
   });
   const [drawerKey, setDrawerKey] = useState<string | null>(null);
+  const [draftClass, setDraftClass] = useState<ClassLevel>(classLevel);
+  const [draftSubjects, setDraftSubjects] = useState<SubjectId[]>(subjects);
+  const [draftGoal, setDraftGoal] = useState(dailyGoal);
+  const [draftName, setDraftName] = useState(userName);
+  const [draftLocation, setDraftLocation] = useState(location);
 
   const setToggle = (key: keyof typeof toggles) => (value: boolean) =>
     setToggles((prev) => ({ ...prev, [key]: value }));
+  const openDrawer = (key: string) => {
+    setDrawerKey(key);
+    if (key === 'goal') setDraftGoal(dailyGoal);
+    if (key === 'profile') {
+      setDraftName(userName);
+      setDraftLocation(location);
+    }
+    if (key === 'class') {
+      setDraftClass(classLevel);
+      setDraftSubjects(subjects);
+    }
+  };
 
   return (
     <View style={styles.root}>
       <StatusBar style={statusBarStyle} />
-      <View style={[styles.header, { marginHorizontal: 18, paddingTop: insets.top + 8 }]}>
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Pressable
           style={styles.headerAction}
           onPress={() => navigation.goBack()}
@@ -178,22 +224,39 @@ export default function SettingsScreen({ navigation }: RootScreenProps<'Settings
                   key={key}
                   style={styles.row}
                   accessibilityRole={toggleKey ? 'switch' : 'button'}
-                  accessibilityState={toggleKey ? { checked: toggles[toggleKey] } : undefined}
-                  onPress={trailing === 'chevron' ? () => setDrawerKey(key) : undefined}
+                  accessibilityState={
+                    toggleKey
+                      ? { checked: toggleKey === 'wifi' ? downloadsEnabled : toggles[toggleKey] }
+                      : undefined
+                  }
+                  onPress={
+                    key === 'goal' || key === 'profile' || key === 'class'
+                      ? () => openDrawer(key)
+                      : trailing === 'chevron'
+                        ? () => openDrawer(key)
+                        : undefined
+                  }
                 >
                   <View style={[styles.rowIcon, { backgroundColor: colors[soft] }]}>
                     <Icon size={19} color={colors[tint]} />
                   </View>
                   <View style={styles.rowCopy}>
                     <Text style={styles.rowTitle}>{title}</Text>
-                    <Text style={styles.rowSubtitle}>{subtitle}</Text>
+                    <Text style={styles.rowSubtitle}>{key === 'goal' ? dailyGoal : subtitle}</Text>
                   </View>
                   {trailing === 'change' ? (
-                    <Pressable accessibilityRole="button">
+                    <Pressable accessibilityRole="button" onPress={() => openDrawer('goal')}>
                       <Text style={styles.changeText}>Change</Text>
                     </Pressable>
                   ) : trailing === 'toggle' && toggleKey ? (
-                    <Toggle value={toggles[toggleKey]} onValueChange={setToggle(toggleKey)} label={title} />
+                    <Toggle
+                      value={toggleKey === 'wifi' ? downloadsEnabled : toggles[toggleKey]}
+                      onValueChange={(value) => {
+                        setToggle(toggleKey)(value);
+                        if (toggleKey === 'wifi') setDownloadsEnabled(value);
+                      }}
+                      label={title}
+                    />
                   ) : (
                     <ChevronRightIcon size={20} color={colors.slate} />
                   )}
@@ -202,31 +265,146 @@ export default function SettingsScreen({ navigation }: RootScreenProps<'Settings
             </View>
           </View>
         ))}
+        <Pressable
+          style={styles.logoutButton}
+          onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Login' }] })}
+          accessibilityRole="button"
+        >
+          <Text style={styles.logoutText}>Log out</Text>
+        </Pressable>
       </ScrollView>
 
       <BottomNav active="Profile" onSelect={navigateToTab(navigation, 'Profile')} />
       <BottomSheetDrawer
         visible={drawerKey !== null}
-        title={drawerKey === 'language' ? 'Language' : 'Help and feedback'}
+        title={
+          drawerKey === 'language'
+            ? 'Language'
+            : drawerKey === 'goal'
+              ? 'Daily goal'
+              : drawerKey === 'class'
+                ? 'Class and subjects'
+                : drawerKey === 'profile'
+                  ? 'Edit profile'
+                  : 'Help and feedback'
+        }
         description={
           drawerKey === 'language'
             ? 'Choose the language used throughout your learning experience.'
+            : drawerKey === 'goal'
+              ? 'Choose how much focused learning you want to complete each day.'
+              : drawerKey === 'class'
+                ? 'Choose one class and the subjects in your learning library.'
+                : drawerKey === 'profile'
+                  ? 'Update the details shown on your learning profile.'
             : 'Get help with Masterly or share feedback with the team.'
         }
-        items={
-          drawerKey === 'language'
-            ? [
-                { title: 'English', body: 'Your app language is currently set to English.' },
-                { title: 'More languages', body: 'Additional language options will be added in a future update.' },
-              ]
-            : [
-                { title: 'Getting help', body: 'Check your connection, restart the app, and try the action again.' },
-                { title: 'Share feedback', body: 'Tell us what worked well or what would make learning easier.' },
-                { title: 'Contact support', body: 'Support is available for account, lesson, and download questions.' },
-              ]
-        }
+        items={[]}
         onClose={() => setDrawerKey(null)}
-      />
+      >
+        {drawerKey === 'class' ? (
+          <ScrollView contentContainerStyle={styles.drawerContent}>
+            <Text style={styles.drawerLabel}>CLASS</Text>
+            {CLASS_OPTIONS.map((option) => (
+              <Pressable key={option} style={styles.choiceRow} onPress={() => setDraftClass(option)}>
+                <Text style={styles.choiceText}>{option}</Text>
+                <View style={[styles.radio, draftClass === option && styles.radioSelected]} />
+              </Pressable>
+            ))}
+            <Text style={styles.drawerLabel}>SUBJECTS</Text>
+            {SUBJECT_OPTIONS.map((subject) => {
+              const selected = draftSubjects.includes(subject.id);
+              return (
+                <Pressable
+                  key={subject.id}
+                  style={styles.choiceRow}
+                  onPress={() =>
+                    setDraftSubjects((current) =>
+                      selected
+                        ? current.filter((id) => id !== subject.id)
+                        : [...current, subject.id],
+                    )
+                  }
+                >
+                  <Text style={styles.choiceText}>{subject.label}</Text>
+                  <View style={[styles.checkbox, selected && styles.checkboxSelected]}>
+                    {selected ? <Text style={styles.checkmark}>✓</Text> : null}
+                  </View>
+                </Pressable>
+              );
+            })}
+            <Pressable
+              style={styles.saveButton}
+              onPress={() => {
+                saveClassAndSubjects(draftClass, draftSubjects);
+                setDrawerKey(null);
+              }}
+            >
+              <Text style={styles.saveButtonText}>Save changes</Text>
+            </Pressable>
+          </ScrollView>
+        ) : drawerKey === 'goal' ? (
+          <ScrollView contentContainerStyle={styles.drawerContent}>
+            <TextInput
+              value={draftGoal}
+              onChangeText={setDraftGoal}
+              placeholder="e.g. 45 minutes"
+              placeholderTextColor={colors.slate}
+              style={styles.goalInput}
+              accessibilityLabel="Daily goal"
+            />
+            {['20 minutes', '30 minutes', '1 hour', '2 hours', '5 hours'].map((option) => (
+              <Pressable key={option} style={styles.choiceRow} onPress={() => setDraftGoal(option)}>
+                <Text style={styles.choiceText}>{option}</Text>
+                <View style={[styles.radio, draftGoal === option && styles.radioSelected]} />
+              </Pressable>
+            ))}
+            <Pressable
+              style={styles.saveButton}
+              onPress={() => {
+                setDailyGoal(draftGoal.trim() || '20 minutes');
+                setDrawerKey(null);
+              }}
+            >
+              <Text style={styles.saveButtonText}>Save changes</Text>
+            </Pressable>
+          </ScrollView>
+        ) : drawerKey === 'profile' ? (
+          <View style={styles.drawerContent}>
+            <TextInput value={draftName} onChangeText={setDraftName} placeholder="Name" placeholderTextColor={colors.slate} style={styles.goalInput} />
+            <TextInput value={draftLocation} onChangeText={setDraftLocation} placeholder="Location" placeholderTextColor={colors.slate} style={styles.goalInput} />
+            <Pressable
+              style={styles.saveButton}
+              onPress={() => {
+                saveProfile(draftName, draftLocation);
+                setDrawerKey(null);
+              }}
+            >
+              <Text style={styles.saveButtonText}>Save changes</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.items}>
+            {(
+              drawerKey === 'language'
+                ? [
+                    { title: 'English', body: 'Your app language is currently set to English.' },
+                    { title: 'More languages', body: 'Additional language options will be added in a future update.' },
+                  ]
+                : [
+                    { title: 'Getting help', body: 'Check your connection, restart the app, and try the action again.' },
+                    { title: 'Share feedback', body: 'Tell us what worked well or what would make learning easier.' },
+                    { title: 'Contact support', body: 'Support is available for account, lesson, and download questions.' },
+                  ]
+            ).map((item) => (
+              <View key={item.title} style={styles.item}>
+                <Text style={styles.itemTitle}>{item.title}</Text>
+                <Text style={styles.itemBody}>{item.body}</Text>
+              </View>
+            ))}
+          </ScrollView>
+        )}
+      </BottomSheetDrawer>
     </View>
   );
 }
@@ -234,12 +412,51 @@ export default function SettingsScreen({ navigation }: RootScreenProps<'Settings
 const createStyles = () => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.canvas },
   content: { paddingHorizontal: 18, gap: 14 },
+  drawerContent: { gap: 10, paddingTop: 18, paddingBottom: 8 },
+  drawerLabel: { fontFamily: fonts.bold, fontSize: 11, lineHeight: 14, color: colors.slate, marginTop: 8 },
+  choiceRow: {
+    minHeight: 48,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  choiceText: { fontFamily: fonts.medium, fontSize: 14, color: colors.ink },
+  radio: { width: 22, height: 22, borderRadius: 999, borderWidth: 2, borderColor: colors.border },
+  radioSelected: { borderColor: colors.primary, backgroundColor: colors.primary },
+  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  checkboxSelected: { borderColor: colors.primary, backgroundColor: colors.primary },
+  checkmark: { fontFamily: fonts.bold, fontSize: 14, color: colors.onPrimary },
+  goalInput: {
+    minHeight: 48,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    color: colors.ink,
+    fontFamily: fonts.regular,
+    fontSize: 14,
+  },
+  saveButton: { minHeight: 50, marginTop: 8, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primary },
+  saveButtonText: { fontFamily: fonts.bold, fontSize: 14, color: colors.onPrimary },
+  logoutButton: { minHeight: 50, marginTop: 4, borderRadius: 13, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.danger, backgroundColor: colors.surface },
+  logoutText: { fontFamily: fonts.bold, fontSize: 14, color: colors.danger },
+  items: { gap: 10, paddingTop: 18, paddingBottom: 8 },
+  item: { padding: 14, borderRadius: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, gap: 4 },
+  itemTitle: { fontFamily: fonts.semibold, fontSize: 14, lineHeight: 18, color: colors.ink },
+  itemBody: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 19, color: colors.slate },
 
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingBottom: 2,
+    paddingHorizontal: 18,
+    paddingBottom: 14,
   },
   headerAction: {
     width: 42,

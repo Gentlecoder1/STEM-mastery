@@ -81,7 +81,7 @@ export default function SearchScreen({ navigation }: RootScreenProps<'Search'>) 
   return (
     <View style={styles.root}>
       <StatusBar style={statusBarStyle} />
-      <View style={[styles.searchHeader, { marginHorizontal: 18, paddingTop: insets.top + 8 }]}>
+      <View style={[styles.searchHeader, { paddingTop: insets.top + 8 }]}>
         <Text style={styles.title}>Search learning</Text>
         <View style={styles.field}>
           <SearchIcon size={19} color={colors.slate} />
@@ -179,7 +179,7 @@ export default function SearchScreen({ navigation }: RootScreenProps<'Search'>) 
 
 const createStyles = () => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.canvas },
-  searchHeader: { gap: 13 },
+  searchHeader: { gap: 13, paddingHorizontal: 18, paddingBottom: 14 },
   content: { paddingHorizontal: 18, gap: 13 },
 
   title: { fontFamily: fonts.regular, fontSize: 28, lineHeight: 32, color: colors.ink, paddingBottom: 2 },

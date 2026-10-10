@@ -1,4 +1,5 @@
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import type { ReactNode } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors, fonts, shadow } from '../theme';
@@ -13,6 +14,7 @@ type BottomSheetDrawerProps = {
   title: string;
   description: string;
   items: readonly DrawerItem[];
+  children?: ReactNode;
   onClose: () => void;
 };
 
@@ -21,6 +23,7 @@ export default function BottomSheetDrawer({
   title,
   description,
   items,
+  children,
   onClose,
 }: BottomSheetDrawerProps) {
   const insets = useSafeAreaInsets();
@@ -51,17 +54,16 @@ export default function BottomSheetDrawer({
               <Text style={styles.closeText}>×</Text>
             </Pressable>
           </View>
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.items}
-          >
-            {items.map((item) => (
-              <View key={item.title} style={styles.item}>
-                <Text style={styles.itemTitle}>{item.title}</Text>
-                <Text style={styles.itemBody}>{item.body}</Text>
-              </View>
-            ))}
-          </ScrollView>
+          {children ?? (
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.items}>
+              {items.map((item) => (
+                <View key={item.title} style={styles.item}>
+                  <Text style={styles.itemTitle}>{item.title}</Text>
+                  <Text style={styles.itemBody}>{item.body}</Text>
+                </View>
+              ))}
+            </ScrollView>
+          )}
         </View>
       </View>
     </Modal>
