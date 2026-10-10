@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState } from 'react';
 
 import BottomNav from '../components/BottomNav';
+import BottomSheetDrawer from '../components/BottomSheetDrawer';
 import Toggle from '../components/Toggle';
 import { ArrowLeftIcon, ChevronRightIcon } from '../components/icons';
 import {
@@ -12,11 +13,7 @@ import {
   HelpCircleIcon,
   LanguagesIcon,
   MoonIcon,
-  ShieldCheckIcon,
-  SlidersIcon,
   TargetIcon,
-  TypeIcon,
-  VolumeIcon,
 } from '../components/glyphs';
 import { colors, fonts, type ColorToken } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
@@ -31,7 +28,7 @@ type Row = {
   tint: ColorToken;
   soft: ColorToken;
   trailing: 'change' | 'toggle' | 'chevron';
-  toggleKey?: 'reminders' | 'adaptive' | 'readAloud' | 'wifi';
+  toggleKey?: 'reminders' | 'wifi';
 };
 
 const SOFT = {
@@ -65,40 +62,11 @@ const GROUPS: { label: string; rows: Row[] }[] = [
         trailing: 'toggle',
         toggleKey: 'reminders',
       },
-      {
-        key: 'adaptive',
-        title: 'Adaptive difficulty',
-        subtitle: 'Adjust questions as I improve',
-        Icon: SlidersIcon,
-        tint: 'violet',
-        soft: SOFT.violet,
-        trailing: 'toggle',
-        toggleKey: 'adaptive',
-      },
     ],
   },
   {
     label: 'ACCESSIBILITY & DATA',
     rows: [
-      {
-        key: 'textSize',
-        title: 'Text size',
-        subtitle: 'Standard',
-        Icon: TypeIcon,
-        tint: 'teal',
-        soft: SOFT.teal,
-        trailing: 'chevron',
-      },
-      {
-        key: 'readAloud',
-        title: 'Read lessons aloud',
-        subtitle: 'Audio support for lesson text',
-        Icon: VolumeIcon,
-        tint: 'success',
-        soft: SOFT.success,
-        trailing: 'toggle',
-        toggleKey: 'readAloud',
-      },
       {
         key: 'wifi',
         title: 'Download on Wi-Fi',
@@ -124,15 +92,6 @@ const GROUPS: { label: string; rows: Row[] }[] = [
     label: 'ACCOUNT & SUPPORT',
     rows: [
       {
-        key: 'privacy',
-        title: 'Privacy and learning data',
-        subtitle: 'What we store and how it is used',
-        Icon: ShieldCheckIcon,
-        tint: 'success',
-        soft: SOFT.success,
-        trailing: 'chevron',
-      },
-      {
         key: 'help',
         title: 'Help and feedback',
         subtitle: 'Contact support or share ideas',
@@ -151,10 +110,9 @@ export default function SettingsScreen({ navigation }: RootScreenProps<'Settings
   const styles = useThemedStyles(createStyles);
   const [toggles, setToggles] = useState({
     reminders: true,
-    adaptive: true,
-    readAloud: false,
     wifi: true,
   });
+  const [drawerKey, setDrawerKey] = useState<string | null>(null);
 
   const setToggle = (key: keyof typeof toggles) => (value: boolean) =>
     setToggles((prev) => ({ ...prev, [key]: value }));
@@ -221,6 +179,7 @@ export default function SettingsScreen({ navigation }: RootScreenProps<'Settings
                   style={styles.row}
                   accessibilityRole={toggleKey ? 'switch' : 'button'}
                   accessibilityState={toggleKey ? { checked: toggles[toggleKey] } : undefined}
+                  onPress={trailing === 'chevron' ? () => setDrawerKey(key) : undefined}
                 >
                   <View style={[styles.rowIcon, { backgroundColor: colors[soft] }]}>
                     <Icon size={19} color={colors[tint]} />
@@ -246,6 +205,28 @@ export default function SettingsScreen({ navigation }: RootScreenProps<'Settings
       </ScrollView>
 
       <BottomNav active="Profile" onSelect={navigateToTab(navigation, 'Profile')} />
+      <BottomSheetDrawer
+        visible={drawerKey !== null}
+        title={drawerKey === 'language' ? 'Language' : 'Help and feedback'}
+        description={
+          drawerKey === 'language'
+            ? 'Choose the language used throughout your learning experience.'
+            : 'Get help with Masterly or share feedback with the team.'
+        }
+        items={
+          drawerKey === 'language'
+            ? [
+                { title: 'English', body: 'Your app language is currently set to English.' },
+                { title: 'More languages', body: 'Additional language options will be added in a future update.' },
+              ]
+            : [
+                { title: 'Getting help', body: 'Check your connection, restart the app, and try the action again.' },
+                { title: 'Share feedback', body: 'Tell us what worked well or what would make learning easier.' },
+                { title: 'Contact support', body: 'Support is available for account, lesson, and download questions.' },
+              ]
+        }
+        onClose={() => setDrawerKey(null)}
+      />
     </View>
   );
 }

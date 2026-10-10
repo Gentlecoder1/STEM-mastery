@@ -1,8 +1,10 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useState } from 'react';
 
 import BottomNav from '../components/BottomNav';
+import BottomSheetDrawer from '../components/BottomSheetDrawer';
 import { ChevronRightIcon, SparklesIcon } from '../components/icons';
 import {
   BrainIcon,
@@ -60,6 +62,7 @@ export default function ProfileScreen({ navigation }: RootScreenProps<'Profile'>
   const insets = useSafeAreaInsets();
   const { statusBarStyle } = useTheme();
   const styles = useThemedStyles(createStyles);
+  const [drawerKey, setDrawerKey] = useState<string | null>(null);
 
   return (
     <View style={styles.root}>
@@ -124,7 +127,7 @@ export default function ProfileScreen({ navigation }: RootScreenProps<'Profile'>
         <SectionHeading title="Learning profile" />
         <View style={styles.menuList}>
           {MENU.map(({ title, subtitle, Icon, bg, tint }) => (
-            <Pressable key={title} style={styles.menuRow} accessibilityRole="button">
+            <Pressable key={title} style={styles.menuRow} accessibilityRole="button" onPress={() => setDrawerKey(title)}>
               <View style={[styles.menuIcon, { backgroundColor: colors[bg] }]}>
                 <Icon size={19} color={colors[tint]} />
               </View>
@@ -139,6 +142,34 @@ export default function ProfileScreen({ navigation }: RootScreenProps<'Profile'>
       </ScrollView>
 
       <BottomNav active="Profile" onSelect={navigateToTab(navigation, 'Profile')} />
+      <BottomSheetDrawer
+        visible={drawerKey !== null}
+        title={drawerKey ?? ''}
+        description={
+          drawerKey === 'Class and subjects'
+            ? 'Review the class level and subjects used to personalize your learning path.'
+            : drawerKey === 'Learning goals'
+              ? 'Set a pace that keeps your study routine realistic and consistent.'
+              : 'Manage lesson downloads for learning when you are offline.'
+        }
+        items={
+          drawerKey === 'Class and subjects'
+            ? [
+                { title: 'Current class', body: 'SS1 is used to tailor examples and practice difficulty.' },
+                { title: 'Your subjects', body: 'Mathematics, Physics, and Chemistry are in your learning library.' },
+              ]
+            : drawerKey === 'Learning goals'
+              ? [
+                  { title: 'Daily target', body: 'Aim for 20 minutes of focused learning each day.' },
+                  { title: 'Weekly routine', body: 'Your current routine is 5 learning days per week.' },
+                ]
+              : [
+                  { title: 'Downloaded lessons', body: '6 lessons are available for offline learning.' },
+                  { title: 'Wi-Fi downloads', body: 'Downloads are limited to Wi-Fi to help protect your data.' },
+                ]
+        }
+        onClose={() => setDrawerKey(null)}
+      />
     </View>
   );
 }
