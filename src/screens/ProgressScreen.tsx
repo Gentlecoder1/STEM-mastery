@@ -52,23 +52,22 @@ export default function ProgressScreen({ navigation }: RootScreenProps<'Progress
   return (
     <View style={styles.root}>
       <StatusBar style={statusBarStyle} />
+      <View style={[styles.header, { marginHorizontal: 18, paddingTop: insets.top + 8 }]}>
+        <View style={styles.headerCopy}>
+          <Text style={styles.title}>Your progress</Text>
+          <Text style={styles.subtitle}>Keep building mastery, Iseoluwa</Text>
+        </View>
+        <Pressable style={styles.headerAction} accessibilityLabel="Progress calendar">
+          <CalendarIcon size={20} color={colors.ink} />
+        </Pressable>
+      </View>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 14 },
+          { paddingBottom: insets.bottom + 14 },
         ]}
       >
-        <View style={styles.header}>
-          <View style={styles.headerCopy}>
-            <Text style={styles.title}>Your progress</Text>
-            <Text style={styles.subtitle}>Keep building mastery, Iseoluwa</Text>
-          </View>
-          <Pressable style={styles.headerAction} accessibilityLabel="Progress calendar">
-            <CalendarIcon size={20} color={colors.ink} />
-          </Pressable>
-        </View>
-
         <View style={styles.streakCard}>
           <Text style={styles.streakEyebrow}>THIS WEEK</Text>
           <View style={styles.streakRow}>

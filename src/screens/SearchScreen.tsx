@@ -81,16 +81,8 @@ export default function SearchScreen({ navigation }: RootScreenProps<'Search'>) 
   return (
     <View style={styles.root}>
       <StatusBar style={statusBarStyle} />
-      <ScrollView
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={[
-          styles.content,
-          { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 14 },
-        ]}
-      >
+      <View style={[styles.searchHeader, { marginHorizontal: 18, paddingTop: insets.top + 8 }]}>
         <Text style={styles.title}>Search learning</Text>
-
         <View style={styles.field}>
           <SearchIcon size={19} color={colors.slate} />
           <TextInput
@@ -113,7 +105,15 @@ export default function SearchScreen({ navigation }: RootScreenProps<'Search'>) 
             </Pressable>
           ) : null}
         </View>
-
+      </View>
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: insets.bottom + 14 },
+        ]}
+      >
         <View style={styles.filterRow}>
           {FILTERS.map(({ label, count }) => {
             const on = label === activeFilter;
@@ -179,6 +179,7 @@ export default function SearchScreen({ navigation }: RootScreenProps<'Search'>) 
 
 const createStyles = () => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.canvas },
+  searchHeader: { gap: 13 },
   content: { paddingHorizontal: 18, gap: 13 },
 
   title: { fontFamily: fonts.regular, fontSize: 28, lineHeight: 32, color: colors.ink, paddingBottom: 2 },

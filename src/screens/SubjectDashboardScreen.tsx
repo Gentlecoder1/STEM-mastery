@@ -61,8 +61,7 @@ export default function SubjectDashboardScreen({ navigation, route }: RootScreen
   return (
     <View style={styles.root}>
       <StatusBar style={statusBarStyle} />
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingTop: insets.top + 4, paddingBottom: insets.bottom + 18 }]}>
-        <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 4 }]}>
           <Pressable style={styles.iconButton} onPress={() => navigation.goBack()} accessibilityLabel="Go back">
             <ArrowLeftIcon size={23} color={colors.ink} />
           </Pressable>
@@ -73,7 +72,8 @@ export default function SubjectDashboardScreen({ navigation, route }: RootScreen
           <Pressable style={styles.iconButton} accessibilityLabel="More options">
             <MoreIcon size={22} color={colors.primary} />
           </Pressable>
-        </View>
+      </View>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 18 }]}>
 
         <View style={styles.hero}>
           <MasteryRing percent={subject.mastery} color={colors.yellow} size={84} labelColor={lightColors.surface} />

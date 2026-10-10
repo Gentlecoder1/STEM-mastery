@@ -33,26 +33,25 @@ export default function PracticeRecommendationScreen({
   return (
     <View style={styles.root}>
       <StatusBar style={statusBarStyle} />
+      <View style={[styles.header, { marginHorizontal: 18, paddingTop: insets.top + 8 }]}>
+        <Pressable style={styles.iconButton} onPress={() => navigation.goBack()} accessibilityLabel="Go back">
+          <ArrowLeftIcon size={23} color={colors.ink} />
+        </Pressable>
+        <View style={styles.headerCopy}>
+          <Text style={styles.headerTitle}>Your next best step</Text>
+          <Text style={styles.headerSubtitle}>Based on today’s quiz</Text>
+        </View>
+        <Pressable style={styles.iconButton} accessibilityLabel="How recommendations work">
+          <InfoIcon size={20} color={colors.ink} />
+        </Pressable>
+      </View>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 14 },
+          { paddingBottom: insets.bottom + 14 },
         ]}
       >
-        <View style={styles.header}>
-          <Pressable style={styles.iconButton} onPress={() => navigation.goBack()} accessibilityLabel="Go back">
-            <ArrowLeftIcon size={23} color={colors.ink} />
-          </Pressable>
-          <View style={styles.headerCopy}>
-            <Text style={styles.headerTitle}>Your next best step</Text>
-            <Text style={styles.headerSubtitle}>Based on today’s quiz</Text>
-          </View>
-          <Pressable style={styles.iconButton} accessibilityLabel="How recommendations work">
-            <InfoIcon size={20} color={colors.ink} />
-          </Pressable>
-        </View>
-
         <View style={styles.diagnosticCard}>
           <View style={styles.diagnosticTop}>
             <View style={styles.diagnosticIcon}>

@@ -64,25 +64,24 @@ export default function ProfileScreen({ navigation }: RootScreenProps<'Profile'>
   return (
     <View style={styles.root}>
       <StatusBar style={statusBarStyle} />
+      <View style={[styles.header, { marginHorizontal: 18, paddingTop: insets.top + 8 }]}>
+        <Text style={styles.title}>Profile</Text>
+        <Pressable
+          style={styles.headerAction}
+          onPress={() => navigation.navigate('Settings')}
+          accessibilityRole="button"
+          accessibilityLabel="Settings"
+        >
+          <SettingsIcon size={20} color={colors.ink} />
+        </Pressable>
+      </View>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 14 },
+          { paddingBottom: insets.bottom + 14 },
         ]}
       >
-        <View style={styles.header}>
-          <Text style={styles.title}>Profile</Text>
-          <Pressable
-            style={styles.headerAction}
-            onPress={() => navigation.navigate('Settings')}
-            accessibilityRole="button"
-            accessibilityLabel="Settings"
-          >
-            <SettingsIcon size={20} color={colors.ink} />
-          </Pressable>
-        </View>
-
         <View style={styles.identity}>
           <View style={styles.avatar}>
             <UserIcon size={40} color={colors.primary} strokeWidth={1.4} />

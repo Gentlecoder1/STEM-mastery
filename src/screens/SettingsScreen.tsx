@@ -162,29 +162,28 @@ export default function SettingsScreen({ navigation }: RootScreenProps<'Settings
   return (
     <View style={styles.root}>
       <StatusBar style={statusBarStyle} />
+      <View style={[styles.header, { marginHorizontal: 18, paddingTop: insets.top + 8 }]}>
+        <Pressable
+          style={styles.headerAction}
+          onPress={() => navigation.goBack()}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <ArrowLeftIcon size={20} color={colors.ink} />
+        </Pressable>
+        <View style={styles.headerCopy}>
+          <Text style={styles.headerTitle}>Settings</Text>
+          <Text style={styles.headerSubtitle}>Make Masterly work for you</Text>
+        </View>
+        <View style={styles.headerSpacer} />
+      </View>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 14 },
+          { paddingBottom: insets.bottom + 14 },
         ]}
       >
-        <View style={styles.header}>
-          <Pressable
-            style={styles.headerAction}
-            onPress={() => navigation.goBack()}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-          >
-            <ArrowLeftIcon size={20} color={colors.ink} />
-          </Pressable>
-          <View style={styles.headerCopy}>
-            <Text style={styles.headerTitle}>Settings</Text>
-            <Text style={styles.headerSubtitle}>Make Masterly work for you</Text>
-          </View>
-          <View style={styles.headerSpacer} />
-        </View>
-
         <View style={styles.group}>
           <Text style={styles.groupLabel}>APPEARANCE</Text>
           <View style={styles.groupList}>

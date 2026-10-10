@@ -47,12 +47,12 @@ export default function TopicOverviewScreen({ navigation }: RootScreenProps<'Top
   return (
     <View style={styles.root}>
       <StatusBar style={statusBarStyle} />
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingTop: insets.top + 4, paddingBottom: insets.bottom + 18 }]}>
-        <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 4 }]}>
           <Pressable style={styles.iconButton} onPress={() => navigation.goBack()} accessibilityLabel="Go back"><ArrowLeftIcon size={23} color={colors.ink} /></Pressable>
           <View style={styles.headerCopy}><Text style={styles.title}>Speed and Velocity</Text><Text style={styles.subtitle}>Physics • Motion</Text></View>
           <Pressable style={styles.iconButton} accessibilityLabel="Bookmark topic"><BookmarkIcon size={21} color={colors.primary} /></Pressable>
-        </View>
+      </View>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 18 }]}>
         <View style={styles.hero}>
           <View style={styles.heroIcon}><GaugeIcon size={34} color={lightColors.surface} /></View>
           <View style={styles.heroCopy}><Text style={styles.eyebrow}>IN PROGRESS</Text><Text style={styles.heroTitle}>Understand how motion changes over time.</Text><Text style={styles.meta}>5 lessons <Text style={styles.dot}>•</Text> 42 min</Text></View>

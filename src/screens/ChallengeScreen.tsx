@@ -82,23 +82,22 @@ export default function ChallengeScreen({ navigation }: RootScreenProps<'Challen
   return (
     <View style={styles.root}>
       <StatusBar style={statusBarStyle} />
+      <View style={[styles.header, { marginHorizontal: 18, paddingTop: insets.top + 8 }]}>
+        <View style={styles.headerCopy}>
+          <Text style={styles.title}>For you</Text>
+          <Text style={styles.subtitle}>Adaptive picks for today</Text>
+        </View>
+        <Pressable style={styles.headerAction} accessibilityLabel="Filter recommendations">
+          <SlidersIcon size={19} color={colors.ink} />
+        </Pressable>
+      </View>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 14 },
+          { paddingBottom: insets.bottom + 14 },
         ]}
       >
-        <View style={styles.header}>
-          <View style={styles.headerCopy}>
-            <Text style={styles.title}>For you</Text>
-            <Text style={styles.subtitle}>Adaptive picks for today</Text>
-          </View>
-          <Pressable style={styles.headerAction} accessibilityLabel="Filter recommendations">
-            <SlidersIcon size={19} color={colors.ink} />
-          </Pressable>
-        </View>
-
         <Pressable
           style={styles.heroCard}
           onPress={() => navigation.navigate('Practice')}

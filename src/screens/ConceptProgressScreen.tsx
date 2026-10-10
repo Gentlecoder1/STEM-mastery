@@ -68,31 +68,30 @@ export default function ConceptProgressScreen({ navigation }: RootScreenProps<'C
   return (
     <View style={styles.root}>
       <StatusBar style={statusBarStyle} />
+      <View style={[styles.header, { marginHorizontal: 18, paddingTop: insets.top + 8 }]}>
+        <Pressable
+          style={styles.headerAction}
+          onPress={() => navigation.goBack()}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <ArrowLeftIcon size={20} color={colors.ink} />
+        </Pressable>
+        <View style={styles.headerCopy}>
+          <Text style={styles.headerTitle}>Speed and Velocity</Text>
+          <Text style={styles.headerSubtitle}>Detailed mastery • Physics</Text>
+        </View>
+        <Pressable style={styles.headerAction} accessibilityRole="button" accessibilityLabel="Share">
+          <ShareIcon size={19} color={colors.ink} />
+        </Pressable>
+      </View>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 14 },
+          { paddingBottom: insets.bottom + 14 },
         ]}
       >
-        <View style={styles.header}>
-          <Pressable
-            style={styles.headerAction}
-            onPress={() => navigation.goBack()}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-          >
-            <ArrowLeftIcon size={20} color={colors.ink} />
-          </Pressable>
-          <View style={styles.headerCopy}>
-            <Text style={styles.headerTitle}>Speed and Velocity</Text>
-            <Text style={styles.headerSubtitle}>Detailed mastery • Physics</Text>
-          </View>
-          <Pressable style={styles.headerAction} accessibilityRole="button" accessibilityLabel="Share">
-            <ShareIcon size={19} color={colors.ink} />
-          </Pressable>
-        </View>
-
         <View style={styles.summaryCard}>
           <MasteryRing percent={68} color={colors.blue} size={82} labelColor={colors.ink} />
           <Pill bg={colors.surface} tint={colors.blue} size={10}>

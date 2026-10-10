@@ -29,28 +29,27 @@ export default function ConceptDetailsScreen({ navigation, route }: RootScreenPr
   return (
     <View style={styles.root}>
       <StatusBar style={statusBarStyle} />
+      <View style={[styles.header, { marginHorizontal: 18, paddingTop: insets.top + 4 }]}>
+        <Pressable
+          style={styles.iconButton}
+          onPress={() => navigation.goBack()}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <ArrowLeftIcon size={23} color={colors.ink} />
+        </Pressable>
+        <View style={styles.headerCopy}>
+          <Text style={styles.headerEyebrow}>CONCEPT</Text>
+          <Text style={styles.headerTitle}>{concept.title}</Text>
+        </View>
+      </View>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + 4, paddingBottom: insets.bottom + 96 },
+          { paddingBottom: insets.bottom + 96 },
         ]}
       >
-        <View style={styles.header}>
-          <Pressable
-            style={styles.iconButton}
-            onPress={() => navigation.goBack()}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-          >
-            <ArrowLeftIcon size={23} color={colors.ink} />
-          </Pressable>
-          <View style={styles.headerCopy}>
-            <Text style={styles.headerEyebrow}>CONCEPT</Text>
-            <Text style={styles.headerTitle}>{concept.title}</Text>
-          </View>
-        </View>
-
         <View style={styles.hero}>
           <View style={styles.heroRing}>
             <MasteryRing percent={concept.mastery} color={colors[concept.tint]} size={76} />
