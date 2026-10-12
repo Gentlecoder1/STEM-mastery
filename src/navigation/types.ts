@@ -7,13 +7,18 @@ export type RootStackParamList = {
   Login: undefined;
   OTPScreen: { email: string } | undefined;
   Onboarding: undefined;
+  PlacementTest: undefined;
   Home: undefined;
   Subjects: undefined;
   SubjectDashboard: { subjectId: SubjectId };
   TopicOverview: undefined;
   ConceptDetails: { conceptId: string };
   ConceptLearning: { conceptId: string; startAt?: number };
-  ConceptQuiz: { conceptId: string };
+  ConceptQuiz: {
+    conceptId: string;
+    mode?: 'lesson' | 'key';
+    targetConceptId?: string;
+  };
   Practice: undefined;
   PracticeQuestion: { index: number };
   PracticeFeedback: { index: number; selected?: string; writtenText?: string };

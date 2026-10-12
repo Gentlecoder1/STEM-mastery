@@ -15,12 +15,14 @@ import {
 import { colors } from './src/theme';
 import { ThemeProvider, useTheme, useThemedStyles } from './src/themeContext';
 import { PreferencesProvider } from './src/preferencesContext';
+import { ProgressProvider } from './src/progressContext';
 import ThemeRevealOverlay from './src/components/ThemeRevealOverlay';
 import SplashScreen from './src/screens/SplashScreen';
 import SignUpScreen from './src/screens/SignUpScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import OTPScreen from './src/screens/OTPScreen';
 import OnboardingFlow from './src/screens/OnboardingFlow';
+import PlacementTestScreen from './src/screens/PlacementTestScreen';
 import HomeDashboardScreen from './src/screens/HomeDashboardScreen';
 import SubjectsScreen from './src/screens/SubjectsScreen';
 import SubjectDashboardScreen from './src/screens/SubjectDashboardScreen';
@@ -100,6 +102,7 @@ function AppShell() {
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="OTPScreen" component={OTPScreen} />
           <Stack.Screen name="Onboarding" component={OnboardingFlow} />
+          <Stack.Screen name="PlacementTest" component={PlacementTestScreen} />
           <Stack.Screen name="Home" component={HomeDashboardScreen} />
           <Stack.Screen name="Subjects" component={SubjectsScreen} />
           <Stack.Screen name="SubjectDashboard" component={SubjectDashboardScreen} />
@@ -129,9 +132,11 @@ function AppShell() {
 export default function App() {
   return (
     <PreferencesProvider>
-      <ThemeProvider>
-        <AppShell />
-      </ThemeProvider>
+      <ProgressProvider>
+        <ThemeProvider>
+          <AppShell />
+        </ThemeProvider>
+      </ProgressProvider>
     </PreferencesProvider>
   );
 }

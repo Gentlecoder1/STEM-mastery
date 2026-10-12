@@ -1,4 +1,6 @@
-import type { ColorToken } from '../theme';
+import type { ColorToken, SubjectId } from '../theme';
+
+export const QUIZ_PASS_RATIO = 0.6;
 
 export const CONTENT_TYPES = [
   'DEFINITION',
@@ -23,9 +25,25 @@ export type LearningContent = {
   mediaURI: string | null;
 };
 
+export type QuizOption = {
+  id: string;
+  label: string;
+  text: string;
+};
+
+export type QuizQuestion = {
+  type: 'mcq' | 'written';
+  prompt: string;
+  options?: readonly QuizOption[];
+  answerId?: string;
+  explanation: string;
+  hint?: string;
+};
+
 export type Concept = {
   id: string;
   topicId: string;
+  subjectId: SubjectId;
   title: string;
   mastery: number;
   state: ConceptState;
@@ -36,6 +54,7 @@ export type Concept = {
   tint: ColorToken;
   soft: ColorToken;
   content: readonly LearningContent[];
+  quiz: readonly QuizQuestion[];
 };
 
 function ordered(content: readonly Omit<LearningContent, 'chapterOrder'>[]): LearningContent[] {
@@ -46,8 +65,78 @@ function ordered(content: readonly Omit<LearningContent, 'chapterOrder'>[]): Lea
 
 export const CONCEPTS: readonly Concept[] = [
   {
+    id: 'concept-displacement',
+    topicId: 'topic-speed-velocity',
+    subjectId: 'physics',
+    title: 'Distance and displacement',
+    mastery: 92,
+    state: 'done',
+    definition: 'Distance is the total path length covered; displacement is the straight-line change in position.',
+    whyItMatters:
+      'Learners who blur distance and displacement cannot compute velocity correctly. This is the most common source of sign errors later on.',
+    prerequisites: ['Position', 'Time'],
+    related: ['Speed', 'Velocity'],
+    tint: 'green',
+    soft: 'greenSoft',
+    content: ordered([
+      {
+        id: 'c-disp-def',
+        conceptId: 'concept-displacement',
+        title: 'Definition',
+        contentText:
+          'Distance is scalar and never decreases. Displacement is a vector: magnitude with direction.',
+        contentType: 'DEFINITION',
+        mediaURI: null,
+      },
+      {
+        id: 'c-disp-example',
+        conceptId: 'concept-displacement',
+        title: 'Worked example',
+        contentText:
+          'Walk 3 m east then 4 m north. Distance travelled is 7 m; displacement is 5 m northeast.',
+        contentType: 'WORKED_EXAMPLE',
+        mediaURI: null,
+      },
+      {
+        id: 'c-disp-check',
+        conceptId: 'concept-displacement',
+        title: 'Quick check',
+        contentText: 'Can displacement ever be greater than distance? Explain your answer.',
+        contentType: 'QUESTION',
+        mediaURI: null,
+      },
+    ]),
+    quiz: [
+      {
+        type: 'mcq',
+        prompt: 'Which quantity is a vector?',
+        options: [
+          { id: 'a', label: 'A', text: 'Distance' },
+          { id: 'b', label: 'B', text: 'Displacement' },
+          { id: 'c', label: 'C', text: 'Time' },
+          { id: 'd', label: 'D', text: 'Mass' },
+        ],
+        answerId: 'b',
+        explanation: 'Displacement has both magnitude and direction, so it is a vector.',
+      },
+      {
+        type: 'mcq',
+        prompt: 'You walk 3 m east then 4 m north. What is your displacement?',
+        options: [
+          { id: 'a', label: 'A', text: '7 m' },
+          { id: 'b', label: 'B', text: '5 m' },
+          { id: 'c', label: 'C', text: '1 m' },
+          { id: 'd', label: 'D', text: '12 m' },
+        ],
+        answerId: 'b',
+        explanation: 'Displacement is the straight line from start to finish: √(3² + 4²) = 5 m.',
+      },
+    ],
+  },
+  {
     id: 'concept-velocity',
     topicId: 'topic-speed-velocity',
+    subjectId: 'physics',
     title: 'Velocity',
     mastery: 68,
     state: 'current',
@@ -121,52 +210,37 @@ export const CONCEPTS: readonly Concept[] = [
         mediaURI: null,
       },
     ]),
-  },
-  {
-    id: 'concept-displacement',
-    topicId: 'topic-speed-velocity',
-    title: 'Distance and displacement',
-    mastery: 92,
-    state: 'done',
-    definition: 'Distance is the total path length covered; displacement is the straight-line change in position.',
-    whyItMatters:
-      'Learners who blur distance and displacement cannot compute velocity correctly. This is the most common source of sign errors later on.',
-    prerequisites: ['Position', 'Time'],
-    related: ['Speed', 'Velocity'],
-    tint: 'green',
-    soft: 'greenSoft',
-    content: ordered([
+    quiz: [
       {
-        id: 'c-disp-def',
-        conceptId: 'concept-displacement',
-        title: 'Definition',
-        contentText:
-          'Distance is scalar and never decreases. Displacement is a vector: magnitude with direction.',
-        contentType: 'DEFINITION',
-        mediaURI: null,
+        type: 'mcq',
+        prompt: 'Which statement best describes velocity?',
+        options: [
+          { id: 'a', label: 'A', text: 'How far an object travels' },
+          { id: 'b', label: 'B', text: 'Speed in a particular direction' },
+          { id: 'c', label: 'C', text: 'The time taken to travel' },
+          { id: 'd', label: 'D', text: 'The size of an object' },
+        ],
+        answerId: 'b',
+        explanation: 'Velocity is a vector quantity: it describes how fast something moves and in which direction.',
       },
       {
-        id: 'c-disp-example',
-        conceptId: 'concept-displacement',
-        title: 'Worked example',
-        contentText:
-          'Walk 3 m east then 4 m north. Distance travelled is 7 m; displacement is 5 m northeast.',
-        contentType: 'WORKED_EXAMPLE',
-        mediaURI: null,
+        type: 'mcq',
+        prompt: 'A runner covers 100 m east in 20 s. What is their velocity?',
+        options: [
+          { id: 'a', label: 'A', text: '5 m/s east' },
+          { id: 'b', label: 'B', text: '20 m/s east' },
+          { id: 'c', label: 'C', text: '0.2 m/s east' },
+          { id: 'd', label: 'D', text: '100 m/s east' },
+        ],
+        answerId: 'a',
+        explanation: 'v = displacement / time = 100 / 20 = 5 m/s east.',
       },
-      {
-        id: 'c-disp-check',
-        conceptId: 'concept-displacement',
-        title: 'Quick check',
-        contentText: 'Can displacement ever be greater than distance? Explain your answer.',
-        contentType: 'QUESTION',
-        mediaURI: null,
-      },
-    ]),
+    ],
   },
   {
     id: 'concept-displacement-graphs',
     topicId: 'topic-speed-velocity',
+    subjectId: 'physics',
     title: 'Displacement–time graphs',
     mastery: 43,
     state: 'next',
@@ -203,20 +277,47 @@ export const CONCEPTS: readonly Concept[] = [
         mediaURI: null,
       },
     ]),
+    quiz: [
+      {
+        type: 'mcq',
+        prompt: 'On a displacement–time graph, what does the gradient represent?',
+        options: [
+          { id: 'a', label: 'A', text: 'Acceleration' },
+          { id: 'b', label: 'B', text: 'Velocity' },
+          { id: 'c', label: 'C', text: 'Distance' },
+          { id: 'd', label: 'D', text: 'Time' },
+        ],
+        answerId: 'b',
+        explanation: 'The gradient (slope) of a displacement–time graph is the velocity.',
+      },
+      {
+        type: 'mcq',
+        prompt: 'Two lines are drawn on a displacement–time graph. The steeper one represents an object that is…',
+        options: [
+          { id: 'a', label: 'A', text: 'Slower' },
+          { id: 'b', label: 'B', text: 'Faster' },
+          { id: 'c', label: 'C', text: 'At rest' },
+          { id: 'd', label: 'D', text: 'Moving backwards' },
+        ],
+        answerId: 'b',
+        explanation: 'A steeper gradient means a greater velocity, so the object is faster.',
+      },
+    ],
   },
   {
     id: 'concept-acceleration',
     topicId: 'topic-speed-velocity',
+    subjectId: 'physics',
     title: 'Acceleration',
     mastery: 0,
-    state: 'locked',
+    state: 'next',
     definition: 'Acceleration is the rate of change of velocity with respect to time.',
     whyItMatters:
       'Acceleration connects motion to force — it is the bridge from pure kinematics into dynamics.',
     prerequisites: ['Velocity', 'Displacement–time graphs'],
     related: ['Forces', 'Direction'],
-    tint: 'slate',
-    soft: 'canvas',
+    tint: 'orange',
+    soft: 'orangeSoft',
     content: ordered([
       {
         id: 'c-accel-def',
@@ -234,7 +335,41 @@ export const CONCEPTS: readonly Concept[] = [
         contentType: 'FORMULA',
         mediaURI: null,
       },
+      {
+        id: 'c-accel-check',
+        conceptId: 'concept-acceleration',
+        title: 'Quick check',
+        contentText: 'A car speeds up from 0 to 20 m/s in 4 s. What is its acceleration?',
+        contentType: 'QUESTION',
+        mediaURI: null,
+      },
     ]),
+    quiz: [
+      {
+        type: 'mcq',
+        prompt: 'What does acceleration measure?',
+        options: [
+          { id: 'a', label: 'A', text: 'The rate of change of velocity' },
+          { id: 'b', label: 'B', text: 'The distance travelled' },
+          { id: 'c', label: 'C', text: 'The total time taken' },
+          { id: 'd', label: 'D', text: 'The direction of motion' },
+        ],
+        answerId: 'a',
+        explanation: 'Acceleration is the rate of change of velocity with time.',
+      },
+      {
+        type: 'mcq',
+        prompt: 'A car speeds up from 0 to 20 m/s in 4 s. What is its acceleration?',
+        options: [
+          { id: 'a', label: 'A', text: '5 m/s²' },
+          { id: 'b', label: 'B', text: '80 m/s²' },
+          { id: 'c', label: 'C', text: '0.2 m/s²' },
+          { id: 'd', label: 'D', text: '24 m/s²' },
+        ],
+        answerId: 'a',
+        explanation: 'a = Δv / t = (20 − 0) / 4 = 5 m/s².',
+      },
+    ],
   },
 ] as const;
 
@@ -246,6 +381,34 @@ export function getConceptContent(conceptId: string): readonly LearningContent[]
   const concept = getConcept(conceptId);
   if (!concept) return [];
   return [...concept.content].sort((a, b) => a.chapterOrder - b.chapterOrder);
+}
+
+export function getTopicConcepts(topicId: string): readonly Concept[] {
+  return CONCEPTS.filter((concept) => concept.topicId === topicId);
+}
+
+export function getTopicConceptIds(topicId: string): readonly string[] {
+  return getTopicConcepts(topicId).map((concept) => concept.id);
+}
+
+export function getPreviousConcept(conceptId: string): Concept | undefined {
+  const concept = getConcept(conceptId);
+  if (!concept) return undefined;
+  const sameTopic = getTopicConcepts(concept.topicId);
+  const index = sameTopic.findIndex((item) => item.id === conceptId);
+  return index > 0 ? sameTopic[index - 1] : undefined;
+}
+
+export function getNextConcept(conceptId: string): Concept | undefined {
+  const concept = getConcept(conceptId);
+  if (!concept) return undefined;
+  const sameTopic = getTopicConcepts(concept.topicId);
+  const index = sameTopic.findIndex((item) => item.id === conceptId);
+  return index >= 0 && index < sameTopic.length - 1 ? sameTopic[index + 1] : undefined;
+}
+
+export function getConceptQuiz(conceptId: string): readonly QuizQuestion[] {
+  return getConcept(conceptId)?.quiz ?? [];
 }
 
 export const CONTENT_LABELS: Record<ContentType, string> = {

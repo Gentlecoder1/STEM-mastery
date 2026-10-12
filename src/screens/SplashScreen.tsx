@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, fonts, radius, shadow } from '../theme';
+import { colors, lightColors, fonts, radius, shadow } from '../theme';
 import { AtomIcon, TelescopeIcon, MailIcon } from '../components/icons';
 import type { RootScreenProps } from '../navigation/types';
 import { useThemedStyles } from '../themeContext';
@@ -27,7 +27,7 @@ function LearningIllustration() {
       <View style={styles.planet} />
       <View style={styles.spark} />
       <View style={styles.mascot}>
-        <TelescopeIcon size={63} color={colors.blue} />
+        <TelescopeIcon size={63} color={lightColors.blue} />
         <Text style={styles.mascotCaption}>Let’s explore!</Text>
       </View>
     </View>
@@ -149,7 +149,7 @@ const createStyles = () => StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 999,
-    backgroundColor: colors.teal,
+    backgroundColor: lightColors.teal,
   },
   spark: {
     position: 'absolute',
@@ -158,13 +158,13 @@ const createStyles = () => StyleSheet.create({
     width: 18,
     height: 18,
     borderRadius: 999,
-    backgroundColor: colors.yellow,
+    backgroundColor: lightColors.yellow,
   },
   mascot: {
     width: 138.73,
     height: 138.73,
     borderRadius: radius.xl,
-    backgroundColor: colors.surface,
+    backgroundColor: lightColors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
@@ -174,7 +174,7 @@ const createStyles = () => StyleSheet.create({
     fontFamily: fonts.extrabold,
     fontSize: 12,
     lineHeight: 14.5227,
-    color: colors.primary,
+    color: lightColors.primary,
   },
 
   headline: {

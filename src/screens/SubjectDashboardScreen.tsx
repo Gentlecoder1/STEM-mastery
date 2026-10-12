@@ -6,7 +6,7 @@ import BottomNav from '../components/BottomNav';
 import { navigateToTab } from '../navigation/tabs';
 import MasteryRing from '../components/MasteryRing';
 import { GaugeIcon, ChartIcon, BookOpenIcon } from '../components/glyphs';
-import { CheckCircleIcon, ChevronRightIcon, LockIcon, MoreIcon, ArrowLeftIcon, ClockIcon, SparklesIcon } from '../components/icons';
+import { CheckCircleIcon, ChevronRightIcon, MoreIcon, ArrowLeftIcon, ClockIcon, SparklesIcon } from '../components/icons';
 import { colors, fonts, lightColors, shadow, type SubjectId } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
 import type { RootScreenProps } from '../navigation/types';
@@ -21,7 +21,7 @@ const topics = [
   { title: 'Motion', subtitle: 'Mastered • 92%', icon: 'motion', tint: 'green', soft: 'greenSoft', state: 'done' },
   { title: 'Speed and Velocity', subtitle: 'In progress • 68%', icon: 'speed', tint: 'blue', soft: 'blueSoft', state: 'current' },
   { title: 'Acceleration', subtitle: 'Recommended next • 41%', icon: 'acceleration', tint: 'orange', soft: 'orangeSoft', state: 'next' },
-  { title: 'Forces', subtitle: 'Locked • Complete Acceleration', icon: 'forces', tint: 'slate', soft: 'border', state: 'locked' },
+  { title: 'Forces', subtitle: 'Up next • key test required', icon: 'forces', tint: 'slate', soft: 'border', state: 'next' },
 ] as const;
 
 function TopicIcon({ type, color }: { type: string; color: string }) {
@@ -47,7 +47,6 @@ function TopicRow({ topic, onPress }: { topic: (typeof topics)[number]; onPress?
       {topic.state === 'done' ? <CheckCircleIcon size={23} color={colors.green} /> : null}
       {topic.state === 'current' ? <ChevronRightIcon size={22} color={colors.blue} /> : null}
       {topic.state === 'next' ? <View style={styles.nextPill}><Text style={styles.nextLabel}>NEXT</Text></View> : null}
-      {topic.state === 'locked' ? <LockIcon size={21} color={colors.slate} /> : null}
     </Pressable>
   );
 }
@@ -95,7 +94,7 @@ export default function SubjectDashboardScreen({ navigation, route }: RootScreen
         </Pressable>
 
         <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>All topics</Text></View>
-        <View style={styles.topicList}>{topics.map((topic) => <TopicRow key={topic.title} topic={topic} onPress={topic.state === 'current' ? () => navigation.navigate('TopicOverview') : undefined} />)}</View>
+        <View style={styles.topicList}>{topics.map((topic) => <TopicRow key={topic.title} topic={topic} onPress={() => navigation.navigate('TopicOverview')} />)}</View>
 
         <View style={styles.stats}>
           <View style={[styles.stat, { backgroundColor: colors.blueSoft }]}><BookOpenIcon size={21} color={colors.blue} /><Text style={styles.statValue}>18</Text><Text style={styles.statLabel}>Lessons</Text></View>

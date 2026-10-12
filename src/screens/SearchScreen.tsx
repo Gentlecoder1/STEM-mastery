@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState } from 'react';
 
 import BottomNav from '../components/BottomNav';
-import { CheckCircleIcon, LockIcon, SparklesIcon } from '../components/icons';
+import { CheckCircleIcon, SparklesIcon } from '../components/icons';
 import {
   BookOpenIcon,
   BrainIcon,
@@ -47,11 +47,11 @@ const RESULTS = [
   },
   {
     title: 'Velocity-time graphs',
-    subtitle: 'Concept • Physics • locked',
+    subtitle: 'Concept • Physics • not started',
     Icon: LineChartIcon,
     tint: 'orange' as ColorToken,
     soft: 'orangeSoft' as ColorToken,
-    kind: 'lock',
+    kind: 'start',
   },
   {
     title: 'Velocity quick practice',
@@ -151,8 +151,6 @@ export default function SearchScreen({ navigation }: RootScreenProps<'Search'>) 
                 <Pill bg={colors.blueSoft} tint={colors.blue}>CONCEPT</Pill>
               ) : kind === 'check' ? (
                 <CheckCircleIcon size={19} color={colors.success} />
-              ) : kind === 'lock' ? (
-                <LockIcon size={16} color={colors.slate} />
               ) : kind === 'start' ? (
                 <Pill bg={colors.primarySoft} tint={colors.primary}>START</Pill>
               ) : (

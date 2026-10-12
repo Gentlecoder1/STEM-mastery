@@ -3,17 +3,19 @@ import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import MasteryRing from '../components/MasteryRing';
-import { ArrowLeftIcon, ArrowRightIcon, CheckCircleIcon } from '../components/icons';
+import { ArrowLeftIcon, ArrowRightIcon, CheckCircleIcon, SparklesIcon } from '../components/icons';
 import { BookOpenIcon } from '../components/glyphs';
 import { colors, fonts, shadow } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
-import { CONTENT_LABELS, getConcept } from '../data/learning';
+import { useProgress } from '../progressContext';
+import { CONTENT_LABELS, getConcept, getPreviousConcept } from '../data/learning';
 import type { RootScreenProps } from '../navigation/types';
 
 export default function ConceptDetailsScreen({ navigation, route }: RootScreenProps<'ConceptDetails'>) {
   const insets = useSafeAreaInsets();
   const { statusBarStyle } = useTheme();
   const styles = useThemedStyles(createStyles);
+  const { isConceptOpen, isConceptCompleted } = useProgress();
   const concept = getConcept(route.params.conceptId);
 
   if (!concept) {
@@ -25,6 +27,8 @@ export default function ConceptDetailsScreen({ navigation, route }: RootScreenPr
   }
 
   const itemCount = concept.content.length;
+  const isOpen = isConceptOpen(concept.id) || isConceptCompleted(concept.id);
+  const previous = getPreviousConcept(concept.id);
 
   return (
     <View style={styles.root}>
@@ -47,7 +51,7 @@ export default function ConceptDetailsScreen({ navigation, route }: RootScreenPr
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
           styles.content,
-          { paddingBottom: insets.bottom + 96 },
+          { paddingBottom: insets.bottom + (!isOpen && previous ? 210 : 96) },
         ]}
       >
         <View style={styles.hero}>
@@ -120,18 +124,45 @@ export default function ConceptDetailsScreen({ navigation, route }: RootScreenPr
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 14 }]}>
+        {!isOpen && previous ? (
+          <View style={styles.keyBanner}>
+            <View style={styles.keyBannerHead}>
+              <SparklesIcon size={16} color={colors.primary} />
+              <Text style={styles.keyBannerTitle}>Jump ahead to this lesson?</Text>
+            </View>
+            <Text style={styles.keyBannerText}>
+              You're skipping past {previous.title}. Pass its key test to open this lesson — just
+              like finishing the lesson normally would.
+            </Text>
+          </View>
+        ) : null}
+
         <Pressable
           style={styles.primaryButton}
-          onPress={() =>
+          onPress={() => {
+            if (!isOpen && previous) {
+              navigation.navigate('ConceptQuiz', {
+                conceptId: previous.id,
+                mode: 'key',
+                targetConceptId: concept.id,
+              });
+              return;
+            }
             navigation.navigate('ConceptLearning', {
               conceptId: concept.id,
               startAt: 0,
-            })
-          }
+            });
+          }}
           accessibilityRole="button"
         >
-          <BookOpenIcon size={18} color={colors.onPrimary} />
-          <Text style={styles.primaryText}>Start Learning</Text>
+          {!isOpen && previous ? (
+            <SparklesIcon size={18} color={colors.onPrimary} />
+          ) : (
+            <BookOpenIcon size={18} color={colors.onPrimary} />
+          )}
+          <Text style={styles.primaryText}>
+            {!isOpen && previous ? 'Take key test to unlock' : 'Start Learning'}
+          </Text>
           <ArrowRightIcon size={18} color={colors.onPrimary} />
         </Pressable>
       </View>
@@ -244,10 +275,22 @@ const createStyles = () => StyleSheet.create({
     bottom: 0,
     paddingHorizontal: 18,
     paddingTop: 12,
+    gap: 10,
     backgroundColor: colors.canvas,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
+  keyBanner: {
+    padding: 13,
+    borderRadius: 14,
+    backgroundColor: colors.primarySoft,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    gap: 5,
+  },
+  keyBannerHead: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  keyBannerTitle: { fontFamily: fonts.bold, fontSize: 13, color: colors.primary },
+  keyBannerText: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 17, color: colors.ink },
   primaryButton: {
     height: 52,
     paddingHorizontal: 22,

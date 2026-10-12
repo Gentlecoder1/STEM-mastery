@@ -18,105 +18,23 @@ import { ProgressBar } from '../components/PracticeUI';
 import { ArrowRightIcon, CheckIcon } from '../components/icons';
 import type { RootScreenProps } from '../navigation/types';
 import { useThemedStyles } from '../themeContext';
+import { usePreferences } from '../preferencesContext';
 
-type QuizQuestion = {
-  subject: string;
-  question: string;
-  options: string[];
-  answer: string;
-};
-
-const QUIZ: readonly QuizQuestion[] = [
-  {
-    subject: 'Mathematics',
-    question: 'Solve 2x + 5 = 15. What is x?',
-    options: ['3', '4', '5'],
-    answer: '5',
-  },
-  {
-    subject: 'Physics',
-    question: 'Which unit measures force?',
-    options: ['Joule', 'Newton', 'Watt'],
-    answer: 'Newton',
-  },
-  {
-    subject: 'Chemistry',
-    question: 'What is the chemical formula for water?',
-    options: ['CO2', 'H2O', 'O2'],
-    answer: 'H2O',
-  },
-];
-
-const TOTAL_STEPS = 5;
-const FIRST_QUIZ_STEP = 3;
-
-type OptionStatus = 'selected' | 'wrong' | null;
+const TOTAL_STEPS = 2;
 
 type OnboardingState = {
   klass: ClassLevel;
   subjects: SubjectId[];
   hours: number;
-  answers: Record<number, string>;
 };
-
-type QuizOptionProps = {
-  text: string;
-  status: OptionStatus;
-  onPress: () => void;
-};
-
-function QuizOption({ text, status, onPress }: QuizOptionProps) {
-  const styles = useThemedStyles(createStyles);
-  const shake = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (status !== 'wrong') return;
-    Animated.sequence([
-      Animated.timing(shake, { toValue: 1, duration: 60, easing: Easing.linear, useNativeDriver: true }),
-      Animated.timing(shake, { toValue: -1, duration: 60, easing: Easing.linear, useNativeDriver: true }),
-      Animated.timing(shake, { toValue: 1, duration: 60, easing: Easing.linear, useNativeDriver: true }),
-      Animated.timing(shake, { toValue: -1, duration: 60, easing: Easing.linear, useNativeDriver: true }),
-      Animated.timing(shake, { toValue: 0, duration: 60, easing: Easing.linear, useNativeDriver: true }),
-    ]).start();
-  }, [status, shake]);
-
-  const translateX = shake.interpolate({ inputRange: [-1, 1], outputRange: [-9, 9] });
-
-  return (
-    <Animated.View style={status === 'wrong' ? { transform: [{ translateX }] } : undefined}>
-      <Pressable
-        accessibilityRole="radio"
-        accessibilityState={{ selected: status === 'selected' }}
-        onPress={onPress}
-        style={({ pressed }) => [
-          styles.option,
-          status === 'selected' && styles.optionSelected,
-          status === 'wrong' && styles.optionWrong,
-          pressed && styles.pressed,
-        ]}
-      >
-        <Text
-          style={[
-            styles.optionText,
-            status === 'selected' && styles.optionTextSelected,
-            status === 'wrong' && styles.optionTextWrong,
-          ]}
-        >
-          {text}
-        </Text>
-      </Pressable>
-    </Animated.View>
-  );
-}
 
 type StepContentProps = {
   step: number;
   state: OnboardingState;
   setState: Dispatch<SetStateAction<OnboardingState>>;
-  wrongPick: number | null;
 };
 
-function StepContent({ step, state, setState, wrongPick }: StepContentProps) {
+function StepContent({ step, state, setState }: StepContentProps) {
   const styles = useThemedStyles(createStyles);
   const subjects = getSubjects();
 
@@ -222,43 +140,12 @@ function StepContent({ step, state, setState, wrongPick }: StepContentProps) {
     );
   }
 
-  if (step >= FIRST_QUIZ_STEP && step <= TOTAL_STEPS) {
-    const qi = step - FIRST_QUIZ_STEP;
-    const q = QUIZ[qi];
-    if (!q) return null;
-    const picked = state.answers[qi];
-
-    return (
-      <View style={styles.section}>
-        <View style={styles.quizBadge}>
-          <Text style={styles.quizBadgeText}>QUICK CHECK-IN · {q.subject.toUpperCase()}</Text>
-        </View>
-        <Text style={styles.title}>{q.question}</Text>
-        <Text style={styles.subtitle}>Pick the answer you think is right.</Text>
-        <View style={styles.options}>
-          {q.options.map((opt) => {
-            const status: OptionStatus =
-              picked === opt ? (wrongPick === qi ? 'wrong' : 'selected') : null;
-            return (
-              <QuizOption
-                key={opt}
-                text={opt}
-                status={status}
-                onPress={() => setState((s) => ({ ...s, answers: { ...s.answers, [qi]: opt } }))}
-              />
-            );
-          })}
-        </View>
-      </View>
-    );
-  }
-
   return null;
 }
 
 type StepBodyProps = StepContentProps;
 
-function StepBody({ step, state, setState, wrongPick }: StepBodyProps) {
+function StepBody({ step, state, setState }: StepBodyProps) {
   const anim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -281,7 +168,7 @@ function StepBody({ step, state, setState, wrongPick }: StepBodyProps) {
         ],
       }}
     >
-      <StepContent step={step} state={state} setState={setState} wrongPick={wrongPick} />
+      <StepContent step={step} state={state} setState={setState} />
     </Animated.View>
   );
 }
@@ -303,11 +190,11 @@ function SuccessBody({ state }: { state: OnboardingState }) {
       <View style={styles.successMark}>
         <CheckIcon size={28} color={colors.onPrimary} />
       </View>
-      <Text style={styles.successTitle}>Congratulations!</Text>
+      <Text style={styles.successTitle}>You’re all set!</Text>
       <Text style={styles.subtitle}>
         You picked {state.klass} with {state.subjects.length} subject
-        {state.subjects.length > 1 ? 's' : ''} and {state.hours}h a day. Your learning path is
-        ready.
+        {state.subjects.length > 1 ? 's' : ''} and {state.hours}h a day. Next, a short placement
+        check to see where you should start.
       </Text>
     </Animated.View>
   );
@@ -316,60 +203,32 @@ function SuccessBody({ state }: { state: OnboardingState }) {
 export default function OnboardingFlow({ navigation }: RootScreenProps<'Onboarding'>) {
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
+  const { saveClassAndSubjects, setDailyGoal } = usePreferences();
   const [step, setStep] = useState(1);
-  const [wrongPick, setWrongPick] = useState<number | null>(null);
   const [state, setState] = useState<OnboardingState>({
     klass: 'SS1',
     subjects: getSubjects().map((s) => s.id),
     hours: 1,
-    answers: {},
   });
 
   const isDone = step > TOTAL_STEPS;
-  const isQuiz = step >= FIRST_QUIZ_STEP && step <= TOTAL_STEPS;
-  const qi = step - FIRST_QUIZ_STEP;
-  const picked = isQuiz ? state.answers[qi] : undefined;
-  const answeredWrong = isQuiz && wrongPick === qi && Boolean(picked);
 
   const canProceed = () => {
     if (step === 1) return state.subjects.length > 0;
-    if (isQuiz) return Boolean(picked);
     return true;
   };
 
   const handlePrimary = () => {
     if (isDone) {
-      navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+      saveClassAndSubjects(state.klass, state.subjects);
+      setDailyGoal(`${state.hours} hour${state.hours === 1 ? '' : 's'} a day`);
+      navigation.replace('PlacementTest');
       return;
     }
-
-    if (answeredWrong) {
-      setWrongPick(null);
-      setState((s) => {
-        const next = { ...s.answers };
-        delete next[qi];
-        return { ...s, answers: next };
-      });
-      return;
-    }
-
-    const answer = isQuiz ? QUIZ[qi]?.answer : undefined;
-    if (isQuiz && picked && answer && picked !== answer) {
-      setWrongPick(qi);
-      return;
-    }
-
-    setWrongPick(null);
     setStep((s) => s + 1);
   };
 
-  const primaryLabel = isDone
-    ? 'Build my learning path'
-    : answeredWrong
-      ? 'Try again'
-      : step === TOTAL_STEPS
-        ? 'Finish'
-        : 'Next';
+  const primaryLabel = isDone ? 'Start placement check' : step === TOTAL_STEPS ? 'Finish' : 'Next';
 
   return (
     <View style={styles.screen}>
@@ -396,7 +255,7 @@ export default function OnboardingFlow({ navigation }: RootScreenProps<'Onboardi
         {isDone ? (
           <SuccessBody state={state} />
         ) : (
-          <StepBody step={step} state={state} setState={setState} wrongPick={wrongPick} />
+          <StepBody step={step} state={state} setState={setState} />
         )}
 
         <View style={styles.footer}>

@@ -6,47 +6,42 @@ import BottomNav from '../components/BottomNav';
 import { navigateToTab } from '../navigation/tabs';
 import { DownloadIcon, GaugeIcon } from '../components/glyphs';
 import { ProgressBar } from '../components/PracticeUI';
-import { ArrowLeftIcon, CheckCircleIcon, ChevronRightIcon, LockIcon, SparklesIcon } from '../components/icons';
-import { colors, fonts, lightColors, shadow } from '../theme';
+import { ArrowLeftIcon, CheckCircleIcon, ChevronRightIcon, SparklesIcon } from '../components/icons';
+import { colors, fonts, lightColors, shadow, type ColorToken } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
+import { useProgress, type ConceptStatus } from '../progressContext';
 import { CONCEPTS } from '../data/learning';
-import type { Concept } from '../data/learning';
 import type { RootScreenProps } from '../navigation/types';
 import { usePreferences } from '../preferencesContext';
 
-const SUBTITLES: Record<Concept['state'], string> = {
-  done: 'Mastered • prerequisite',
-  current: 'Current concept',
-  next: 'Recommended next',
-  locked: 'Unlock after graphs',
+type PathConcept = {
+  id: string;
+  title: string;
+  status: ConceptStatus;
+  needsKey: boolean;
+  mastery: number;
+  tint: ColorToken;
+  soft: ColorToken;
 };
-
-const TRAILING: Record<Concept['state'], string> = {
-  done: '92%',
-  current: 'CONTINUE',
-  next: '✧',
-  locked: '',
-};
-
-const concepts = CONCEPTS.map((concept) => ({
-  id: concept.id,
-  title: concept.title,
-  subtitle:
-    concept.state === 'current'
-      ? `${SUBTITLES[concept.state]} • ${concept.mastery}%`
-      : SUBTITLES[concept.state],
-  tint: concept.tint,
-  soft: concept.soft,
-  trailing: concept.state === 'done' ? `${concept.mastery}%` : TRAILING[concept.state],
-  state: concept.state,
-}));
 
 export default function TopicOverviewScreen({ navigation }: RootScreenProps<'TopicOverview'>) {
   const insets = useSafeAreaInsets();
   const { statusBarStyle } = useTheme();
   const styles = useThemedStyles(createStyles);
   const { downloadedTopics, downloadsEnabled, toggleTopicDownload } = usePreferences();
+  const { getConceptStatus, isConceptCompleted, isConceptOpen } = useProgress();
   const isDownloaded = downloadedTopics.includes('topic-speed-velocity');
+
+  const concepts: PathConcept[] = CONCEPTS.map((concept) => ({
+    id: concept.id,
+    title: concept.title,
+    status: getConceptStatus(concept.id),
+    needsKey: !isConceptCompleted(concept.id) && !isConceptOpen(concept.id),
+    mastery: concept.mastery,
+    tint: concept.tint,
+    soft: concept.soft,
+  }));
+
   return (
     <View style={styles.root}>
       <StatusBar style={statusBarStyle} />
@@ -78,18 +73,72 @@ export default function TopicOverviewScreen({ navigation }: RootScreenProps<'Top
         </View>
 
         <View style={styles.conceptList}>
-          {concepts.map((concept) => <ConceptRow key={concept.title} concept={concept} onPress={concept.state === 'locked' ? undefined : () => navigation.navigate('ConceptDetails', { conceptId: concept.id })} />)}
+          {concepts.map((concept) => (
+            <ConceptRow
+              key={concept.id}
+              concept={concept}
+              onPress={() => navigation.navigate('ConceptDetails', { conceptId: concept.id })}
+            />
+          ))}
         </View>
-    
+
       </ScrollView>
       <BottomNav active="Subjects" onSelect={navigateToTab(navigation, 'Subjects')} />
     </View>
   );
 }
 
-function ConceptRow({ concept, onPress }: { concept: (typeof concepts)[number]; onPress?: () => void }) {
+function ConceptRow({ concept, onPress }: { concept: PathConcept; onPress: () => void }) {
   const styles = useThemedStyles(createStyles);
-  return <Pressable onPress={onPress} style={[styles.conceptRow, concept.state === 'current' && styles.conceptCurrent]}><View style={[styles.conceptIcon, { backgroundColor: colors[concept.soft] }]}>{concept.state === 'done' ? <CheckCircleIcon size={22} color={colors[concept.tint]} /> : concept.state === 'current' ? <Text style={styles.play}>▷</Text> : concept.state === 'locked' ? <LockIcon size={21} color={colors[concept.tint]} /> : <SparklesIcon size={22} color={colors[concept.tint]} />}</View><View style={styles.conceptCopy}><Text style={styles.conceptTitle}>{concept.title}</Text><Text style={styles.conceptSubtitle}>{concept.subtitle}</Text></View>{concept.trailing ? <View style={[styles.trailing, concept.state === 'current' && styles.continuePill, concept.state === 'done' && styles.masteryPill]}><Text style={[styles.trailingText, concept.state === 'next' && styles.nextText]}>{concept.trailing}</Text></View> : <LockIcon size={21} color={colors.slate} />}{concept.state === 'current' ? <ChevronRightIcon size={20} color={colors.blue} /> : null}</Pressable>;
+  const isCurrent = concept.status === 'current';
+  const isDone = concept.status === 'done';
+
+  const subtitle = isDone
+    ? 'Mastered • prerequisite'
+    : isCurrent
+      ? 'Current concept'
+      : concept.needsKey
+        ? 'Jump ahead • key test required'
+        : 'Recommended next';
+
+  const trailing = isDone ? `${concept.mastery}%` : isCurrent ? 'CONTINUE' : concept.needsKey ? 'KEY TEST' : 'OPEN';
+
+  return (
+    <Pressable onPress={onPress} style={[styles.conceptRow, isCurrent && styles.conceptCurrent]}>
+      <View style={[styles.conceptIcon, { backgroundColor: colors[concept.soft] }]}>
+        {isDone ? (
+          <CheckCircleIcon size={22} color={colors[concept.tint]} />
+        ) : isCurrent ? (
+          <Text style={styles.play}>▷</Text>
+        ) : (
+          <SparklesIcon size={22} color={colors[concept.tint]} />
+        )}
+      </View>
+      <View style={styles.conceptCopy}>
+        <Text style={styles.conceptTitle}>{concept.title}</Text>
+        <Text style={styles.conceptSubtitle}>{subtitle}</Text>
+      </View>
+      <View
+        style={[
+          styles.trailing,
+          isCurrent && styles.continuePill,
+          isDone && styles.masteryPill,
+          !isDone && !isCurrent && concept.needsKey && styles.keyPill,
+        ]}
+      >
+        <Text
+          style={[
+            styles.trailingText,
+            !isDone && !isCurrent && styles.nextText,
+            !isDone && !isCurrent && concept.needsKey && styles.keyText,
+          ]}
+        >
+          {trailing}
+        </Text>
+      </View>
+      {isCurrent ? <ChevronRightIcon size={20} color={colors.blue} /> : null}
+    </Pressable>
+  );
 }
 
 const createStyles = () => StyleSheet.create({
@@ -134,8 +183,10 @@ const createStyles = () => StyleSheet.create({
   trailing: { minWidth: 48, height: 30, paddingHorizontal: 11, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
   masteryPill: { backgroundColor: colors.greenSoft },
   continuePill: { backgroundColor: colors.surface },
+  keyPill: { backgroundColor: colors.primarySoft },
   trailingText: { fontFamily: fonts.medium, fontSize: 12, color: colors.green },
   nextText: { color: colors.orange, fontSize: 25, lineHeight: 25 },
+  keyText: { color: colors.primary, fontSize: 10, letterSpacing: 0.4 },
   primaryButton: { height: 68, borderRadius: 16, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 12, ...shadow.card },
   primaryArrow: { fontFamily: fonts.regular, fontSize: 25, color: colors.onPrimary },
   primaryText: { fontFamily: fonts.regular, fontSize: 19, color: colors.onPrimary },

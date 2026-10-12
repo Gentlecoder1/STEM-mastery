@@ -7,7 +7,7 @@ import { ArrowLeftIcon, ArrowRightIcon } from '../components/icons';
 import { ProgressBar } from '../components/PracticeUI';
 import { colors, fonts, shadow } from '../theme';
 import type { ColorToken } from '../theme';
-import { CONTENT_LABELS, getConceptContent, getConcept } from '../data/learning';
+import { CONTENT_LABELS, getConceptContent, getConcept, getConceptQuiz } from '../data/learning';
 import type { ContentType, LearningContent } from '../data/learning';
 import type { RootScreenProps } from '../navigation/types';
 import { useThemedStyles, useTheme } from '../themeContext';
@@ -90,7 +90,7 @@ export default function ConceptLearningScreen({
   const items = useMemo(() => getConceptContent(conceptId), [conceptId]);
   const concept = getConcept(conceptId);
   const lessonItems = items.filter((item) => item.contentType !== 'QUESTION');
-  const quizItems = items.filter((item) => item.contentType === 'QUESTION');
+  const quizCount = getConceptQuiz(conceptId).length;
 
   if (!concept || lessonItems.length === 0) {
     return (
@@ -141,12 +141,12 @@ export default function ConceptLearningScreen({
         </Pressable>
         <Pressable
           style={styles.primaryButton}
-          onPress={() => quizItems.length > 0
-            ? navigation.navigate('ConceptQuiz', { conceptId })
+          onPress={() => quizCount > 0
+            ? navigation.navigate('ConceptQuiz', { conceptId, mode: 'lesson' })
             : navigation.navigate('ConceptDetails', { conceptId })}
           accessibilityRole="button"
         >
-          <Text style={styles.primaryText}>{quizItems.length > 0 ? 'Take quick check' : 'Back to concept'}</Text>
+          <Text style={styles.primaryText}>{quizCount > 0 ? 'Take quick check' : 'Back to concept'}</Text>
           <ArrowRightIcon size={18} color={colors.onPrimary} />
         </Pressable>
       </View>
