@@ -14,6 +14,7 @@ import {
   MedalIcon,
   SettingsIcon,
   TargetIcon,
+  TrashIcon,
   UserIcon,
 } from '../components/glyphs';
 import { SectionHeading } from '../components/PracticeUI';
@@ -54,7 +55,7 @@ const MENU = [
   },
   {
     title: 'Offline learning',
-    subtitle: '6 lessons downloaded',
+    subtitle: '',
     Icon: DownloadIcon,
     bg: 'violetSoft' as ColorToken,
     tint: 'violet' as ColorToken,
@@ -68,7 +69,8 @@ export default function ProfileScreen({ navigation }: RootScreenProps<'Profile'>
   const {
     classLevel,
     subjects,
-    downloadedTopics,
+    downloadedLessons,
+    removeLessonDownload,
     saveClassAndSubjects,
     userName,
     location,
@@ -143,23 +145,29 @@ export default function ProfileScreen({ navigation }: RootScreenProps<'Profile'>
 
         <SectionHeading title="Learning profile" />
         <View style={styles.menuList}>
-          {MENU.map(({ title, subtitle, Icon, bg, tint }) => (
-            <Pressable
-              key={title}
-              style={styles.menuRow}
-              accessibilityRole={title === 'Learning goals' ? undefined : 'button'}
-              onPress={title === 'Learning goals' ? undefined : () => openDrawer(title)}
-            >
-              <View style={[styles.menuIcon, { backgroundColor: colors[bg] }]}>
-                <Icon size={19} color={colors[tint]} />
-              </View>
-              <View style={styles.menuCopy}>
-                <Text style={styles.menuTitle}>{title}</Text>
-                <Text style={styles.menuSubtitle}>{subtitle}</Text>
-              </View>
-              <ChevronRightIcon size={20} color={colors.slate} />
-            </Pressable>
-          ))}
+          {MENU.map(({ title, subtitle, Icon, bg, tint }) => {
+            const resolvedSubtitle =
+              title === 'Offline learning'
+                ? `${downloadedLessons.length} ${downloadedLessons.length === 1 ? 'lesson' : 'lessons'} downloaded`
+                : subtitle;
+            return (
+              <Pressable
+                key={title}
+                style={styles.menuRow}
+                accessibilityRole={title === 'Learning goals' ? undefined : 'button'}
+                onPress={title === 'Learning goals' ? undefined : () => openDrawer(title)}
+              >
+                <View style={[styles.menuIcon, { backgroundColor: colors[bg] }]}>
+                  <Icon size={19} color={colors[tint]} />
+                </View>
+                <View style={styles.menuCopy}>
+                  <Text style={styles.menuTitle}>{title}</Text>
+                  <Text style={styles.menuSubtitle}>{resolvedSubtitle}</Text>
+                </View>
+                <ChevronRightIcon size={20} color={colors.slate} />
+              </Pressable>
+            );
+          })}
         </View>
       </ScrollView>
 
@@ -218,24 +226,30 @@ export default function ProfileScreen({ navigation }: RootScreenProps<'Profile'>
           </ScrollView>
         ) : (
           <ScrollView contentContainerStyle={styles.drawerContent}>
-            {downloadedTopics.length === 0 ? (
+            {downloadedLessons.length === 0 ? (
               <Text style={styles.itemBody}>No lessons have been downloaded yet.</Text>
             ) : (
-              CONCEPTS.filter((concept) => downloadedTopics.includes(concept.topicId)).map((concept) => (
-                <Pressable
-                  key={concept.id}
-                  style={styles.downloadedLesson}
-                  onPress={() => {
-                    setDrawerKey(null);
-                    navigation.navigate('ConceptDetails', { conceptId: concept.id });
-                  }}
-                >
-                  <View style={styles.menuCopy}>
+              CONCEPTS.filter((concept) => downloadedLessons.includes(concept.id)).map((concept) => (
+                <View key={concept.id} style={styles.downloadedLesson}>
+                  <Pressable
+                    style={styles.downloadedCopy}
+                    onPress={() => {
+                      setDrawerKey(null);
+                      navigation.navigate('ConceptDetails', { conceptId: concept.id });
+                    }}
+                  >
                     <Text style={styles.menuTitle}>{concept.title}</Text>
                     <Text style={styles.menuSubtitle}>Physics • Speed and Velocity</Text>
-                  </View>
-                  <ChevronRightIcon size={20} color={colors.slate} />
-                </Pressable>
+                  </Pressable>
+                  <Pressable
+                    style={styles.deleteButton}
+                    onPress={() => removeLessonDownload(concept.id)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Delete ${concept.title} download`}
+                  >
+                    <TrashIcon size={18} color={colors.danger} />
+                  </Pressable>
+                </View>
               ))
             )}
           </ScrollView>
@@ -259,7 +273,9 @@ const createStyles = () => StyleSheet.create({
   checkmark: { fontFamily: fonts.bold, fontSize: 14, color: colors.onPrimary },
   saveButton: { minHeight: 50, marginTop: 8, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primary },
   saveButtonText: { fontFamily: fonts.bold, fontSize: 14, color: colors.onPrimary },
-  downloadedLesson: { minHeight: 58, paddingHorizontal: 14, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center' },
+  downloadedLesson: { minHeight: 58, paddingLeft: 14, paddingRight: 8, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center' },
+  downloadedCopy: { flex: 1, paddingVertical: 10, gap: 2 },
+  deleteButton: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.pinkSoft },
   itemBody: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 19, color: colors.slate },
 
   header: {

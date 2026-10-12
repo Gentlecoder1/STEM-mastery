@@ -10,7 +10,7 @@ import { ArrowLeftIcon, CheckCircleIcon, ChevronRightIcon, SparklesIcon } from '
 import { colors, fonts, lightColors, shadow, type ColorToken } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
 import { useProgress, type ConceptStatus } from '../progressContext';
-import { CONCEPTS } from '../data/learning';
+import { CONCEPTS, getTopicConceptIds } from '../data/learning';
 import type { RootScreenProps } from '../navigation/types';
 import { usePreferences } from '../preferencesContext';
 
@@ -28,9 +28,11 @@ export default function TopicOverviewScreen({ navigation }: RootScreenProps<'Top
   const insets = useSafeAreaInsets();
   const { statusBarStyle } = useTheme();
   const styles = useThemedStyles(createStyles);
-  const { downloadedTopics, downloadsEnabled, toggleTopicDownload } = usePreferences();
+  const { downloadedLessons, downloadsEnabled, toggleTopicDownload } = usePreferences();
   const { getConceptStatus, isConceptCompleted, isConceptOpen } = useProgress();
-  const isDownloaded = downloadedTopics.includes('topic-speed-velocity');
+  const topicLessonIds = getTopicConceptIds('topic-speed-velocity');
+  const isDownloaded =
+    topicLessonIds.length > 0 && topicLessonIds.every((id) => downloadedLessons.includes(id));
 
   const concepts: PathConcept[] = CONCEPTS.map((concept) => ({
     id: concept.id,

@@ -2,7 +2,8 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import type { ReactNode } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors, fonts, shadow } from '../theme';
+import { fonts, shadow, type ThemeColors } from '../theme';
+import { useThemedStyles } from '../themeContext';
 
 type DrawerItem = {
   title: string;
@@ -27,6 +28,7 @@ export default function BottomSheetDrawer({
   onClose,
 }: BottomSheetDrawerProps) {
   const insets = useSafeAreaInsets();
+  const styles = useThemedStyles(createStyles);
 
   return (
     <Modal
@@ -70,7 +72,7 @@ export default function BottomSheetDrawer({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   overlay: {
     flex: 1,
     justifyContent: 'flex-end',
@@ -83,7 +85,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    backgroundColor: colors.canvas,
+    backgroundColor: c.canvas,
     ...shadow.card,
   },
   handle: {
@@ -91,33 +93,33 @@ const styles = StyleSheet.create({
     width: 38,
     height: 4,
     borderRadius: 999,
-    backgroundColor: colors.border,
+    backgroundColor: c.border,
     marginBottom: 16,
   },
   titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   titleCopy: { flex: 1, gap: 4 },
-  title: { fontFamily: fonts.regular, fontSize: 22, lineHeight: 27, color: colors.ink },
-  description: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 18, color: colors.slate },
+  title: { fontFamily: fonts.regular, fontSize: 22, lineHeight: 27, color: c.ink },
+  description: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 18, color: c.slate },
   closeButton: {
     width: 36,
     height: 36,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.border,
   },
-  closeText: { fontFamily: fonts.regular, fontSize: 24, lineHeight: 26, color: colors.ink },
+  closeText: { fontFamily: fonts.regular, fontSize: 24, lineHeight: 26, color: c.ink },
   items: { gap: 10, paddingTop: 18, paddingBottom: 8 },
   item: {
     padding: 14,
     borderRadius: 14,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.border,
     gap: 4,
   },
-  itemTitle: { fontFamily: fonts.semibold, fontSize: 14, lineHeight: 18, color: colors.ink },
-  itemBody: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 19, color: colors.slate },
+  itemTitle: { fontFamily: fonts.semibold, fontSize: 14, lineHeight: 18, color: c.ink },
+  itemBody: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 19, color: c.slate },
 });
