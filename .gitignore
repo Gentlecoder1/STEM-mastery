@@ -39,6 +39,15 @@ opencode.json
 # typescript
 *.tsbuildinfo
 
-# generated native folders
-/ios
-/android
+# generated native folders (frontend/ is the Expo app)
+ios/
+android/
+
+# Python / backend (see backend/.gitignore for details)
+backend/.venv/
+backend/.uv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/.pytest_cache/
+backend/.ruff_cache/
+backend/.env
