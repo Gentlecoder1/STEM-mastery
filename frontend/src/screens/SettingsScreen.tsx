@@ -19,6 +19,7 @@ import {
 } from '../components/glyphs';
 import { colors, fonts, type ColorToken } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
+import { useAuth } from '../auth/AuthContext';
 import { navigateToTab } from '../navigation/tabs';
 import type { RootScreenProps } from '../navigation/types';
 import {
@@ -125,6 +126,7 @@ const GROUPS: { label: string; rows: Row[] }[] = [
 export default function SettingsScreen({ navigation }: RootScreenProps<'Settings'>) {
   const insets = useSafeAreaInsets();
   const { statusBarStyle, isDark, startThemeReveal } = useTheme();
+  const { signOut } = useAuth();
   const {
     classLevel,
     subjects,
@@ -268,7 +270,9 @@ export default function SettingsScreen({ navigation }: RootScreenProps<'Settings
         ))}
         <Pressable
           style={styles.logoutButton}
-          onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Login' }] })}
+          onPress={() => {
+            void signOut();
+          }}
           accessibilityRole="button"
           accessibilityLabel="Log out"
         >

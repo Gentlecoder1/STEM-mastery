@@ -14,14 +14,14 @@ import {
 
 import { colors } from './src/theme';
 import { ThemeProvider, useTheme, useThemedStyles } from './src/themeContext';
+import { AuthProvider, useAuth } from './src/auth/AuthContext';
 import { PreferencesProvider } from './src/preferencesContext';
 import { ProgressProvider } from './src/progressContext';
 import ThemeRevealOverlay from './src/components/ThemeRevealOverlay';
 import SplashScreen from './src/screens/SplashScreen';
 import SignUpScreen from './src/screens/SignUpScreen';
 import LoginScreen from './src/screens/LoginScreen';
-import OTPScreen from './src/screens/OTPScreen';
-import OnboardingFlow from './src/screens/OnboardingFlow';
+import VerifyEmailScreen from './src/screens/VerifyEmailScreen';import OnboardingFlow from './src/screens/OnboardingFlow';
 import PlacementTestScreen from './src/screens/PlacementTestScreen';
 import HomeDashboardScreen from './src/screens/HomeDashboardScreen';
 import SubjectsScreen from './src/screens/SubjectsScreen';
@@ -55,6 +55,7 @@ function AppShell() {
     Inter_800ExtraBold,
   });
   const { mode } = useTheme();
+  const { isInitializing, isAuthenticated } = useAuth();
   const styles = useThemedStyles(createStyles);
 
   const navTheme = useMemo(
@@ -72,7 +73,7 @@ function AppShell() {
     [mode],
   );
 
-  if (!fontsLoaded) {
+  if (!fontsLoaded || isInitializing) {
     return (
       <View style={styles.loader}>
         <ActivityIndicator color={colors.primary} />
@@ -85,7 +86,7 @@ function AppShell() {
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
       <NavigationContainer theme={navTheme}>
         <Stack.Navigator
-          initialRouteName="Splash"
+          initialRouteName={isAuthenticated ? 'Home' : 'Splash'}
           screenOptions={{
             headerShown: false,
             animation: 'slide_from_right',
@@ -97,31 +98,38 @@ function AppShell() {
             contentStyle: { backgroundColor: colors.canvas },
           }}
         >
-          <Stack.Screen name="Splash" component={SplashScreen} />
-          <Stack.Screen name="SignUp" component={SignUpScreen} />
-          <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="OTPScreen" component={OTPScreen} />
-          <Stack.Screen name="Onboarding" component={OnboardingFlow} />
-          <Stack.Screen name="PlacementTest" component={PlacementTestScreen} />
-          <Stack.Screen name="Home" component={HomeDashboardScreen} />
-          <Stack.Screen name="Subjects" component={SubjectsScreen} />
-          <Stack.Screen name="SubjectDashboard" component={SubjectDashboardScreen} />
-          <Stack.Screen name="TopicOverview" component={TopicOverviewScreen} />
-          <Stack.Screen name="ConceptDetails" component={ConceptDetailsScreen} />
-          <Stack.Screen name="ConceptLearning" component={ConceptLearningScreen} />
-          <Stack.Screen name="ConceptQuiz" component={ConceptQuizScreen} />
-          <Stack.Screen name="Practice" component={PracticeHomeScreen} />
-          <Stack.Screen name="PracticeQuestion" component={PracticeQuestionScreen} />
-          <Stack.Screen name="PracticeFeedback" component={PracticeFeedbackScreen} />
-          <Stack.Screen name="PracticeRecommendation" component={PracticeRecommendationScreen} />
-          <Stack.Screen name="PracticeLesson" component={PracticeLessonScreen} />
-          <Stack.Screen name="PracticeQuizResult" component={PracticeQuizResultScreen} />
-          <Stack.Screen name="Progress" component={ProgressScreen} />
-          <Stack.Screen name="ConceptProgress" component={ConceptProgressScreen} />
-          <Stack.Screen name="Challenge" component={ChallengeScreen} />
-          <Stack.Screen name="Search" component={SearchScreen} />
-          <Stack.Screen name="Profile" component={ProfileScreen} />
-          <Stack.Screen name="Settings" component={SettingsScreen} />
+          {isAuthenticated ? (
+            <>
+              <Stack.Screen name="Onboarding" component={OnboardingFlow} />
+              <Stack.Screen name="PlacementTest" component={PlacementTestScreen} />
+              <Stack.Screen name="Home" component={HomeDashboardScreen} />
+              <Stack.Screen name="Subjects" component={SubjectsScreen} />
+              <Stack.Screen name="SubjectDashboard" component={SubjectDashboardScreen} />
+              <Stack.Screen name="TopicOverview" component={TopicOverviewScreen} />
+              <Stack.Screen name="ConceptDetails" component={ConceptDetailsScreen} />
+              <Stack.Screen name="ConceptLearning" component={ConceptLearningScreen} />
+              <Stack.Screen name="ConceptQuiz" component={ConceptQuizScreen} />
+              <Stack.Screen name="Practice" component={PracticeHomeScreen} />
+              <Stack.Screen name="PracticeQuestion" component={PracticeQuestionScreen} />
+              <Stack.Screen name="PracticeFeedback" component={PracticeFeedbackScreen} />
+              <Stack.Screen name="PracticeRecommendation" component={PracticeRecommendationScreen} />
+              <Stack.Screen name="PracticeLesson" component={PracticeLessonScreen} />
+              <Stack.Screen name="PracticeQuizResult" component={PracticeQuizResultScreen} />
+              <Stack.Screen name="Progress" component={ProgressScreen} />
+              <Stack.Screen name="ConceptProgress" component={ConceptProgressScreen} />
+              <Stack.Screen name="Challenge" component={ChallengeScreen} />
+              <Stack.Screen name="Search" component={SearchScreen} />
+              <Stack.Screen name="Profile" component={ProfileScreen} />
+              <Stack.Screen name="Settings" component={SettingsScreen} />
+            </>
+          ) : (
+            <>
+              <Stack.Screen name="Splash" component={SplashScreen} />
+              <Stack.Screen name="SignUp" component={SignUpScreen} />
+              <Stack.Screen name="Login" component={LoginScreen} />
+              <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} />
+            </>
+          )}
         </Stack.Navigator>
       </NavigationContainer>
       <ThemeRevealOverlay />
@@ -131,13 +139,15 @@ function AppShell() {
 
 export default function App() {
   return (
-    <PreferencesProvider>
-      <ProgressProvider>
-        <ThemeProvider>
-          <AppShell />
-        </ThemeProvider>
-      </ProgressProvider>
-    </PreferencesProvider>
+    <AuthProvider>
+      <PreferencesProvider>
+        <ProgressProvider>
+          <ThemeProvider>
+            <AppShell />
+          </ThemeProvider>
+        </ProgressProvider>
+      </PreferencesProvider>
+    </AuthProvider>
   );
 }
 

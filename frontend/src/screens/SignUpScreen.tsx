@@ -7,12 +7,33 @@ import Link from '../components/Link';
 import { GoogleButton } from '../components/SocialButtons';
 import type { RootScreenProps } from '../navigation/types';
 import { useThemedStyles } from '../themeContext';
+import { useAuth } from '../auth/AuthContext';
 
 export default function SignUpScreen({ navigation }: RootScreenProps<'SignUp'>) {
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
+  const { signUp } = useAuth();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const handleSignUp = async () => {
+    setBusy(true);
+    setError(null);
+    const { error: signUpError, needsVerification } = await signUp({ email, password, fullName });
+    if (signUpError) {
+      setError(signUpError);
+      setBusy(false);
+      return;
+    }
+    if (needsVerification) {
+      setBusy(false);
+      navigation.navigate('VerifyEmail', { email });
+    }
+    // If verification is not required the auth state changes and the guard takes over.
+  };
 
   return (
     <View style={styles.screen}>
@@ -41,6 +62,7 @@ export default function SignUpScreen({ navigation }: RootScreenProps<'SignUp'>) 
                 value={fullName}
                 onChangeText={setFullName}
                 autoCapitalize="words"
+                editable={!busy}
               />
             </View>
             <View style={styles.field}>
@@ -53,16 +75,34 @@ export default function SignUpScreen({ navigation }: RootScreenProps<'SignUp'>) 
                 value={email}
                 onChangeText={setEmail}
                 autoCapitalize="none"
+                autoCorrect={false}
+                editable={!busy}
+              />
+            </View>
+            <View style={styles.field}>
+              <Text style={styles.label}>Password</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="At least 6 characters"
+                placeholderTextColor={colors.slate}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                autoCapitalize="none"
+                autoCorrect={false}
+                editable={!busy}
               />
             </View>
           </View>
+
+          {error ? <Text style={styles.error}>{error}</Text> : null}
         </View>
 
         <View style={styles.actions}>
           <PrimaryButton
-            title="Create account"
-            onPress={() => navigation.navigate('OTPScreen', { email })}
-            disabled={!fullName || !email}
+            title={busy ? 'Creating account…' : 'Create account'}
+            onPress={handleSignUp}
+            disabled={!fullName || !email || password.length < 6 || busy}
           />
           <View style={styles.linkWrap}>
             <Link text="Already have an account?" action="Log in" bold onPress={() => navigation.navigate('Login')} />
@@ -98,6 +138,7 @@ const createStyles = () => StyleSheet.create({
     lineHeight: 18.1534,
     color: colors.ink,
   },
+  error: { fontFamily: fonts.medium, fontSize: 13, lineHeight: 18, color: colors.danger },
   actions: { gap: 10 },
   linkWrap: { alignItems: 'center' },
 });

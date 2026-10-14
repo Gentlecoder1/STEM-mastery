@@ -7,11 +7,27 @@ import Link from '../components/Link';
 import { GoogleButton } from '../components/SocialButtons';
 import type { RootScreenProps } from '../navigation/types';
 import { useThemedStyles } from '../themeContext';
+import { useAuth } from '../auth/AuthContext';
 
 export default function LoginScreen({ navigation }: RootScreenProps<'Login'>) {
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
+  const { signIn } = useAuth();
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const handleLogin = async () => {
+    setBusy(true);
+    setError(null);
+    const { error: signInError } = await signIn(email, password);
+    if (signInError) {
+      setError(signInError);
+      setBusy(false);
+    }
+    // On success the auth state changes and the route guard takes over.
+  };
 
   return (
     <View style={styles.screen}>
@@ -40,15 +56,34 @@ export default function LoginScreen({ navigation }: RootScreenProps<'Login'>) {
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
+              autoCorrect={false}
+              editable={!busy}
             />
           </View>
+
+          <View style={styles.field}>
+            <Text style={styles.label}>Password</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Your password"
+              placeholderTextColor={colors.slate}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+              editable={!busy}
+            />
+          </View>
+
+          {error ? <Text style={styles.error}>{error}</Text> : null}
         </View>
 
         <View style={styles.actions}>
           <PrimaryButton
-            title="Log in"
-            onPress={() => navigation.navigate('Home')}
-            disabled={!email}
+            title={busy ? 'Logging in…' : 'Log in'}
+            onPress={handleLogin}
+            disabled={!email || !password || busy}
           />
           <View style={styles.linkWrap}>
             <Link text="New to Masterly?" action="Sign up" bold onPress={() => navigation.navigate('SignUp')} />
@@ -83,6 +118,7 @@ const createStyles = () => StyleSheet.create({
     lineHeight: 18.1534,
     color: colors.ink,
   },
+  error: { fontFamily: fonts.medium, fontSize: 13, lineHeight: 18, color: colors.danger },
   actions: { gap: 10 },
   linkWrap: { alignItems: 'center' },
 });

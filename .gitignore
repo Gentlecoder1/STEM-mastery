@@ -32,6 +32,7 @@ yarn-error.*
 
 # local env files
 .env*.local
+frontend/.env
 
 # opencode config (contains Figma API token)
 opencode.json

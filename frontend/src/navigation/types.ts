@@ -5,7 +5,7 @@ export type RootStackParamList = {
   Splash: undefined;
   SignUp: undefined;
   Login: undefined;
-  OTPScreen: { email: string } | undefined;
+  VerifyEmail: { email: string } | undefined;
   Onboarding: undefined;
   PlacementTest: undefined;
   Home: undefined;

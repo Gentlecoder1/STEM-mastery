@@ -3,6 +3,7 @@
     "name": "STEM-mastery",
     "slug": "stem-mastery",
     "version": "1.0.0",
+    "scheme": "stemmastery",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",

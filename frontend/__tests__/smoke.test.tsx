@@ -23,7 +23,7 @@ import SettingsScreen from '../src/screens/SettingsScreen';
 import SplashScreen from '../src/screens/SplashScreen';
 import SignUpScreen from '../src/screens/SignUpScreen';
 import LoginScreen from '../src/screens/LoginScreen';
-import OTPScreen from '../src/screens/OTPScreen';
+import VerifyEmailScreen from '../src/screens/VerifyEmailScreen';
 import OnboardingFlow from '../src/screens/OnboardingFlow';
 import type { RootStackParamList, RootScreenProps } from '../src/navigation/types';
 
@@ -77,7 +77,7 @@ const CASES = [
   screenCase('Splash', SplashScreen),
   screenCase('SignUp', SignUpScreen),
   screenCase('Login', LoginScreen),
-  screenCase('OTPScreen', OTPScreen, { email: 'a@b.com' }),
+  screenCase('VerifyEmail', VerifyEmailScreen, { email: 'a@b.com' }),
   screenCase('Onboarding', OnboardingFlow),
   screenCase('Practice', PracticeHomeScreen),
   screenCase('PracticeQuestion', PracticeQuestionScreen, { index: 3 }),

@@ -33,3 +33,23 @@ jest.mock('@expo-google-fonts/inter', () => ({
   Inter_700Bold: 'Inter_700Bold',
   Inter_800ExtraBold: 'Inter_800ExtraBold',
 }));
+
+jest.mock('react-native-url-polyfill/auto', () => ({}));
+
+jest.mock('@supabase/supabase-js', () => ({
+  createClient: jest.fn(() => ({
+    auth: {
+      getSession: jest.fn(async () => ({ data: { session: null }, error: null })),
+      onAuthStateChange: jest.fn(() => ({
+        data: { subscription: { unsubscribe: jest.fn() } },
+      })),
+      signInWithPassword: jest.fn(async () => ({ data: { session: null }, error: null })),
+      signUp: jest.fn(async () => ({ data: { session: null }, error: null })),
+      verifyOtp: jest.fn(async () => ({ data: {}, error: null })),
+      resend: jest.fn(async () => ({ data: {}, error: null })),
+      signOut: jest.fn(async () => ({ error: null })),
+      startAutoRefresh: jest.fn(),
+      stopAutoRefresh: jest.fn(),
+    },
+  })),
+}));
