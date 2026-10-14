@@ -1,10 +1,8 @@
 import { useMemo, useState } from 'react';
 import {
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -25,6 +23,8 @@ import {
 } from '../components/glyphs';
 import { SparklesIcon } from '../components/icons';
 import { ActionButton, Pill, ProgressBar } from '../components/PracticeUI';
+import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
+import { TextField } from '../components/TextField';
 import { colors, fonts, shadow } from '../theme';
 import { getPracticeQuestion, PRACTICE_SET_SIZE } from '../data/practice';
 import type { PracticeOption } from '../data/practice';
@@ -93,7 +93,7 @@ export default function PracticeQuestionScreen({
         )}
       </View>
 
-      <ScrollView
+      <KeyboardAwareScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 108 }]}
         keyboardShouldPersistTaps="handled"
@@ -149,7 +149,7 @@ export default function PracticeQuestionScreen({
         ) : (
           <>
             <View style={styles.answerField}>
-              <TextInput
+              <TextField
                 multiline
                 value={writtenText}
                 onChangeText={setWrittenText}
@@ -179,7 +179,7 @@ export default function PracticeQuestionScreen({
             </View>
           </>
         )}
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 14 }]}>
         <ActionButton

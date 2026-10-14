@@ -16,6 +16,7 @@ import { Pill } from '../components/PracticeUI';
 import { colors, fonts, lightColors, shadow, type ColorToken } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
 import type { RootScreenProps } from '../navigation/types';
+import { useDisplayName } from '../profileContext';
 
 const STATS = [
   { value: '5', label: 'First try', tint: 'success' as ColorToken },
@@ -51,6 +52,7 @@ export default function PracticeQuizResultScreen({
   const styles = useThemedStyles(createStyles);
   const correct = route.params?.correct ?? 6;
   const xp = route.params?.xp ?? 75;
+  const name = useDisplayName();
 
   return (
     <View style={styles.root}>
@@ -72,7 +74,7 @@ export default function PracticeQuizResultScreen({
         </View>
 
         <View style={styles.headingWrap}>
-          <Text style={styles.heading}>Nice work, Iseoluwa!</Text>
+          <Text style={styles.heading}>Nice work{name ? `, ${name}` : ''}!</Text>
           <Text style={styles.subheading}>You're getting stronger at reading motion graphs.</Text>
         </View>
 

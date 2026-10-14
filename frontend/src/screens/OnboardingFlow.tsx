@@ -19,6 +19,7 @@ import { ArrowRightIcon, CheckIcon } from '../components/icons';
 import type { RootScreenProps } from '../navigation/types';
 import { useThemedStyles } from '../themeContext';
 import { usePreferences } from '../preferencesContext';
+import { useDisplayName } from '../profileContext';
 
 const TOTAL_STEPS = 2;
 
@@ -36,12 +37,15 @@ type StepContentProps = {
 
 function StepContent({ step, state, setState }: StepContentProps) {
   const styles = useThemedStyles(createStyles);
+  const name = useDisplayName();
   const subjects = getSubjects();
 
   if (step === 1) {
     return (
       <View style={styles.section}>
-        <Text style={styles.title}>Let’s personalise your path, Iseoluwa</Text>
+        <Text style={styles.title}>
+          Let’s personalise your path{name ? `, ${name}` : ''}
+        </Text>
         <Text style={styles.subtitle}>Choose your class and the subjects you want to master.</Text>
 
         <View style={styles.block}>

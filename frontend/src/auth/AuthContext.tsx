@@ -39,15 +39,6 @@ export type AuthContextValue = {
 
 const NOT_CONFIGURED = 'Authentication is not configured yet.';
 
-/** Deep link the email confirmation redirects back to, e.g. `stemmastery://auth-callback`. */
-function createAuthRedirect(): string {
-  try {
-    return Linking.createURL('auth-callback');
-  } catch {
-    return 'stemmastery://auth-callback';
-  }
-}
-
 /** Collects params from both the query string and the URL hash fragment. */
 function parseAuthParams(url: string): Record<string, string | undefined> {
   const params: Record<string, string | undefined> = {};
@@ -165,7 +156,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email: params.email.trim(),
       password: params.password,
       options: {
-        emailRedirectTo: createAuthRedirect(),
         ...(params.fullName ? { data: { full_name: params.fullName.trim() } } : {}),
       },
     });
@@ -191,7 +181,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.resend({
       type: 'signup',
       email: email.trim(),
-      options: { emailRedirectTo: createAuthRedirect() },
     });
     return { error: error ? error.message : null };
   }, []);

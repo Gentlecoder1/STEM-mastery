@@ -1,4 +1,4 @@
-import { Dimensions, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState } from 'react';
@@ -7,6 +7,8 @@ import BottomNav from '../components/BottomNav';
 import BottomSheetDrawer from '../components/BottomSheetDrawer';
 import Toggle from '../components/Toggle';
 import { ArrowLeftIcon, ChevronRightIcon } from '../components/icons';
+import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
+import { TextField } from '../components/TextField';
 import {
   BellIcon,
   DownloadIcon,
@@ -20,6 +22,7 @@ import {
 import { colors, fonts, type ColorToken } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
 import { useAuth } from '../auth/AuthContext';
+import { useProfile } from '../profileContext';
 import { navigateToTab } from '../navigation/tabs';
 import type { RootScreenProps } from '../navigation/types';
 import {
@@ -140,6 +143,7 @@ export default function SettingsScreen({ navigation }: RootScreenProps<'Settings
     setDownloadsEnabled,
   } = usePreferences();
   const styles = useThemedStyles(createStyles);
+  const { profile, updateProfile } = useProfile();
   const [toggles, setToggles] = useState({
     reminders: true,
     wifi: true,
@@ -148,7 +152,7 @@ export default function SettingsScreen({ navigation }: RootScreenProps<'Settings
   const [draftClass, setDraftClass] = useState<ClassLevel>(classLevel);
   const [draftSubjects, setDraftSubjects] = useState<SubjectId[]>(subjects);
   const [draftGoal, setDraftGoal] = useState(dailyGoal);
-  const [draftName, setDraftName] = useState(userName);
+  const [draftName, setDraftName] = useState(profile?.fullName || userName);
   const [draftLocation, setDraftLocation] = useState(location);
 
   const setToggle = (key: keyof typeof toggles) => (value: boolean) =>
@@ -157,7 +161,7 @@ export default function SettingsScreen({ navigation }: RootScreenProps<'Settings
     setDrawerKey(key);
     if (key === 'goal') setDraftGoal(dailyGoal);
     if (key === 'profile') {
-      setDraftName(userName);
+      setDraftName(profile?.fullName || userName);
       setDraftLocation(location);
     }
     if (key === 'class') {
@@ -351,8 +355,8 @@ export default function SettingsScreen({ navigation }: RootScreenProps<'Settings
             </Pressable>
           </ScrollView>
         ) : drawerKey === 'goal' ? (
-          <ScrollView contentContainerStyle={styles.drawerContent}>
-            <TextInput
+          <KeyboardAwareScrollView contentContainerStyle={styles.drawerContent}>
+            <TextField
               value={draftGoal}
               onChangeText={setDraftGoal}
               placeholder="e.g. 45 minutes"
@@ -375,21 +379,22 @@ export default function SettingsScreen({ navigation }: RootScreenProps<'Settings
             >
               <Text style={styles.saveButtonText}>Save changes</Text>
             </Pressable>
-          </ScrollView>
+          </KeyboardAwareScrollView>
         ) : drawerKey === 'profile' ? (
-          <View style={styles.drawerContent}>
-            <TextInput value={draftName} onChangeText={setDraftName} placeholder="Name" placeholderTextColor={colors.slate} style={styles.goalInput} />
-            <TextInput value={draftLocation} onChangeText={setDraftLocation} placeholder="Location" placeholderTextColor={colors.slate} style={styles.goalInput} />
+          <KeyboardAwareScrollView contentContainerStyle={styles.drawerContent}>
+            <TextField value={draftName} onChangeText={setDraftName} placeholder="Name" placeholderTextColor={colors.slate} style={styles.goalInput} />
+            <TextField value={draftLocation} onChangeText={setDraftLocation} placeholder="Location" placeholderTextColor={colors.slate} style={styles.goalInput} />
             <Pressable
               style={styles.saveButton}
               onPress={() => {
                 saveProfile(draftName, draftLocation);
+                void updateProfile({ fullName: draftName.trim() });
                 setDrawerKey(null);
               }}
             >
               <Text style={styles.saveButtonText}>Save changes</Text>
             </Pressable>
-          </View>
+          </KeyboardAwareScrollView>
         ) : (
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.items}>
             {(

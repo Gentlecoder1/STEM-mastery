@@ -11,6 +11,7 @@ import { colors, fonts, lightColors, shadow, type ColorToken } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
 import { navigateToTab } from '../navigation/tabs';
 import type { RootScreenProps } from '../navigation/types';
+import { useDisplayName } from '../profileContext';
 
 const DAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'] as const;
 const DONE_DAYS = 4;
@@ -48,6 +49,7 @@ export default function ProgressScreen({ navigation }: RootScreenProps<'Progress
   const insets = useSafeAreaInsets();
   const { statusBarStyle } = useTheme();
   const styles = useThemedStyles(createStyles);
+  const name = useDisplayName();
 
   return (
     <View style={styles.root}>
@@ -55,7 +57,7 @@ export default function ProgressScreen({ navigation }: RootScreenProps<'Progress
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <View style={styles.headerCopy}>
           <Text style={styles.title}>Your progress</Text>
-          <Text style={styles.subtitle}>Keep building mastery, Iseoluwa</Text>
+          <Text style={styles.subtitle}>Keep building mastery{name ? `, ${name}` : ''}</Text>
         </View>
         <Pressable style={styles.headerAction} accessibilityLabel="Progress calendar">
           <CalendarIcon size={20} color={colors.ink} />

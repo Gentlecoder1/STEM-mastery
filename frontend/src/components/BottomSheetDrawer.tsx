@@ -1,4 +1,13 @@
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import type { ReactNode } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -38,41 +47,47 @@ export default function BottomSheetDrawer({
       statusBarTranslucent
       onRequestClose={onClose}
     >
-      <View style={styles.overlay}>
-        <Pressable style={styles.dismissArea} onPress={onClose} accessibilityLabel="Close drawer" />
-        <View style={[styles.sheet, { paddingBottom: insets.bottom + 18 }]}>
-          <View style={styles.handle} />
-          <View style={styles.titleRow}>
-            <View style={styles.titleCopy}>
-              <Text style={styles.title}>{title}</Text>
-              <Text style={styles.description}>{description}</Text>
+      <KeyboardAvoidingView
+        style={styles.fill}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <View style={styles.overlay}>
+          <Pressable style={styles.dismissArea} onPress={onClose} accessibilityLabel="Close drawer" />
+          <View style={[styles.sheet, { paddingBottom: insets.bottom + 18 }]}>
+            <View style={styles.handle} />
+            <View style={styles.titleRow}>
+              <View style={styles.titleCopy}>
+                <Text style={styles.title}>{title}</Text>
+                <Text style={styles.description}>{description}</Text>
+              </View>
+              <Pressable
+                style={styles.closeButton}
+                onPress={onClose}
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+              >
+                <Text style={styles.closeText}>×</Text>
+              </Pressable>
             </View>
-            <Pressable
-              style={styles.closeButton}
-              onPress={onClose}
-              accessibilityRole="button"
-              accessibilityLabel="Close"
-            >
-              <Text style={styles.closeText}>×</Text>
-            </Pressable>
+            {children ?? (
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.items}>
+                {items.map((item) => (
+                  <View key={item.title} style={styles.item}>
+                    <Text style={styles.itemTitle}>{item.title}</Text>
+                    <Text style={styles.itemBody}>{item.body}</Text>
+                  </View>
+                ))}
+              </ScrollView>
+            )}
           </View>
-          {children ?? (
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.items}>
-              {items.map((item) => (
-                <View key={item.title} style={styles.item}>
-                  <Text style={styles.itemTitle}>{item.title}</Text>
-                  <Text style={styles.itemBody}>{item.body}</Text>
-                </View>
-              ))}
-            </ScrollView>
-          )}
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
+  fill: { flex: 1 },
   overlay: {
     flex: 1,
     justifyContent: 'flex-end',

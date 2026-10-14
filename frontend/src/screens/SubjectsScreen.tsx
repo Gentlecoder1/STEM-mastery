@@ -18,6 +18,7 @@ import type { RootScreenProps } from '../navigation/types';
 import type { IconProps } from '../components/icons';
 import { navigateToTab } from '../navigation/tabs';
 import { useThemedStyles, useTheme } from '../themeContext';
+import { useDisplayName } from '../profileContext';
 
 type IconComponent = (props: IconProps) => React.JSX.Element;
 
@@ -132,6 +133,7 @@ export default function SubjectsScreen({ navigation }: RootScreenProps<'Subjects
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
   const { statusBarStyle } = useTheme();
+  const name = useDisplayName();
 
   return (
     <View style={styles.root}>
@@ -161,7 +163,7 @@ export default function SubjectsScreen({ navigation }: RootScreenProps<'Subjects
               <MedalIcon size={26} color={lightColors.inkDeep} />
             </View>
             <View style={styles.summaryCopy}>
-              <Text style={styles.summaryTitle}>Strong week, Iseoluwa!</Text>
+              <Text style={styles.summaryTitle}>Strong week{name ? `, ${name}` : ''}!</Text>
               <Text style={styles.summaryText}>You improved Physics mastery by 6%.</Text>
             </View>
           </View>

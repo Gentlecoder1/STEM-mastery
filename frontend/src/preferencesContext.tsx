@@ -50,7 +50,7 @@ const DEFAULT_PREFERENCES: PreferencesContextValue = {
   classLevel: 'SS1',
   subjects: ['mathematics', 'physics', 'chemistry'],
   dailyGoal: '20 minutes',
-  userName: 'Iseoluwa',
+  userName: '',
   location: 'Lagos, Nigeria',
   downloadedLessons: DEFAULT_DOWNLOADED_LESSONS,
   downloadsEnabled: true,
@@ -68,7 +68,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
   const [classLevel, setClassLevel] = useState<ClassLevel>('SS1');
   const [subjects, setSubjects] = useState<SubjectId[]>(['mathematics', 'physics', 'chemistry']);
   const [dailyGoal, setDailyGoal] = useState('20 minutes');
-  const [userName, setUserName] = useState('Iseoluwa');
+  const [userName, setUserName] = useState('');
   const [location, setLocation] = useState('Lagos, Nigeria');
   const [downloadedLessons, setDownloadedLessons] = useState<string[]>(DEFAULT_DOWNLOADED_LESSONS);
   const [downloadsEnabled, setDownloadsEnabled] = useState(true);
@@ -98,7 +98,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
     setSubjects(nextSubjects);
   }, []);
   const saveProfile = useCallback((nextName: string, nextLocation: string) => {
-    setUserName(nextName.trim() || 'Iseoluwa');
+    setUserName(nextName.trim());
     setLocation(nextLocation.trim() || 'Lagos, Nigeria');
   }, []);
   const toggleTopicDownload = useCallback(

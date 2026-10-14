@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import MasteryRing from '../components/MasteryRing';
 import { ProgressBar } from '../components/PracticeUI';
 import { ArrowLeftIcon, ArrowRightIcon, CheckCircleIcon, SparklesIcon } from '../components/icons';
+import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
+import { TextField } from '../components/TextField';
 import { colors, fonts, shadow, type ThemeColors } from '../theme';
 import { useThemedStyles, useTheme } from '../themeContext';
 import { useProgress } from '../progressContext';
@@ -191,7 +193,7 @@ export default function ConceptQuizScreen({ navigation, route }: RootScreenProps
 
       <ProgressBar progress={((index + 1) / questions.length) * 100} style={styles.headerProgress} />
 
-      <ScrollView
+      <KeyboardAwareScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 96 }]}
         keyboardShouldPersistTaps="handled"
@@ -211,7 +213,7 @@ export default function ConceptQuizScreen({ navigation, route }: RootScreenProps
 
         {isWritten ? (
           <View style={styles.writtenWrap}>
-            <TextInput
+            <TextField
               multiline
               value={writtenText}
               onChangeText={setWrittenText}
@@ -254,7 +256,7 @@ export default function ConceptQuizScreen({ navigation, route }: RootScreenProps
             <Text style={styles.feedbackText}>{question.explanation}</Text>
           </View>
         ) : null}
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 14 }]}>
         <Pressable
