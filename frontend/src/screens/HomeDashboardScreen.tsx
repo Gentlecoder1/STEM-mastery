@@ -17,16 +17,18 @@ import {
   SigmaIcon,
   FlaskIcon,
 } from '../components/glyphs';
-import { colors, fonts, lightColors, shadow, type ColorToken } from '../theme';
+import { colors, fonts, lightColors, shadow, type ColorToken, type SubjectId } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
 import { useProfile } from '../profileContext';
 import { useDisplayName } from '../displayName';
+import { useProgress } from '../progressContext';
 import type { RootScreenProps } from '../navigation/types';
 import type { IconProps } from '../components/icons';
 
 type SubjectIconKey = 'atom' | 'sigma' | 'flask';
 
 type DashboardSubject = {
+  id: SubjectId;
   name: string;
   icon: SubjectIconKey;
   tint: ColorToken;
@@ -45,6 +47,7 @@ const SUBJECT_ICONS: Record<SubjectIconKey, IconComponent> = {
 
 const SUBJECTS: readonly DashboardSubject[] = [
   {
+    id: 'physics',
     name: 'Physics',
     icon: 'atom',
     tint: 'blue',
@@ -53,6 +56,7 @@ const SUBJECTS: readonly DashboardSubject[] = [
     subtitle: '0% mastery • Start your first topic',
   },
   {
+    id: 'mathematics',
     name: 'Mathematics',
     icon: 'sigma',
     tint: 'green',
@@ -61,6 +65,7 @@ const SUBJECTS: readonly DashboardSubject[] = [
     subtitle: '0% mastery • Ready to begin',
   },
   {
+    id: 'chemistry',
     name: 'Chemistry',
     icon: 'flask',
     tint: 'violet',
@@ -131,6 +136,7 @@ export default function HomeDashboardScreen({ navigation }: RootScreenProps<'Hom
   const styles = useThemedStyles(createStyles);
   const { profile } = useProfile();
   const displayName = useDisplayName();
+  const { getSubjectMastery } = useProgress();
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -207,16 +213,19 @@ export default function HomeDashboardScreen({ navigation }: RootScreenProps<'Hom
           </View>
 
           <View style={styles.subjectList}>
-            {SUBJECTS.map((subject) => (
+            {SUBJECTS.map((subject) => {
+              const mastery = getSubjectMastery(subject.id);
+              return (
               <Pressable key={subject.name} style={styles.subjectRow} onPress={openSubjects}>
-                <SubjectIcon subject={subject} />
+                <SubjectIcon subject={{ ...subject, mastery }} />
                 <View style={styles.subjectCopy}>
                   <Text style={styles.subjectName}>{subject.name}</Text>
-                  <Text style={styles.subjectSubtitle}>{subject.subtitle}</Text>
+                  <Text style={styles.subjectSubtitle}>{mastery}% mastery • {mastery === 0 ? 'Ready to begin' : 'Keep learning'}</Text>
                 </View>
-                <MasteryRing percent={subject.mastery} color={colors[subject.tint]} />
+                <MasteryRing percent={mastery} color={colors[subject.tint]} />
               </Pressable>
-            ))}
+              );
+            })}
           </View>
         </ScrollView>
       </View>

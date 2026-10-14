@@ -2,7 +2,6 @@ import { Pressable, Text, View } from 'react-native';
 import {
   HouseIcon,
   BookOpenIcon,
-  DumbbellIcon,
   ChartIcon,
   UserIcon,
 } from './glyphs';
@@ -20,7 +19,6 @@ export type Tab = {
 export const TABS: readonly Tab[] = [
   { key: 'Home', label: 'Home', Icon: HouseIcon },
   { key: 'Subjects', label: 'Learn', Icon: BookOpenIcon },
-  { key: 'Practice', label: 'Practice', Icon: DumbbellIcon },
   { key: 'Progress', label: 'Progress', Icon: ChartIcon },
   { key: 'Profile', label: 'Profile', Icon: UserIcon },
 ];

@@ -23,7 +23,7 @@ export default function ConceptQuizScreen({ navigation, route }: RootScreenProps
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
   const { statusBarStyle } = useTheme();
-  const { completeConcept } = useProgress();
+  const { completeConcept, recordTopicAssessment } = useProgress();
   const { conceptId, mode = 'lesson', targetConceptId } = route.params;
 
   const concept = getConcept(conceptId);
@@ -62,8 +62,11 @@ export default function ConceptQuizScreen({ navigation, route }: RootScreenProps
   const isKey = mode === 'key';
   const eyebrow = isKey ? 'KEY TEST' : 'QUICK CHECK';
 
-  const finish = () => {
-    completeConcept(conceptId);
+  const finish = async () => {
+    await recordTopicAssessment(concept.topicId, score.pct);
+    if (passed) {
+      await completeConcept(conceptId);
+    }
     if (isKey && targetConceptId) {
       navigation.navigate('ConceptDetails', { conceptId: targetConceptId });
       return;
@@ -125,14 +128,21 @@ export default function ConceptQuizScreen({ navigation, route }: RootScreenProps
 
           <View style={styles.actions}>
             {passed ? (
-              <Pressable style={styles.primaryButton} onPress={finish} accessibilityRole="button">
+              <Pressable style={styles.primaryButton} onPress={() => void finish()} accessibilityRole="button">
                 <Text style={styles.primaryText}>
                   {isKey ? 'Open unlocked lesson' : 'Continue'}
                 </Text>
                 <ArrowRightIcon size={18} color={colors.onPrimary} />
               </Pressable>
             ) : (
-              <Pressable style={styles.primaryButton} onPress={restart} accessibilityRole="button">
+              <Pressable
+                style={styles.primaryButton}
+                onPress={() => {
+                  void recordTopicAssessment(concept.topicId, score.pct);
+                  restart();
+                }}
+                accessibilityRole="button"
+              >
                 <Text style={styles.primaryText}>Try again</Text>
                 <ArrowRightIcon size={18} color={colors.onPrimary} />
               </Pressable>

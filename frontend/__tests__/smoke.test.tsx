@@ -8,12 +8,6 @@ import TopicOverviewScreen from '../src/screens/TopicOverviewScreen';
 import ConceptDetailsScreen from '../src/screens/ConceptDetailsScreen';
 import ConceptLearningScreen from '../src/screens/ConceptLearningScreen';
 import ConceptQuizScreen from '../src/screens/ConceptQuizScreen';
-import PracticeHomeScreen from '../src/screens/PracticeHomeScreen';
-import PracticeQuestionScreen from '../src/screens/PracticeQuestionScreen';
-import PracticeFeedbackScreen from '../src/screens/PracticeFeedbackScreen';
-import PracticeRecommendationScreen from '../src/screens/PracticeRecommendationScreen';
-import PracticeLessonScreen from '../src/screens/PracticeLessonScreen';
-import PracticeQuizResultScreen from '../src/screens/PracticeQuizResultScreen';
 import ProgressScreen from '../src/screens/ProgressScreen';
 import ConceptProgressScreen from '../src/screens/ConceptProgressScreen';
 import ChallengeScreen from '../src/screens/ChallengeScreen';
@@ -79,19 +73,6 @@ const CASES = [
   screenCase('Login', LoginScreen),
   screenCase('VerifyEmail', VerifyEmailScreen, { email: 'a@b.com' }),
   screenCase('Onboarding', OnboardingFlow),
-  screenCase('Practice', PracticeHomeScreen),
-  screenCase('PracticeQuestion', PracticeQuestionScreen, { index: 3 }),
-  screenCase('PracticeQuestion', PracticeQuestionScreen, { index: 0 }),
-  screenCase('PracticeQuestion', PracticeQuestionScreen, { index: 5 }),
-  screenCase('PracticeFeedback', PracticeFeedbackScreen, { index: 3, selected: 'b' }),
-  screenCase('PracticeFeedback', PracticeFeedbackScreen, {
-    index: 5,
-    writtenText: 'The line gets steeper, so velocity increases.',
-  }),
-  screenCase('PracticeRecommendation', PracticeRecommendationScreen),
-  screenCase('PracticeLesson', PracticeLessonScreen),
-  screenCase('PracticeQuizResult', PracticeQuizResultScreen),
-  screenCase('PracticeQuizResult', PracticeQuizResultScreen, { correct: 7, xp: 90 }),
   screenCase('Progress', ProgressScreen),
   screenCase('ConceptProgress', ConceptProgressScreen),
   screenCase('Challenge', ChallengeScreen),

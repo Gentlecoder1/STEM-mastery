@@ -19,6 +19,8 @@ import type { IconProps } from '../components/icons';
 import { navigateToTab } from '../navigation/tabs';
 import { useThemedStyles, useTheme } from '../themeContext';
 import { useDisplayName } from '../displayName';
+import { useProgress } from '../progressContext';
+import { usePreferences } from '../preferencesContext';
 
 type IconComponent = (props: IconProps) => React.JSX.Element;
 
@@ -133,6 +135,8 @@ export default function SubjectsScreen({ navigation }: RootScreenProps<'Subjects
   const styles = useThemedStyles(createStyles);
   const { statusBarStyle } = useTheme();
   const name = useDisplayName();
+  const { getSubjectMastery } = useProgress();
+  const { classLevel } = usePreferences();
 
   return (
     <View style={styles.root}>
@@ -141,7 +145,7 @@ export default function SubjectsScreen({ navigation }: RootScreenProps<'Subjects
         <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
           <View style={styles.headerCopy}>
             <Text style={styles.headerTitle}>Subjects</Text>
-            <Text style={styles.headerSubtitle}>SS1 • Your learning library</Text>
+            <Text style={styles.headerSubtitle}>{classLevel} • Your learning library</Text>
           </View>
           <Pressable
             style={styles.headerAction}
@@ -170,7 +174,7 @@ export default function SubjectsScreen({ navigation }: RootScreenProps<'Subjects
           {SUBJECTS.map((s) => (
             <SubjectCard
               key={s.name}
-              subject={s}
+              subject={{ ...s, mastery: getSubjectMastery(s.id) }}
               onPress={() => navigation.navigate('SubjectDashboard', { subjectId: s.id })}
             />
           ))}
@@ -183,10 +187,10 @@ export default function SubjectsScreen({ navigation }: RootScreenProps<'Subjects
             <CalendarIcon size={24} color={colors.orange} />
             <View style={styles.challengeCopy}>
               <Text style={styles.challengeTitle}>Friday STEM challenge</Text>
-              <Text style={styles.challengeText}>Unlocks after one more lesson</Text>
+              <Text style={styles.challengeText}>Test yourself with 10 random questions</Text>
             </View>
             <View style={styles.challengePill}>
-              <Text style={styles.challengeLabel}>1 LEFT</Text>
+              <Text style={styles.challengeLabel}>TRY NOW</Text>
             </View>
           </Pressable>
         </ScrollView>

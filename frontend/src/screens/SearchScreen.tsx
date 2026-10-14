@@ -55,7 +55,7 @@ const RESULTS = [
   },
   {
     title: 'Velocity quick practice',
-    subtitle: 'Practice • 6 questions • +60 XP',
+    subtitle: 'Challenge • 10 questions',
     Icon: BrainIcon,
     tint: 'primary' as ColorToken,
     soft: 'primarySoft' as ColorToken,
@@ -137,7 +137,7 @@ export default function SearchScreen({ navigation }: RootScreenProps<'Search'>) 
             <Pressable
               key={title}
               style={styles.resultRow}
-              onPress={() => navigation.navigate('Practice')}
+              onPress={() => navigation.navigate('Challenge')}
               accessibilityRole="button"
             >
               <View style={[styles.resultIcon, { backgroundColor: colors[soft] }]}>

@@ -1,4 +1,4 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -6,10 +6,12 @@ import BottomNav from '../components/BottomNav';
 import { navigateToTab } from '../navigation/tabs';
 import MasteryRing from '../components/MasteryRing';
 import { GaugeIcon, ChartIcon, BookOpenIcon } from '../components/glyphs';
-import { CheckCircleIcon, ChevronRightIcon, MoreIcon, ArrowLeftIcon, ClockIcon } from '../components/icons';
+import { CheckCircleIcon, ChevronRightIcon, LockIcon, MoreIcon, ArrowLeftIcon, ClockIcon } from '../components/icons';
 import { colors, fonts, lightColors, shadow, type ColorToken, type SubjectId } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
 import type { RootScreenProps } from '../navigation/types';
+import { useProgress } from '../progressContext';
+import { usePreferences } from '../preferencesContext';
 
 const SUBJECT_DETAILS: Record<SubjectId, { name: string; mastery: number; focus: string }> = {
   physics: { name: 'Physics', mastery: 0, focus: 'motion' },
@@ -27,8 +29,8 @@ const topics: readonly {
   soft: ColorToken;
   state: TopicState;
 }[] = [
-  { title: 'Motion', subtitle: 'Not started', icon: 'motion', tint: 'green', soft: 'greenSoft', state: 'next' },
   { title: 'Speed and Velocity', subtitle: 'Not started', icon: 'speed', tint: 'blue', soft: 'blueSoft', state: 'current' },
+  { title: 'Motion', subtitle: 'Locked', icon: 'motion', tint: 'green', soft: 'greenSoft', state: 'next' },
   { title: 'Acceleration', subtitle: 'Recommended next', icon: 'acceleration', tint: 'orange', soft: 'orangeSoft', state: 'next' },
   { title: 'Forces', subtitle: 'Up next • key test required', icon: 'forces', tint: 'slate', soft: 'border', state: 'next' },
 ] as const;
@@ -44,8 +46,9 @@ function TopicIcon({ type, color }: { type: string; color: string }) {
 function TopicRow({ topic, onPress }: { topic: (typeof topics)[number]; onPress?: () => void }) {
   const styles = useThemedStyles(createStyles);
   const isCurrent = topic.state === 'current';
+  const isLocked = topic.state === 'next';
   return (
-    <Pressable onPress={onPress} style={[styles.topicRow, isCurrent && styles.topicRowCurrent]}>
+    <Pressable onPress={onPress} style={[styles.topicRow, isCurrent && styles.topicRowCurrent]} accessibilityState={{ disabled: isLocked }}>
       <View style={[styles.topicIcon, { backgroundColor: colors[topic.soft] }]}>
         {topic.state === 'done' ? <CheckCircleIcon size={22} color={colors[topic.tint]} /> : <TopicIcon type={topic.icon} color={colors[topic.tint]} />}
       </View>
@@ -55,7 +58,7 @@ function TopicRow({ topic, onPress }: { topic: (typeof topics)[number]; onPress?
       </View>
       {topic.state === 'done' ? <CheckCircleIcon size={23} color={colors.green} /> : null}
       {topic.state === 'current' ? <ChevronRightIcon size={22} color={colors.blue} /> : null}
-      {topic.state === 'next' ? <View style={styles.nextPill}><Text style={styles.nextLabel}>NEXT</Text></View> : null}
+      {isLocked ? <LockIcon size={18} color={colors.slate} /> : null}
     </Pressable>
   );
 }
@@ -65,6 +68,9 @@ export default function SubjectDashboardScreen({ navigation, route }: RootScreen
   const { statusBarStyle } = useTheme();
   const styles = useThemedStyles(createStyles);
   const subject = SUBJECT_DETAILS[route.params.subjectId];
+  const { getSubjectMastery } = useProgress();
+  const { classLevel } = usePreferences();
+  const subjectMastery = getSubjectMastery(route.params.subjectId);
 
   return (
     <View style={styles.root}>
@@ -75,7 +81,7 @@ export default function SubjectDashboardScreen({ navigation, route }: RootScreen
           </Pressable>
           <View style={styles.headerCopy}>
             <Text style={styles.title}>{subject.name}</Text>
-            <Text style={styles.subtitle}>SS1 • {subject.mastery}% overall mastery</Text>
+            <Text style={styles.subtitle}>{classLevel} • {subjectMastery}% overall mastery</Text>
           </View>
           <Pressable style={styles.iconButton} accessibilityLabel="More options">
             <MoreIcon size={22} color={colors.primary} />
@@ -84,7 +90,7 @@ export default function SubjectDashboardScreen({ navigation, route }: RootScreen
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 18 }]}>
 
         <View style={styles.hero}>
-          <MasteryRing percent={subject.mastery} color={colors.yellow} size={84} labelColor={lightColors.surface} />
+          <MasteryRing percent={subjectMastery} color={colors.yellow} size={84} labelColor={lightColors.surface} />
           <View style={styles.heroCopy}>
             <Text style={styles.heroTitle}>Start your {subject.focus} learning journey</Text>
             <Text style={styles.heroSubtitle}>Explore your first lesson to begin building mastery</Text>
@@ -102,7 +108,13 @@ export default function SubjectDashboardScreen({ navigation, route }: RootScreen
         </Pressable>
 
         <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>All topics</Text></View>
-        <View style={styles.topicList}>{topics.map((topic) => <TopicRow key={topic.title} topic={topic} onPress={() => navigation.navigate('TopicOverview')} />)}</View>
+        <View style={styles.topicList}>{topics.map((topic) => <TopicRow key={topic.title} topic={topic} onPress={() => {
+          if (topic.state === 'next') {
+            Alert.alert('Topic locked', 'Complete the previous topic and pass its test with at least 60% to unlock this topic.');
+            return;
+          }
+          navigation.navigate('TopicOverview');
+        }} />)}</View>
 
         <View style={styles.stats}>
           <View style={[styles.stat, { backgroundColor: colors.blueSoft }]}><BookOpenIcon size={21} color={colors.blue} /><Text style={styles.statValue}>18</Text><Text style={styles.statLabel}>Lessons</Text></View>

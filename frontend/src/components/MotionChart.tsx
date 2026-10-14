@@ -1,6 +1,7 @@
 import Svg, { Line, Polyline, Rect, Text as SvgText } from 'react-native-svg';
 import { colors, fonts } from '../theme';
-import type { GraphVariant } from '../data/practice';
+
+type GraphVariant = 'flat' | 'slope' | 'curved' | 'down';
 
 const W = 324;
 const H = 140;

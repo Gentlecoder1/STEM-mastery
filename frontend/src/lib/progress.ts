@@ -62,6 +62,43 @@ export async function clearConceptProgress(
 }
 
 export type StoredPlacement = Record<string, unknown>;
+export type TopicAssessment = {
+  topicId: string;
+  scorePct: number;
+  passed: boolean;
+};
+
+export async function loadTopicAssessments(
+  client: SupabaseClient,
+  userId: string,
+): Promise<Record<string, TopicAssessment>> {
+  const { data, error } = await client
+    .from('topic_progress')
+    .select('topic_id, score_pct, passed')
+    .eq('user_id', userId);
+  if (error) throw error;
+  return Object.fromEntries(
+    (data ?? []).map((row) => [
+      row.topic_id as string,
+      { topicId: row.topic_id as string, scorePct: row.score_pct as number, passed: row.passed as boolean },
+    ]),
+  );
+}
+
+export async function saveTopicAssessment(
+  client: SupabaseClient,
+  userId: string,
+  assessment: TopicAssessment,
+): Promise<void> {
+  const { error } = await client.from('topic_progress').upsert({
+    user_id: userId,
+    topic_id: assessment.topicId,
+    score_pct: assessment.scorePct,
+    passed: assessment.passed,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'user_id,topic_id' });
+  if (error) throw error;
+}
 
 /** Loads the placement results stored on the user's profile. */
 export async function loadPlacement(

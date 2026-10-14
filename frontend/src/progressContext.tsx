@@ -17,7 +17,10 @@ import {
   addCompletedConcepts,
   loadCompletedConceptIds,
   loadPlacement,
+  loadTopicAssessments,
   savePlacement,
+  saveTopicAssessment,
+  type TopicAssessment,
   type StoredPlacement,
 } from './lib/progress';
 import { useProfile } from './profileContext';
@@ -56,6 +59,11 @@ export type ProgressContextValue = {
   completedConcepts: readonly string[];
   placement: Partial<Record<SubjectId, PlacementResult>>;
   placementTaken: boolean;
+  topicAssessments: Record<string, TopicAssessment>;
+  isTopicMastered: (topicId: string) => boolean;
+  getTopicMastery: (topicId: string) => number;
+  getSubjectMastery: (subjectId: SubjectId) => number;
+  recordTopicAssessment: (topicId: string, scorePct: number) => Promise<void>;
   isConceptCompleted: (conceptId: string) => boolean;
   isConceptOpen: (conceptId: string) => boolean;
   getConceptStatus: (conceptId: string) => ConceptStatus;
@@ -69,6 +77,11 @@ const ProgressContext = createContext<ProgressContextValue>({
   completedConcepts: [],
   placement: {},
   placementTaken: false,
+  topicAssessments: {},
+  isTopicMastered: () => false,
+  getTopicMastery: () => 0,
+  getSubjectMastery: () => 0,
+  recordTopicAssessment: async () => {},
   isConceptCompleted: () => false,
   isConceptOpen: (conceptId) => getTopicConceptIds(getConcept(conceptId)?.topicId ?? '').indexOf(conceptId) <= 0,
   getConceptStatus: () => 'open',
@@ -83,6 +96,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
   const { refreshProfile } = useProfile();
   const [completedConcepts, setCompletedConcepts] = useState<string[]>([]);
   const [placement, setPlacement] = useState<Partial<Record<SubjectId, PlacementResult>>>({});
+  const [topicAssessments, setTopicAssessments] = useState<Record<string, TopicAssessment>>({});
   const completedRef = useRef(completedConcepts);
   completedRef.current = completedConcepts;
   const remote = !!user;
@@ -91,17 +105,20 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     let mounted = true;
     setCompletedConcepts([]);
     setPlacement({});
+    setTopicAssessments({});
     (async () => {
       const supabase = getSupabase();
       if (supabase && user) {
         try {
-          const [ids, storedPlacement] = await Promise.all([
+          const [ids, storedPlacement, storedAssessments] = await Promise.all([
             loadCompletedConceptIds(supabase, user.id),
             loadPlacement(supabase, user.id),
+            loadTopicAssessments(supabase, user.id),
           ]);
           if (!mounted) return;
           setCompletedConcepts(ids);
           setPlacement((storedPlacement as Partial<Record<SubjectId, PlacementResult>>) ?? {});
+          setTopicAssessments(storedAssessments);
           return;
         } catch (e) {
           return;
@@ -160,6 +177,48 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
   const isConceptCompleted = useCallback(
     (conceptId: string) => completedConcepts.includes(conceptId),
     [completedConcepts],
+  );
+
+  const isTopicMastered = useCallback(
+    (topicId: string) => {
+      const conceptIds = getTopicConceptIds(topicId);
+      return (
+        conceptIds.length > 0 &&
+        conceptIds.every((id) => completedConcepts.includes(id)) &&
+        topicAssessments[topicId]?.passed === true
+      );
+    },
+    [completedConcepts, topicAssessments],
+  );
+
+  const getTopicMastery = useCallback(
+    (topicId: string) => {
+      const conceptIds = getTopicConceptIds(topicId);
+      if (conceptIds.length === 0 || topicAssessments[topicId]?.passed !== true) return 0;
+      return Math.round(
+        (conceptIds.filter((id) => completedConcepts.includes(id)).length / conceptIds.length) * 100,
+      );
+    },
+    [completedConcepts, topicAssessments],
+  );
+
+  const getSubjectMastery = useCallback(
+    (subjectId: SubjectId) => {
+      const topicIds = Array.from(new Set(CONCEPTS.filter((concept) => concept.subjectId === subjectId).map((concept) => concept.topicId)));
+      if (topicIds.length === 0) return 0;
+      return Math.round((topicIds.filter(isTopicMastered).length / topicIds.length) * 100);
+    },
+    [isTopicMastered],
+  );
+
+  const recordTopicAssessment = useCallback(
+    async (topicId: string, scorePct: number) => {
+      const assessment = { topicId, scorePct, passed: scorePct >= 60 };
+      setTopicAssessments((current) => ({ ...current, [topicId]: assessment }));
+      const supabase = getSupabase();
+      if (supabase && user) await saveTopicAssessment(supabase, user.id, assessment);
+    },
+    [user],
   );
 
   const isConceptOpen = useCallback(
@@ -239,6 +298,11 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     () => ({
       completedConcepts,
       placement,
+      topicAssessments,
+      isTopicMastered,
+      getTopicMastery,
+      getSubjectMastery,
+      recordTopicAssessment,
       placementTaken: Object.keys(placement).length > 0,
       isConceptCompleted,
       isConceptOpen,
@@ -251,6 +315,11 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     [
       completedConcepts,
       placement,
+      topicAssessments,
+      isTopicMastered,
+      getTopicMastery,
+      getSubjectMastery,
+      recordTopicAssessment,
       isConceptCompleted,
       isConceptOpen,
       getConceptStatus,

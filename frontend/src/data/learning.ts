@@ -13,8 +13,6 @@ export const CONTENT_TYPES = [
 
 export type ContentType = (typeof CONTENT_TYPES)[number];
 
-export type ConceptState = 'done' | 'current' | 'next' | 'locked';
-
 export type LearningContent = {
   id: string;
   conceptId: string;
@@ -45,8 +43,6 @@ export type Concept = {
   topicId: string;
   subjectId: SubjectId;
   title: string;
-  mastery: number;
-  state: ConceptState;
   definition: string;
   whyItMatters: string;
   prerequisites: readonly string[];
@@ -69,8 +65,6 @@ export const CONCEPTS: readonly Concept[] = [
     topicId: 'topic-speed-velocity',
     subjectId: 'physics',
     title: 'Distance and displacement',
-    mastery: 92,
-    state: 'done',
     definition: 'Distance is the total path length covered; displacement is the straight-line change in position.',
     whyItMatters:
       'Learners who blur distance and displacement cannot compute velocity correctly. This is the most common source of sign errors later on.',
@@ -138,8 +132,6 @@ export const CONCEPTS: readonly Concept[] = [
     topicId: 'topic-speed-velocity',
     subjectId: 'physics',
     title: 'Velocity',
-    mastery: 68,
-    state: 'current',
     definition: 'Velocity is the rate of change of displacement with respect to time.',
     whyItMatters:
       'Velocity is what separates physics from guesswork. Once a learner can track direction as well as magnitude, every later topic — acceleration, forces, momentum — builds on a foundation they actually own.',
@@ -242,8 +234,6 @@ export const CONCEPTS: readonly Concept[] = [
     topicId: 'topic-speed-velocity',
     subjectId: 'physics',
     title: 'Displacement–time graphs',
-    mastery: 43,
-    state: 'next',
     definition: 'A displacement–time graph shows where an object is and how that position changes over time.',
     whyItMatters:
       'Reading slope off a graph is the skill that turns kinematics from arithmetic into interpretation.',
@@ -309,8 +299,6 @@ export const CONCEPTS: readonly Concept[] = [
     topicId: 'topic-speed-velocity',
     subjectId: 'physics',
     title: 'Acceleration',
-    mastery: 0,
-    state: 'next',
     definition: 'Acceleration is the rate of change of velocity with respect to time.',
     whyItMatters:
       'Acceleration connects motion to force — it is the bridge from pure kinematics into dynamics.',

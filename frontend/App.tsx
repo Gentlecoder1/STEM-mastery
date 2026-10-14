@@ -32,15 +32,10 @@ import TopicOverviewScreen from './src/screens/TopicOverviewScreen';
 import ConceptDetailsScreen from './src/screens/ConceptDetailsScreen';
 import ConceptLearningScreen from './src/screens/ConceptLearningScreen';
 import ConceptQuizScreen from './src/screens/ConceptQuizScreen';
-import PracticeHomeScreen from './src/screens/PracticeHomeScreen';
-import PracticeQuestionScreen from './src/screens/PracticeQuestionScreen';
-import PracticeFeedbackScreen from './src/screens/PracticeFeedbackScreen';
-import PracticeRecommendationScreen from './src/screens/PracticeRecommendationScreen';
-import PracticeLessonScreen from './src/screens/PracticeLessonScreen';
-import PracticeQuizResultScreen from './src/screens/PracticeQuizResultScreen';
 import ProgressScreen from './src/screens/ProgressScreen';
 import ConceptProgressScreen from './src/screens/ConceptProgressScreen';
 import ChallengeScreen from './src/screens/ChallengeScreen';
+import ChallengeQuizScreen from './src/screens/ChallengeQuizScreen';
 import SearchScreen from './src/screens/SearchScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
@@ -124,15 +119,10 @@ function AppShell() {
               <Stack.Screen name="ConceptDetails" component={ConceptDetailsScreen} />
               <Stack.Screen name="ConceptLearning" component={ConceptLearningScreen} />
               <Stack.Screen name="ConceptQuiz" component={ConceptQuizScreen} />
-              <Stack.Screen name="Practice" component={PracticeHomeScreen} />
-              <Stack.Screen name="PracticeQuestion" component={PracticeQuestionScreen} />
-              <Stack.Screen name="PracticeFeedback" component={PracticeFeedbackScreen} />
-              <Stack.Screen name="PracticeRecommendation" component={PracticeRecommendationScreen} />
-              <Stack.Screen name="PracticeLesson" component={PracticeLessonScreen} />
-              <Stack.Screen name="PracticeQuizResult" component={PracticeQuizResultScreen} />
               <Stack.Screen name="Progress" component={ProgressScreen} />
               <Stack.Screen name="ConceptProgress" component={ConceptProgressScreen} />
               <Stack.Screen name="Challenge" component={ChallengeScreen} />
+              <Stack.Screen name="ChallengeQuiz" component={ChallengeQuizScreen} />
               <Stack.Screen name="Search" component={SearchScreen} />
               <Stack.Screen name="Profile" component={ProfileScreen} />
               <Stack.Screen name="Settings" component={SettingsScreen} />

@@ -1,4 +1,4 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -6,7 +6,7 @@ import BottomNav from '../components/BottomNav';
 import { navigateToTab } from '../navigation/tabs';
 import { DownloadIcon, GaugeIcon } from '../components/glyphs';
 import { ProgressBar } from '../components/PracticeUI';
-import { ArrowLeftIcon, CheckCircleIcon, ChevronRightIcon, SparklesIcon } from '../components/icons';
+import { ArrowLeftIcon, ChevronRightIcon, LockIcon } from '../components/icons';
 import { colors, fonts, lightColors, shadow, type ColorToken } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
 import { useProgress, type ConceptStatus } from '../progressContext';
@@ -18,8 +18,6 @@ type PathConcept = {
   id: string;
   title: string;
   status: ConceptStatus;
-  needsKey: boolean;
-  mastery: number;
   tint: ColorToken;
   soft: ColorToken;
 };
@@ -29,8 +27,10 @@ export default function TopicOverviewScreen({ navigation }: RootScreenProps<'Top
   const { statusBarStyle } = useTheme();
   const styles = useThemedStyles(createStyles);
   const { downloadedLessons, downloadsEnabled, toggleTopicDownload } = usePreferences();
-  const { getConceptStatus, isConceptCompleted, isConceptOpen } = useProgress();
+  const { getConceptStatus, getTopicMastery, topicAssessments } = useProgress();
   const topicLessonIds = getTopicConceptIds('topic-speed-velocity');
+  const topicMastery = getTopicMastery('topic-speed-velocity');
+  const latestAssessment = topicAssessments['topic-speed-velocity'];
   const isDownloaded =
     topicLessonIds.length > 0 && topicLessonIds.every((id) => downloadedLessons.includes(id));
 
@@ -38,8 +38,6 @@ export default function TopicOverviewScreen({ navigation }: RootScreenProps<'Top
     id: concept.id,
     title: concept.title,
     status: getConceptStatus(concept.id),
-    needsKey: !isConceptCompleted(concept.id) && !isConceptOpen(concept.id),
-    mastery: concept.mastery,
     tint: concept.tint,
     soft: concept.soft,
   }));
@@ -65,10 +63,8 @@ export default function TopicOverviewScreen({ navigation }: RootScreenProps<'Top
         <View style={styles.hero}>
           <View style={styles.heroIcon}><GaugeIcon size={34} color={lightColors.surface} /></View>
           <View style={styles.heroCopy}><Text style={styles.eyebrow}>START HERE</Text><Text style={styles.heroTitle}>Understand how motion changes over time.</Text><Text style={styles.meta}>5 lessons <Text style={styles.dot}>•</Text> 42 min</Text></View>
-          <ProgressBar progress={0} track={colors.surface} fill={colors.blue} style={styles.heroBar} />
+          <ProgressBar progress={topicMastery} track={colors.surface} fill={colors.blue} style={styles.heroBar} />
         </View>
-        <Text style={styles.sectionTitle}>What you'll master</Text>
-        <View style={styles.masterCard}>{['Distinguish speed from velocity', 'Read displacement-time graphs', 'Calculate acceleration from motion data'].map((item) => <View key={item} style={styles.masterRow}><View style={styles.check}><CheckCircleIcon size={18} color={colors.green} /></View><Text style={styles.masterText}>{item}</Text></View>)}</View>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Your concept path</Text>
           <Text style={styles.link}>Open map</Text>
@@ -79,10 +75,30 @@ export default function TopicOverviewScreen({ navigation }: RootScreenProps<'Top
             <ConceptRow
               key={concept.id}
               concept={concept}
-              onPress={() => navigation.navigate('ConceptDetails', { conceptId: concept.id })}
+              onPress={() => {
+                if (concept.status === 'open') {
+                  Alert.alert('Concept locked', 'Complete and pass the previous concept quiz with at least 60% to unlock this concept.');
+                  return;
+                }
+                navigation.navigate('ConceptDetails', { conceptId: concept.id });
+              }}
             />
           ))}
         </View>
+        {latestAssessment && !latestAssessment.passed ? (
+          <View style={styles.retakeCard}>
+            <Text style={styles.retakeTitle}>Keep building this topic</Text>
+            <Text style={styles.retakeText}>
+              Your latest test score was {latestAssessment.scorePct}%. Score at least 60% to record topic mastery.
+            </Text>
+            <Pressable
+              style={styles.retakeButton}
+              onPress={() => navigation.navigate('ConceptQuiz', { conceptId: topicLessonIds[topicLessonIds.length - 1] })}
+            >
+              <Text style={styles.retakeButtonText}>Retake questions</Text>
+            </Pressable>
+          </View>
+        ) : null}
 
       </ScrollView>
       <BottomNav active="Subjects" onSelect={navigateToTab(navigation, 'Subjects')} />
@@ -95,27 +111,17 @@ function ConceptRow({ concept, onPress }: { concept: PathConcept; onPress: () =>
   const isCurrent = concept.status === 'current';
   const isDone = concept.status === 'done';
 
+  const isLocked = !isDone && !isCurrent;
   const subtitle = isDone
     ? 'Mastered • prerequisite'
     : isCurrent
       ? 'Current concept'
-      : concept.needsKey
-        ? 'Jump ahead • key test required'
-        : 'Recommended next';
+      : 'Locked • pass the previous quiz to unlock';
 
-  const trailing = isDone ? '100%' : isCurrent ? 'START' : concept.needsKey ? 'KEY TEST' : 'OPEN';
+  const trailing = isDone ? 'MASTERED' : isCurrent ? 'START' : 'LOCKED';
 
   return (
     <Pressable onPress={onPress} style={[styles.conceptRow, isCurrent && styles.conceptCurrent]}>
-      <View style={[styles.conceptIcon, { backgroundColor: colors[concept.soft] }]}>
-        {isDone ? (
-          <CheckCircleIcon size={22} color={colors[concept.tint]} />
-        ) : isCurrent ? (
-          <Text style={styles.play}>▷</Text>
-        ) : (
-          <SparklesIcon size={22} color={colors[concept.tint]} />
-        )}
-      </View>
       <View style={styles.conceptCopy}>
         <Text style={styles.conceptTitle}>{concept.title}</Text>
         <Text style={styles.conceptSubtitle}>{subtitle}</Text>
@@ -125,20 +131,20 @@ function ConceptRow({ concept, onPress }: { concept: PathConcept; onPress: () =>
           styles.trailing,
           isCurrent && styles.continuePill,
           isDone && styles.masteryPill,
-          !isDone && !isCurrent && concept.needsKey && styles.keyPill,
+          isLocked && styles.keyPill,
         ]}
       >
         <Text
           style={[
             styles.trailingText,
             !isDone && !isCurrent && styles.nextText,
-            !isDone && !isCurrent && concept.needsKey && styles.keyText,
+            isLocked && styles.keyText,
           ]}
         >
           {trailing}
         </Text>
       </View>
-      {isCurrent ? <ChevronRightIcon size={20} color={colors.blue} /> : null}
+      {isCurrent ? <ChevronRightIcon size={20} color={colors.blue} /> : isLocked ? <LockIcon size={18} color={colors.slate} /> : null}
     </Pressable>
   );
 }
@@ -175,6 +181,11 @@ const createStyles = () => StyleSheet.create({
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   link: { fontFamily: fonts.bold, fontSize: 14, color: colors.primary },
   conceptList: { gap: 9 },
+  retakeCard: { padding: 16, gap: 8, borderRadius: 18, backgroundColor: colors.orangeSoft, borderWidth: 1, borderColor: colors.orange },
+  retakeTitle: { fontFamily: fonts.bold, fontSize: 15, color: colors.ink },
+  retakeText: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 17, color: colors.slate },
+  retakeButton: { alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, backgroundColor: colors.orange },
+  retakeButtonText: { fontFamily: fonts.bold, fontSize: 12, color: lightColors.surface },
   conceptRow: { minHeight: 76, padding: 11, borderRadius: 17, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', gap: 13 },
   conceptCurrent: { borderColor: colors.border, borderWidth: 1, backgroundColor: colors.surface },
   conceptIcon: { width: 50, height: 50, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },

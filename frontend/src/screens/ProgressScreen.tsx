@@ -12,7 +12,6 @@ import { useTheme, useThemedStyles } from '../themeContext';
 import { navigateToTab } from '../navigation/tabs';
 import type { RootScreenProps } from '../navigation/types';
 import { getSubjects } from '../theme';
-import { CONCEPTS } from '../data/learning';
 import { useProfile } from '../profileContext';
 import { useProgress } from '../progressContext';
 import { useDisplayName } from '../displayName';
@@ -25,7 +24,7 @@ export default function ProgressScreen({ navigation }: RootScreenProps<'Progress
   const styles = useThemedStyles(createStyles);
   const name = useDisplayName();
   const { profile } = useProfile();
-  const { completedConcepts } = useProgress();
+  const { completedConcepts, getSubjectMastery } = useProgress();
   const subjectsMeta = getSubjects();
 
   const completedCount = completedConcepts.length;
@@ -39,9 +38,7 @@ export default function ProgressScreen({ navigation }: RootScreenProps<'Progress
   ];
 
   const MASTERY_REAL = subjectsMeta.map((s) => {
-    const total = CONCEPTS.filter((c) => c.subjectId === s.id).length;
-    const done = CONCEPTS.filter((c) => c.subjectId === s.id && completedConcepts.includes(c.id)).length;
-    const pct = total ? Math.round((done / total) * 100) : 0;
+    const pct = getSubjectMastery(s.id);
     const Icon = s.id === 'mathematics' ? SigmaIcon : s.id === 'physics' ? AtomIcon : FlaskIcon;
     return {
       name: s.name,

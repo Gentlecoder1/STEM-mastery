@@ -19,15 +19,10 @@ export type RootStackParamList = {
     mode?: 'lesson' | 'key';
     targetConceptId?: string;
   };
-  Practice: undefined;
-  PracticeQuestion: { index: number };
-  PracticeFeedback: { index: number; selected?: string; writtenText?: string };
-  PracticeRecommendation: undefined;
-  PracticeLesson: undefined;
-  PracticeQuizResult: { correct?: number; xp?: number } | undefined;
   Progress: undefined;
   ConceptProgress: undefined;
   Challenge: undefined;
+  ChallengeQuiz: { topicId: string; topicTitle: string };
   Search: undefined;
   Profile: undefined;
   Settings: undefined;
@@ -38,4 +33,4 @@ export type RootScreenProps<T extends keyof RootStackParamList> = NativeStackScr
   T
 >;
 
-export type TabKey = 'Home' | 'Subjects' | 'Practice' | 'Progress' | 'Profile';
+export type TabKey = 'Home' | 'Subjects' | 'Progress' | 'Profile';

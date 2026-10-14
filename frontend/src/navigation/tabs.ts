@@ -13,9 +13,6 @@ export function navigateToTab(navigation: Navigation, active: TabKey) {
       case 'Subjects':
         navigation.navigate('Subjects');
         break;
-      case 'Practice':
-        navigation.navigate('Practice');
-        break;
       case 'Progress':
         navigation.navigate('Progress');
         break;
