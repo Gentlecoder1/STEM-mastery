@@ -19,6 +19,7 @@ import {
 } from '../components/glyphs';
 import { colors, fonts, lightColors, shadow, type ColorToken } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
+import { useProfile } from '../profileContext';
 import type { RootScreenProps } from '../navigation/types';
 import type { IconProps } from '../components/icons';
 
@@ -128,6 +129,7 @@ export default function HomeDashboardScreen({ navigation }: RootScreenProps<'Hom
   const insets = useSafeAreaInsets();
   const { statusBarStyle } = useTheme();
   const styles = useThemedStyles(createStyles);
+  const { firstName, profile } = useProfile();
 
   const openSubjects = () => navigation.navigate('Subjects');
 
@@ -145,11 +147,11 @@ export default function HomeDashboardScreen({ navigation }: RootScreenProps<'Hom
           <View style={styles.greeting}>
             <View style={styles.greetingCopy}>
               <Text style={styles.eyebrow}>Good afternoon,</Text>
-              <Text style={styles.name}>Iseoluwa 👋</Text>
+              <Text style={styles.name}>{firstName || 'there'} 👋</Text>
             </View>
             <View style={styles.streak}>
               <FlameIcon size={18} color="#FF9F1C" />
-              <Text style={styles.streakValue}>7 days</Text>
+              <Text style={styles.streakValue}>{profile?.streak ?? 0} days</Text>
             </View>
           </View>
 

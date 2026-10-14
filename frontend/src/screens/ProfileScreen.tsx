@@ -23,14 +23,9 @@ import { useTheme, useThemedStyles } from '../themeContext';
 import { navigateToTab } from '../navigation/tabs';
 import type { RootScreenProps } from '../navigation/types';
 import { CLASS_OPTIONS, SUBJECT_OPTIONS, usePreferences, type ClassLevel } from '../preferencesContext';
+import { useProfile } from '../profileContext';
 import type { SubjectId } from '../theme';
 import { CONCEPTS } from '../data/learning';
-
-const STATS = [
-  { value: '1,840', label: 'Total XP', tint: 'orange' as ColorToken },
-  { value: '7', label: 'Best streak', tint: 'danger' as ColorToken },
-  { value: '18', label: 'Badges', tint: 'primary' as ColorToken },
-];
 
 const ACHIEVEMENTS = [
   { label: 'Graph reader', Icon: MedalIcon, bg: 'blueSoft' as ColorToken, tint: 'blue' as ColorToken },
@@ -75,9 +70,17 @@ export default function ProfileScreen({ navigation }: RootScreenProps<'Profile'>
     userName,
     location,
   } = usePreferences();
+  const { profile } = useProfile();
   const [drawerKey, setDrawerKey] = useState<string | null>(null);
   const [draftClass, setDraftClass] = useState<ClassLevel>(classLevel);
   const [draftSubjects, setDraftSubjects] = useState<SubjectId[]>(subjects);
+
+  const stats = [
+    { value: (profile?.xp ?? 0).toLocaleString('en-US'), label: 'Total XP', tint: 'orange' as ColorToken },
+    { value: String(profile?.streak ?? 0), label: 'Streak', tint: 'danger' as ColorToken },
+    { value: '18', label: 'Badges', tint: 'primary' as ColorToken },
+  ];
+  const dailyGoal = profile?.dailyGoal ?? '20 minutes';
 
   const openDrawer = (key: string) => {
     setDrawerKey(key);
@@ -115,12 +118,12 @@ export default function ProfileScreen({ navigation }: RootScreenProps<'Profile'>
               <Text style={styles.levelText}>12</Text>
             </View>
           </View>
-          <Text style={styles.name}>{userName}</Text>
+          <Text style={styles.name}>{profile?.fullName || userName}</Text>
           <Text style={styles.tagline}>{classLevel} learner • {location}</Text>
         </View>
 
         <View style={styles.statsCard}>
-          {STATS.map(({ value, label, tint }, index) => (
+          {stats.map(({ value, label, tint }, index) => (
             <View key={label} style={styles.statRow}>
               {index > 0 ? <View style={styles.statDivider} /> : null}
               <View style={styles.stat}>
@@ -149,7 +152,9 @@ export default function ProfileScreen({ navigation }: RootScreenProps<'Profile'>
             const resolvedSubtitle =
               title === 'Offline learning'
                 ? `${downloadedLessons.length} ${downloadedLessons.length === 1 ? 'lesson' : 'lessons'} downloaded`
-                : subtitle;
+                : title === 'Learning goals'
+                  ? `${dailyGoal} a day`
+                  : subtitle;
             return (
               <Pressable
                 key={title}

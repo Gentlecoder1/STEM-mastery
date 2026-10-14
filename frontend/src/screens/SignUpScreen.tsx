@@ -8,6 +8,7 @@ import { GoogleButton } from '../components/SocialButtons';
 import type { RootScreenProps } from '../navigation/types';
 import { useThemedStyles } from '../themeContext';
 import { useAuth } from '../auth/AuthContext';
+import { emailError } from '../lib/validation';
 
 export default function SignUpScreen({ navigation }: RootScreenProps<'SignUp'>) {
   const insets = useSafeAreaInsets();
@@ -19,7 +20,14 @@ export default function SignUpScreen({ navigation }: RootScreenProps<'SignUp'>) 
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  const emailProblem = email.length > 0 ? emailError(email) : null;
+
   const handleSignUp = async () => {
+    const problem = emailError(email);
+    if (problem) {
+      setError(problem);
+      return;
+    }
     setBusy(true);
     setError(null);
     const { error: signUpError, needsVerification } = await signUp({ email, password, fullName });
@@ -78,6 +86,7 @@ export default function SignUpScreen({ navigation }: RootScreenProps<'SignUp'>) 
                 autoCorrect={false}
                 editable={!busy}
               />
+              {emailProblem ? <Text style={styles.fieldError}>{emailProblem}</Text> : null}
             </View>
             <View style={styles.field}>
               <Text style={styles.label}>Password</Text>
@@ -102,7 +111,7 @@ export default function SignUpScreen({ navigation }: RootScreenProps<'SignUp'>) 
           <PrimaryButton
             title={busy ? 'Creating account…' : 'Create account'}
             onPress={handleSignUp}
-            disabled={!fullName || !email || password.length < 6 || busy}
+            disabled={!fullName || !email || password.length < 6 || Boolean(emailProblem) || busy}
           />
           <View style={styles.linkWrap}>
             <Link text="Already have an account?" action="Log in" bold onPress={() => navigation.navigate('Login')} />
@@ -139,6 +148,7 @@ const createStyles = () => StyleSheet.create({
     color: colors.ink,
   },
   error: { fontFamily: fonts.medium, fontSize: 13, lineHeight: 18, color: colors.danger },
+  fieldError: { fontFamily: fonts.medium, fontSize: 12, lineHeight: 16, color: colors.danger },
   actions: { gap: 10 },
   linkWrap: { alignItems: 'center' },
 });

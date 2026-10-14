@@ -8,6 +8,7 @@ import { GoogleButton } from '../components/SocialButtons';
 import type { RootScreenProps } from '../navigation/types';
 import { useThemedStyles } from '../themeContext';
 import { useAuth } from '../auth/AuthContext';
+import { emailError } from '../lib/validation';
 
 export default function LoginScreen({ navigation }: RootScreenProps<'Login'>) {
   const insets = useSafeAreaInsets();
@@ -18,7 +19,14 @@ export default function LoginScreen({ navigation }: RootScreenProps<'Login'>) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  const emailProblem = email.length > 0 ? emailError(email) : null;
+
   const handleLogin = async () => {
+    const problem = emailError(email);
+    if (problem) {
+      setError(problem);
+      return;
+    }
     setBusy(true);
     setError(null);
     const { error: signInError } = await signIn(email, password);
@@ -59,6 +67,7 @@ export default function LoginScreen({ navigation }: RootScreenProps<'Login'>) {
               autoCorrect={false}
               editable={!busy}
             />
+            {emailProblem ? <Text style={styles.fieldError}>{emailProblem}</Text> : null}
           </View>
 
           <View style={styles.field}>
@@ -83,7 +92,7 @@ export default function LoginScreen({ navigation }: RootScreenProps<'Login'>) {
           <PrimaryButton
             title={busy ? 'Logging in…' : 'Log in'}
             onPress={handleLogin}
-            disabled={!email || !password || busy}
+            disabled={!email || !password || Boolean(emailProblem) || busy}
           />
           <View style={styles.linkWrap}>
             <Link text="New to Masterly?" action="Sign up" bold onPress={() => navigation.navigate('SignUp')} />
@@ -119,6 +128,7 @@ const createStyles = () => StyleSheet.create({
     color: colors.ink,
   },
   error: { fontFamily: fonts.medium, fontSize: 13, lineHeight: 18, color: colors.danger },
+  fieldError: { fontFamily: fonts.medium, fontSize: 12, lineHeight: 16, color: colors.danger },
   actions: { gap: 10 },
   linkWrap: { alignItems: 'center' },
 });
