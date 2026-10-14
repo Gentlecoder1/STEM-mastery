@@ -15,45 +15,45 @@ import type { RootScreenProps } from '../navigation/types';
 const CONCEPTS = [
   {
     name: 'Distance & displacement',
-    status: 'Secure',
-    pct: 92,
+    status: 'Not started',
+    pct: 0,
     tint: 'success' as ColorToken,
   },
   {
     name: 'Speed vs velocity',
-    status: 'Developing',
-    pct: 72,
+    status: 'Not started',
+    pct: 0,
     tint: 'blue' as ColorToken,
   },
   {
     name: 'Displacement-time graphs',
-    status: 'Practise',
-    pct: 58,
+    status: 'Not started',
+    pct: 0,
     tint: 'orange' as ColorToken,
   },
   {
     name: 'Acceleration',
-    status: 'Needs support',
-    pct: 41,
+    status: 'Not started',
+    pct: 0,
     tint: 'danger' as ColorToken,
   },
 ];
 
 const SIGNALS = [
   {
-    value: '82%',
+    value: '0%',
     label: 'MCQ accuracy',
     tint: 'success' as ColorToken,
     Icon: CheckCircleIcon,
   },
   {
-    value: '71%',
+    value: '0%',
     label: 'Explanations',
     tint: 'blue' as ColorToken,
     Icon: MessageTextIcon,
   },
   {
-    value: '3',
+    value: '0',
     label: 'Reviews',
     tint: 'primary' as ColorToken,
     Icon: RotateCcwIcon,
@@ -93,12 +93,12 @@ export default function ConceptProgressScreen({ navigation }: RootScreenProps<'C
         ]}
       >
         <View style={styles.summaryCard}>
-          <MasteryRing percent={68} color={colors.blue} size={82} labelColor={colors.ink} />
+          <MasteryRing percent={0} color={colors.blue} size={82} labelColor={colors.ink} />
           <Pill bg={colors.surface} tint={colors.blue} size={10}>
-            DEVELOPING
+            NOT STARTED
           </Pill>
-          <Text style={styles.summaryTitle}>12 of 18 skills secure</Text>
-          <Text style={styles.summaryDelta}>↑ 7% in the last 14 days</Text>
+          <Text style={styles.summaryTitle}>0 of 18 skills secure</Text>
+          <Text style={styles.summaryDelta}>Start learning to build mastery</Text>
         </View>
 
         <SectionHeading title="Concept mastery" action="How we calculate" />
@@ -134,7 +134,7 @@ export default function ConceptProgressScreen({ navigation }: RootScreenProps<'C
             <SparklesIcon size={20} color={colors.orange} />
           </View>
           <Text style={styles.insightText}>
-            Practising acceleration twice could move this topic to secure.
+            Complete a concept to start building mastery insights.
           </Text>
         </View>
       </ScrollView>

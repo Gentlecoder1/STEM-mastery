@@ -6,21 +6,30 @@ import BottomNav from '../components/BottomNav';
 import { navigateToTab } from '../navigation/tabs';
 import MasteryRing from '../components/MasteryRing';
 import { GaugeIcon, ChartIcon, BookOpenIcon } from '../components/glyphs';
-import { CheckCircleIcon, ChevronRightIcon, MoreIcon, ArrowLeftIcon, ClockIcon, SparklesIcon } from '../components/icons';
-import { colors, fonts, lightColors, shadow, type SubjectId } from '../theme';
+import { CheckCircleIcon, ChevronRightIcon, MoreIcon, ArrowLeftIcon, ClockIcon } from '../components/icons';
+import { colors, fonts, lightColors, shadow, type ColorToken, type SubjectId } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
 import type { RootScreenProps } from '../navigation/types';
 
 const SUBJECT_DETAILS: Record<SubjectId, { name: string; mastery: number; focus: string }> = {
-  physics: { name: 'Physics', mastery: 68, focus: 'motion' },
-  mathematics: { name: 'Mathematics', mastery: 74, focus: 'number skills' },
-  chemistry: { name: 'Chemistry', mastery: 55, focus: 'atomic structure' },
+  physics: { name: 'Physics', mastery: 0, focus: 'motion' },
+  mathematics: { name: 'Mathematics', mastery: 0, focus: 'number skills' },
+  chemistry: { name: 'Chemistry', mastery: 0, focus: 'atomic structure' },
 };
 
-const topics = [
-  { title: 'Motion', subtitle: 'Mastered • 92%', icon: 'motion', tint: 'green', soft: 'greenSoft', state: 'done' },
-  { title: 'Speed and Velocity', subtitle: 'In progress • 68%', icon: 'speed', tint: 'blue', soft: 'blueSoft', state: 'current' },
-  { title: 'Acceleration', subtitle: 'Recommended next • 41%', icon: 'acceleration', tint: 'orange', soft: 'orangeSoft', state: 'next' },
+type TopicState = 'done' | 'current' | 'next';
+
+const topics: readonly {
+  title: string;
+  subtitle: string;
+  icon: string;
+  tint: ColorToken;
+  soft: ColorToken;
+  state: TopicState;
+}[] = [
+  { title: 'Motion', subtitle: 'Not started', icon: 'motion', tint: 'green', soft: 'greenSoft', state: 'next' },
+  { title: 'Speed and Velocity', subtitle: 'Not started', icon: 'speed', tint: 'blue', soft: 'blueSoft', state: 'current' },
+  { title: 'Acceleration', subtitle: 'Recommended next', icon: 'acceleration', tint: 'orange', soft: 'orangeSoft', state: 'next' },
   { title: 'Forces', subtitle: 'Up next • key test required', icon: 'forces', tint: 'slate', soft: 'border', state: 'next' },
 ] as const;
 
@@ -77,20 +86,19 @@ export default function SubjectDashboardScreen({ navigation, route }: RootScreen
         <View style={styles.hero}>
           <MasteryRing percent={subject.mastery} color={colors.yellow} size={84} labelColor={lightColors.surface} />
           <View style={styles.heroCopy}>
-            <View style={styles.statusPill}><SparklesIcon size={15} color={lightColors.ink} /><Text style={styles.statusLabel}>ON TRACK</Text></View>
-            <Text style={styles.heroTitle}>Your {subject.focus} skills are growing</Text>
-            <Text style={styles.heroSubtitle}>12 concepts mastered • 5 developing</Text>
+            <Text style={styles.heroTitle}>Start your {subject.focus} learning journey</Text>
+            <Text style={styles.heroSubtitle}>Explore your first lesson to begin building mastery</Text>
           </View>
         </View>
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Continue learning</Text>
+          <Text style={styles.sectionTitle}>Start learning</Text>
           <Pressable onPress={() => navigation.navigate('TopicOverview')}><Text style={styles.link}>View map</Text></Pressable>
         </View>
         <Pressable style={styles.continueCard} onPress={() => navigation.navigate('TopicOverview')}>
           <View style={[styles.topicIcon, styles.continueIcon]}><GaugeIcon size={22} color={colors.blue} /></View>
-          <View style={styles.topicCopy}><Text style={styles.topicTitle}>Speed and Velocity</Text><Text style={styles.topicSubtitle}>Lesson 3 of 5 • 68% mastery</Text></View>
-          <View style={styles.resumePill}><Text style={styles.resumeLabel}>RESUME</Text></View>
+          <View style={styles.topicCopy}><Text style={styles.topicTitle}>Speed and Velocity</Text><Text style={styles.topicSubtitle}>Lesson 1 of 5 • Ready to begin</Text></View>
+          <View style={styles.resumePill}><Text style={styles.resumeLabel}>START</Text></View>
         </Pressable>
 
         <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>All topics</Text></View>
@@ -98,8 +106,8 @@ export default function SubjectDashboardScreen({ navigation, route }: RootScreen
 
         <View style={styles.stats}>
           <View style={[styles.stat, { backgroundColor: colors.blueSoft }]}><BookOpenIcon size={21} color={colors.blue} /><Text style={styles.statValue}>18</Text><Text style={styles.statLabel}>Lessons</Text></View>
-          <View style={[styles.stat, { backgroundColor: colors.greenSoft }]}><CheckCircleIcon size={21} color={colors.green} /><Text style={styles.statValue}>86%</Text><Text style={styles.statLabel}>Accuracy</Text></View>
-          <View style={[styles.stat, { backgroundColor: colors.primarySoft }]}><ClockIcon size={21} color={colors.primary} /><Text style={styles.statValue}>4h 20m</Text><Text style={styles.statLabel}>Learned</Text></View>
+          <View style={[styles.stat, { backgroundColor: colors.greenSoft }]}><CheckCircleIcon size={21} color={colors.green} /><Text style={styles.statValue}>0%</Text><Text style={styles.statLabel}>Accuracy</Text></View>
+          <View style={[styles.stat, { backgroundColor: colors.primarySoft }]}><ClockIcon size={21} color={colors.primary} /><Text style={styles.statValue}>0m</Text><Text style={styles.statLabel}>Learned</Text></View>
         </View>
       </ScrollView>
       <BottomNav active="Subjects" onSelect={navigateToTab(navigation, 'Subjects')} />

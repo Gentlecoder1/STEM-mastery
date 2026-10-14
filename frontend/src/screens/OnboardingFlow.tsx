@@ -19,7 +19,7 @@ import { ArrowRightIcon, CheckIcon } from '../components/icons';
 import type { RootScreenProps } from '../navigation/types';
 import { useThemedStyles } from '../themeContext';
 import { usePreferences } from '../preferencesContext';
-import { useDisplayName } from '../profileContext';
+import { useProfile } from '../profileContext';
 
 const TOTAL_STEPS = 2;
 
@@ -37,7 +37,8 @@ type StepContentProps = {
 
 function StepContent({ step, state, setState }: StepContentProps) {
   const styles = useThemedStyles(createStyles);
-  const name = useDisplayName();
+  const { firstName } = useProfile();
+  const name = firstName;
   const subjects = getSubjects();
 
   if (step === 1) {
@@ -208,7 +209,10 @@ export default function OnboardingFlow({ navigation }: RootScreenProps<'Onboardi
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
   const { saveClassAndSubjects, setDailyGoal } = usePreferences();
+  const { updateProfile } = useProfile();
   const [step, setStep] = useState(1);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [state, setState] = useState<OnboardingState>({
     klass: 'SS1',
     subjects: getSubjects().map((s) => s.id),
@@ -222,11 +226,20 @@ export default function OnboardingFlow({ navigation }: RootScreenProps<'Onboardi
     return true;
   };
 
-  const handlePrimary = () => {
+  const handlePrimary = async () => {
     if (isDone) {
-      saveClassAndSubjects(state.klass, state.subjects);
-      setDailyGoal(`${state.hours} hour${state.hours === 1 ? '' : 's'} a day`);
-      navigation.replace('PlacementTest');
+      setIsSaving(true);
+      setSaveError(null);
+      try {
+        await saveClassAndSubjects(state.klass, state.subjects);
+        await setDailyGoal(`${state.hours} hour${state.hours === 1 ? '' : 's'} a day`);
+        await updateProfile({ onboardedAt: new Date().toISOString() });
+        navigation.replace('PlacementTest');
+      } catch (error) {
+        setSaveError(error instanceof Error ? error.message : 'Could not save your onboarding details.');
+      } finally {
+        setIsSaving(false);
+      }
       return;
     }
     setStep((s) => s + 1);
@@ -263,11 +276,12 @@ export default function OnboardingFlow({ navigation }: RootScreenProps<'Onboardi
         )}
 
         <View style={styles.footer}>
+          {saveError ? <Text style={styles.errorText}>{saveError}</Text> : null}
           <PrimaryButton
             title={primaryLabel}
             icon={isDone ? <ArrowRightIcon size={18} color={colors.onPrimary} /> : undefined}
             onPress={handlePrimary}
-            disabled={!isDone && !canProceed()}
+            disabled={isSaving || (!isDone && !canProceed())}
           />
         </View>
       </View>
@@ -413,6 +427,7 @@ const createStyles = () => StyleSheet.create({
   },
   successTitle: { fontFamily: fonts.regular, fontSize: 28, lineHeight: 32.2, color: colors.ink },
 
-  footer: { marginTop: 'auto' },
+  footer: { marginTop: 'auto', gap: 10 },
+  errorText: { color: colors.danger, textAlign: 'center' },
   pressed: { opacity: 0.85 },
 });

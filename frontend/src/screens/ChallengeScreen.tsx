@@ -117,7 +117,7 @@ export default function ChallengeScreen({ navigation }: RootScreenProps<'Challen
           </View>
           <View style={styles.heroReason}>
             <TargetIcon size={16} color={lightColors.lavender} />
-            <Text style={styles.heroReasonText}>Chosen to strengthen your 41% acceleration mastery.</Text>
+            <Text style={styles.heroReasonText}>A recommended starting point for your first lesson.</Text>
           </View>
         </Pressable>
 
@@ -167,9 +167,9 @@ export default function ChallengeScreen({ navigation }: RootScreenProps<'Challen
         <View style={styles.goalCard}>
           <View style={styles.goalHeader}>
             <Text style={styles.goalLabel}>Daily learning goal</Text>
-            <Text style={styles.goalValue}>12 / 20 min</Text>
+            <Text style={styles.goalValue}>0 / 20 min</Text>
           </View>
-          <ProgressBar progress={60} track={colors.border} fill={colors.surface} />
+          <ProgressBar progress={0} track={colors.border} fill={colors.surface} />
         </View>
       </ScrollView>
 

@@ -1,6 +1,7 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useMemo } from 'react';
 
 import BottomNav from '../components/BottomNav';
 import { ProgressBar } from '../components/PracticeUI';
@@ -12,7 +13,6 @@ import {
   GaugeIcon,
   StarIcon,
   TargetIcon,
-  TrophyIcon,
   AtomIcon,
   SigmaIcon,
   FlaskIcon,
@@ -20,6 +20,7 @@ import {
 import { colors, fonts, lightColors, shadow, type ColorToken } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
 import { useProfile } from '../profileContext';
+import { useDisplayName } from '../displayName';
 import type { RootScreenProps } from '../navigation/types';
 import type { IconProps } from '../components/icons';
 
@@ -48,24 +49,24 @@ const SUBJECTS: readonly DashboardSubject[] = [
     icon: 'atom',
     tint: 'blue',
     soft: 'blueSoft',
-    mastery: 68,
-    subtitle: '68% mastery • 2 topics in progress',
+    mastery: 0,
+    subtitle: '0% mastery • Start your first topic',
   },
   {
     name: 'Mathematics',
     icon: 'sigma',
     tint: 'green',
     soft: 'greenSoft',
-    mastery: 74,
-    subtitle: '74% mastery • Keep your streak alive',
+    mastery: 0,
+    subtitle: '0% mastery • Ready to begin',
   },
   {
     name: 'Chemistry',
     icon: 'flask',
     tint: 'violet',
     soft: 'violetSoft',
-    mastery: 55,
-    subtitle: '55% mastery • Review atomic structure',
+    mastery: 0,
+    subtitle: '0% mastery • Ready to begin',
   },
 ];
 
@@ -79,9 +80,8 @@ type Stat = {
 };
 
 const STATS: readonly Stat[] = [
-  { key: 'xp', bg: 'orangeSoft' as ColorToken, tint: 'orange' as ColorToken, Icon: StarIcon, value: '120 XP', label: 'Today' },
-  { key: 'goal', bg: 'greenSoft' as ColorToken, tint: 'teal' as ColorToken, Icon: TargetIcon, value: '3 / 4', label: 'Daily goal' },
-  { key: 'league', bg: 'primarySoft' as ColorToken, tint: 'primary' as ColorToken, Icon: TrophyIcon, value: '#12', label: 'League' },
+  { key: 'xp', bg: 'orangeSoft' as ColorToken, tint: 'orange' as ColorToken, Icon: StarIcon, value: '0 XP', label: 'Today' },
+  { key: 'goal', bg: 'greenSoft' as ColorToken, tint: 'teal' as ColorToken, Icon: TargetIcon, value: '0 / 4', label: 'Daily goal' },
 ];
 
 type SubjectIconProps = {
@@ -129,7 +129,15 @@ export default function HomeDashboardScreen({ navigation }: RootScreenProps<'Hom
   const insets = useSafeAreaInsets();
   const { statusBarStyle } = useTheme();
   const styles = useThemedStyles(createStyles);
-  const { firstName, profile } = useProfile();
+  const { profile } = useProfile();
+  const displayName = useDisplayName();
+
+  const greeting = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 18) return 'Good afternoon';
+    return 'Good evening';
+  }, []);
 
   const openSubjects = () => navigation.navigate('Subjects');
 
@@ -146,8 +154,8 @@ export default function HomeDashboardScreen({ navigation }: RootScreenProps<'Hom
         >
           <View style={styles.greeting}>
             <View style={styles.greetingCopy}>
-              <Text style={styles.eyebrow}>Good afternoon,</Text>
-              <Text style={styles.name}>{firstName || 'there'} 👋</Text>
+              <Text style={styles.eyebrow}>{greeting},</Text>
+              <Text style={styles.name}>{displayName || 'User'} 👋</Text>
             </View>
             <View style={styles.streak}>
               <FlameIcon size={18} color="#FF9F1C" />
@@ -159,9 +167,9 @@ export default function HomeDashboardScreen({ navigation }: RootScreenProps<'Hom
             <View style={styles.heroHead}>
               <View style={styles.nextUp}>
                 <ZapIcon size={13} color="#FFD84D" />
-                <Text style={styles.nextUpLabel}>NEXT UP</Text>
+                <Text style={styles.nextUpLabel}>START YOUR LEARNING PATH</Text>
               </View>
-              <Text style={styles.heroTime}>8 min</Text>
+              <Text style={styles.heroTime}>6 min</Text>
             </View>
 
             <View style={styles.lesson}>
@@ -170,18 +178,18 @@ export default function HomeDashboardScreen({ navigation }: RootScreenProps<'Hom
               </View>
               <View style={styles.lessonCopy}>
                 <Text style={styles.lessonSubject}>PHYSICS • SPEED &amp; VELOCITY</Text>
-                <Text style={styles.lessonTitle}>Reading displacement-time graphs</Text>
+                <Text style={styles.lessonTitle}>Begin your first lesson</Text>
               </View>
             </View>
 
             <View style={styles.progressRow}>
               <ProgressBar
-                progress={62}
+                progress={0}
                 track="rgba(255,255,255,0.1451)"
                 fill={colors.yellow}
                 style={styles.heroBar}
               />
-              <Text style={styles.progressValue}>62%</Text>
+              <Text style={styles.progressValue}>0%</Text>
             </View>
           </View>
 

@@ -48,7 +48,7 @@ const SETS = [
   {
     id: 'graphs',
     title: 'Displacement-time graphs',
-    subtitle: 'Physics • 6 questions • 43% mastery',
+    subtitle: 'Physics • 6 questions • 0% mastery',
     bg: 'blueSoft',
     tint: 'blue',
     Icon: LineChartIcon,
@@ -57,7 +57,7 @@ const SETS = [
   {
     id: 'accel',
     title: 'Acceleration basics',
-    subtitle: 'Physics • 5 questions • 41% mastery',
+    subtitle: 'Physics • 5 questions • 0% mastery',
     bg: 'orangeSoft',
     tint: 'orange',
     Icon: TrendingUpIcon,
@@ -66,7 +66,7 @@ const SETS = [
   {
     id: 'equations',
     title: 'Linear equations',
-    subtitle: 'Mathematics • 8 questions • 64% mastery',
+    subtitle: 'Mathematics • 8 questions • 0% mastery',
     bg: 'greenSoft',
     tint: 'green',
     Icon: DivideIcon,
@@ -114,7 +114,7 @@ export default function PracticeHomeScreen({ navigation }: RootScreenProps<'Prac
             </View>
           </View>
           <ProgressBar
-            progress={20}
+            progress={0}
             track="rgba(255,255,255,0.15)"
             fill={colors.yellow}
             style={styles.dailyProgress}
@@ -170,8 +170,8 @@ export default function PracticeHomeScreen({ navigation }: RootScreenProps<'Prac
             <FlameIcon size={25} color={colors.orange} />
           </View>
           <View style={styles.streakCopy}>
-            <Text style={styles.streakTitle}>4-day practice streak</Text>
-            <Text style={styles.streakSubtitle}>Practice today to reach your best of 7.</Text>
+            <Text style={styles.streakTitle}>No practice streak yet</Text>
+            <Text style={styles.streakSubtitle}>Practice today to start your streak.</Text>
           </View>
         </View>
       </ScrollView>

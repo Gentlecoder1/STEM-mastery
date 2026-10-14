@@ -1,4 +1,4 @@
-import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState } from 'react';
@@ -143,7 +143,7 @@ export default function SettingsScreen({ navigation }: RootScreenProps<'Settings
     setDownloadsEnabled,
   } = usePreferences();
   const styles = useThemedStyles(createStyles);
-  const { profile, updateProfile } = useProfile();
+  const { profile } = useProfile();
   const [toggles, setToggles] = useState({
     reminders: true,
     wifi: true,
@@ -346,9 +346,13 @@ export default function SettingsScreen({ navigation }: RootScreenProps<'Settings
             })}
             <Pressable
               style={styles.saveButton}
-              onPress={() => {
-                saveClassAndSubjects(draftClass, draftSubjects);
-                setDrawerKey(null);
+              onPress={async () => {
+                try {
+                  await saveClassAndSubjects(draftClass, draftSubjects);
+                  setDrawerKey(null);
+                } catch (error) {
+                  Alert.alert('Could not save changes', error instanceof Error ? error.message : 'Please try again.');
+                }
               }}
             >
               <Text style={styles.saveButtonText}>Save changes</Text>
@@ -372,9 +376,13 @@ export default function SettingsScreen({ navigation }: RootScreenProps<'Settings
             ))}
             <Pressable
               style={styles.saveButton}
-              onPress={() => {
-                setDailyGoal(draftGoal.trim() || '20 minutes');
-                setDrawerKey(null);
+              onPress={async () => {
+                try {
+                  await setDailyGoal(draftGoal.trim() || '20 minutes');
+                  setDrawerKey(null);
+                } catch (error) {
+                  Alert.alert('Could not save changes', error instanceof Error ? error.message : 'Please try again.');
+                }
               }}
             >
               <Text style={styles.saveButtonText}>Save changes</Text>
@@ -386,10 +394,13 @@ export default function SettingsScreen({ navigation }: RootScreenProps<'Settings
             <TextField value={draftLocation} onChangeText={setDraftLocation} placeholder="Location" placeholderTextColor={colors.slate} style={styles.goalInput} />
             <Pressable
               style={styles.saveButton}
-              onPress={() => {
-                saveProfile(draftName, draftLocation);
-                void updateProfile({ fullName: draftName.trim() });
-                setDrawerKey(null);
+              onPress={async () => {
+                try {
+                  await saveProfile(draftName, draftLocation);
+                  setDrawerKey(null);
+                } catch (error) {
+                  Alert.alert('Could not save changes', error instanceof Error ? error.message : 'Please try again.');
+                }
               }}
             >
               <Text style={styles.saveButtonText}>Save changes</Text>

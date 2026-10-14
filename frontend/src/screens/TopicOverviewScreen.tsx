@@ -64,8 +64,8 @@ export default function TopicOverviewScreen({ navigation }: RootScreenProps<'Top
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 18 }]}>
         <View style={styles.hero}>
           <View style={styles.heroIcon}><GaugeIcon size={34} color={lightColors.surface} /></View>
-          <View style={styles.heroCopy}><Text style={styles.eyebrow}>IN PROGRESS</Text><Text style={styles.heroTitle}>Understand how motion changes over time.</Text><Text style={styles.meta}>5 lessons <Text style={styles.dot}>•</Text> 42 min</Text></View>
-          <ProgressBar progress={68} track={colors.surface} fill={colors.blue} style={styles.heroBar} />
+          <View style={styles.heroCopy}><Text style={styles.eyebrow}>START HERE</Text><Text style={styles.heroTitle}>Understand how motion changes over time.</Text><Text style={styles.meta}>5 lessons <Text style={styles.dot}>•</Text> 42 min</Text></View>
+          <ProgressBar progress={0} track={colors.surface} fill={colors.blue} style={styles.heroBar} />
         </View>
         <Text style={styles.sectionTitle}>What you'll master</Text>
         <View style={styles.masterCard}>{['Distinguish speed from velocity', 'Read displacement-time graphs', 'Calculate acceleration from motion data'].map((item) => <View key={item} style={styles.masterRow}><View style={styles.check}><CheckCircleIcon size={18} color={colors.green} /></View><Text style={styles.masterText}>{item}</Text></View>)}</View>
@@ -103,7 +103,7 @@ function ConceptRow({ concept, onPress }: { concept: PathConcept; onPress: () =>
         ? 'Jump ahead • key test required'
         : 'Recommended next';
 
-  const trailing = isDone ? `${concept.mastery}%` : isCurrent ? 'CONTINUE' : concept.needsKey ? 'KEY TEST' : 'OPEN';
+  const trailing = isDone ? '100%' : isCurrent ? 'START' : concept.needsKey ? 'KEY TEST' : 'OPEN';
 
   return (
     <Pressable onPress={onPress} style={[styles.conceptRow, isCurrent && styles.conceptCurrent]}>

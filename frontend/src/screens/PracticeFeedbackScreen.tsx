@@ -33,7 +33,7 @@ export default function PracticeFeedbackScreen({
 
   const isWritten = question.type === 'written';
   const correct = isWritten ? true : selected === question.answerId;
-  const mastery = correct ? question.masteryAfter : question.masteryBefore;
+  const mastery = 0;
   const heading = correct ? 'Exactly right!' : 'Not quite yet';
   const headingColor = correct ? colors.success : colors.orange;
   const successBg = correct ? colors.success : colors.orange;
@@ -100,7 +100,7 @@ export default function PracticeFeedbackScreen({
             <View style={styles.masteryCopy}>
               <Text style={styles.masteryTitle}>{question.concept}</Text>
               <View style={styles.gainRow}>
-                <Text style={styles.gainBefore}>{question.masteryBefore}%</Text>
+                <Text style={styles.gainBefore}>0%</Text>
                 <ArrowRightIcon size={14} color={colors.slate} />
                 <Text style={styles.gainAfter}>
                   {mastery}% mastery

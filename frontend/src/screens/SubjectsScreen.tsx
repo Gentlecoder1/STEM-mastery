@@ -18,7 +18,7 @@ import type { RootScreenProps } from '../navigation/types';
 import type { IconProps } from '../components/icons';
 import { navigateToTab } from '../navigation/tabs';
 import { useThemedStyles, useTheme } from '../themeContext';
-import { useDisplayName } from '../profileContext';
+import { useDisplayName } from '../displayName';
 
 type IconComponent = (props: IconProps) => React.JSX.Element;
 
@@ -46,9 +46,8 @@ const SUBJECTS: readonly Subject[] = [
     card: 'surface',
     border: 'border',
     borderWidth: 1,
-    detail: '4 of 8 topics active',
-    mastery: 68,
-    action: 'CONTINUE',
+    detail: '0 of 8 topics started',
+    mastery: 0,
   },
   {
     id: 'mathematics',
@@ -59,8 +58,8 @@ const SUBJECTS: readonly Subject[] = [
     card: 'surface',
     border: 'border',
     borderWidth: 1,
-    detail: '6 of 10 topics active',
-    mastery: 74,
+    detail: '0 of 10 topics started',
+    mastery: 0,
   },
   {
     id: 'chemistry',
@@ -71,8 +70,8 @@ const SUBJECTS: readonly Subject[] = [
     card: 'surface',
     border: 'border',
     borderWidth: 1,
-    detail: '3 of 9 topics active',
-    mastery: 55,
+    detail: '0 of 9 topics started',
+    mastery: 0,
   },
 ];
 
@@ -163,8 +162,8 @@ export default function SubjectsScreen({ navigation }: RootScreenProps<'Subjects
               <MedalIcon size={26} color={lightColors.inkDeep} />
             </View>
             <View style={styles.summaryCopy}>
-              <Text style={styles.summaryTitle}>Strong week{name ? `, ${name}` : ''}!</Text>
-              <Text style={styles.summaryText}>You improved Physics mastery by 6%.</Text>
+              <Text style={styles.summaryTitle}>Ready to learn{name ? `, ${name}` : ''}!</Text>
+              <Text style={styles.summaryText}>Start a lesson to build your first streak.</Text>
             </View>
           </View>
 

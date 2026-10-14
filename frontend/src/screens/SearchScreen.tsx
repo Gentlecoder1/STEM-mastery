@@ -31,7 +31,7 @@ const FILTERS = [
 const RESULTS = [
   {
     title: 'Speed vs velocity',
-    subtitle: 'Concept • Physics • 72% mastery',
+    subtitle: 'Concept • Physics • 0% mastery',
     Icon: GaugeIcon,
     tint: 'blue' as ColorToken,
     soft: 'blueSoft' as ColorToken,

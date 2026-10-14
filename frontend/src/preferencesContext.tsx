@@ -2,6 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { SubjectId } from './theme';
 import { getTopicConceptIds } from './data/learning';
+import { useProfile } from './profileContext';
+import { getSupabase } from './lib/supabase';
 
 const DOWNLOADS_STORAGE_KEY = 'stem-mastery.downloads.v1';
 
@@ -36,9 +38,9 @@ type PreferencesContextValue = {
   location: string;
   downloadedLessons: string[];
   downloadsEnabled: boolean;
-  saveClassAndSubjects: (classLevel: ClassLevel, subjects: SubjectId[]) => void;
-  setDailyGoal: (goal: string) => void;
-  saveProfile: (userName: string, location: string) => void;
+  saveClassAndSubjects: (classLevel: ClassLevel, subjects: SubjectId[]) => Promise<void>;
+  setDailyGoal: (goal: string) => Promise<void>;
+  saveProfile: (userName: string, location: string) => Promise<void>;
   toggleTopicDownload: (topicId: string) => void;
   removeLessonDownload: (conceptId: string) => void;
   setDownloadsEnabled: (enabled: boolean) => void;
@@ -54,9 +56,9 @@ const DEFAULT_PREFERENCES: PreferencesContextValue = {
   location: 'Lagos, Nigeria',
   downloadedLessons: DEFAULT_DOWNLOADED_LESSONS,
   downloadsEnabled: true,
-  saveClassAndSubjects: () => {},
-  setDailyGoal: () => {},
-  saveProfile: () => {},
+  saveClassAndSubjects: async () => {},
+  setDailyGoal: async () => {},
+  saveProfile: async () => {},
   toggleTopicDownload: () => {},
   removeLessonDownload: () => {},
   setDownloadsEnabled: () => {},
@@ -65,6 +67,7 @@ const DEFAULT_PREFERENCES: PreferencesContextValue = {
 const PreferencesContext = createContext<PreferencesContextValue>(DEFAULT_PREFERENCES);
 
 export function PreferencesProvider({ children }: { children: ReactNode }) {
+  const { profile, updateProfile } = useProfile();
   const [classLevel, setClassLevel] = useState<ClassLevel>('SS1');
   const [subjects, setSubjects] = useState<SubjectId[]>(['mathematics', 'physics', 'chemistry']);
   const [dailyGoal, setDailyGoal] = useState('20 minutes');
@@ -72,6 +75,15 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
   const [location, setLocation] = useState('Lagos, Nigeria');
   const [downloadedLessons, setDownloadedLessons] = useState<string[]>(DEFAULT_DOWNLOADED_LESSONS);
   const [downloadsEnabled, setDownloadsEnabled] = useState(true);
+
+  useEffect(() => {
+    if (!profile) return;
+    setClassLevel((profile.classLevel ?? 'SS1') as ClassLevel);
+    setSubjects(profile.subjects && profile.subjects.length > 0 ? profile.subjects : ['mathematics', 'physics', 'chemistry']);
+    setDailyGoal(profile.dailyGoal || '20 minutes');
+    setUserName(profile.fullName || '');
+    setLocation(profile.location || 'Lagos, Nigeria');
+  }, [profile]);
 
   useEffect(() => {
     if (!STORAGE) return;
@@ -93,14 +105,28 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
     STORAGE.setItem(DOWNLOADS_STORAGE_KEY, JSON.stringify({ downloadedLessons: next })).catch(() => {});
   }, []);
 
-  const saveClassAndSubjects = useCallback((nextClass: ClassLevel, nextSubjects: SubjectId[]) => {
-    setClassLevel(nextClass);
-    setSubjects(nextSubjects);
-  }, []);
-  const saveProfile = useCallback((nextName: string, nextLocation: string) => {
-    setUserName(nextName.trim());
-    setLocation(nextLocation.trim() || 'Lagos, Nigeria');
-  }, []);
+  const saveClassAndSubjects = useCallback(
+    async (nextClass: ClassLevel, nextSubjects: SubjectId[]) => {
+      setClassLevel(nextClass);
+      setSubjects(nextSubjects);
+      const supabase = getSupabase();
+      if (supabase && profile) {
+        await updateProfile({ classLevel: nextClass, subjects: nextSubjects });
+      }
+    },
+    [profile, updateProfile],
+  );
+  const saveProfile = useCallback(
+    async (nextName: string, nextLocation: string) => {
+      setUserName(nextName.trim());
+      setLocation(nextLocation.trim() || 'Lagos, Nigeria');
+      const supabase = getSupabase();
+      if (supabase && profile) {
+        await updateProfile({ fullName: nextName.trim(), location: nextLocation.trim() || 'Lagos, Nigeria' });
+      }
+    },
+    [profile, updateProfile],
+  );
   const toggleTopicDownload = useCallback(
     (topicId: string) => {
       setDownloadedLessons((current) => {
@@ -136,7 +162,13 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
       downloadedLessons,
       downloadsEnabled,
       saveClassAndSubjects,
-      setDailyGoal,
+      setDailyGoal: async (goal: string) => {
+        setDailyGoal(goal);
+        const supabase = getSupabase();
+        if (supabase && profile) {
+          await updateProfile({ dailyGoal: goal });
+        }
+      },
       saveProfile,
       toggleTopicDownload,
       removeLessonDownload,
@@ -151,6 +183,8 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
       downloadedLessons,
       downloadsEnabled,
       saveClassAndSubjects,
+      profile,
+      updateProfile,
       saveProfile,
       toggleTopicDownload,
       removeLessonDownload,

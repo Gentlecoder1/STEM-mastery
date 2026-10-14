@@ -18,9 +18,9 @@ import type { RootScreenProps } from '../navigation/types';
 import { useThemedStyles, useTheme } from '../themeContext';
 
 const EVIDENCE = [
-  { value: '2', text: 'quiz answers mixed up velocity and acceleration' },
-  { value: '1', text: 'written explanation missed the final link' },
-  { value: '43%', text: 'current mastery on displacement-time graphs' },
+  { value: '0', text: 'quiz answers recorded' },
+  { value: '0', text: 'written explanations recorded' },
+  { value: '0%', text: 'current mastery on displacement-time graphs' },
 ] as const;
 
 export default function PracticeRecommendationScreen({
@@ -89,7 +89,7 @@ export default function PracticeRecommendationScreen({
           <View style={styles.gainRow}>
             <View style={styles.gainCopy}>
               <Text style={styles.gainLabel}>EXPECTED MASTERY</Text>
-              <Text style={styles.gainValue}>41% → about 60%</Text>
+              <Text style={styles.gainValue}>0% → build your first mastery</Text>
             </View>
             <ArrowUpRightIcon size={22} color={colors.ink} />
           </View>

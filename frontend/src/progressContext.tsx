@@ -11,6 +11,16 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { SubjectId } from './theme';
 import { CONCEPTS, getConcept, getTopicConceptIds } from './data/learning';
+import { useAuth } from './auth/AuthContext';
+import { getSupabase } from './lib/supabase';
+import {
+  addCompletedConcepts,
+  loadCompletedConceptIds,
+  loadPlacement,
+  savePlacement,
+  type StoredPlacement,
+} from './lib/progress';
+import { useProfile } from './profileContext';
 
 const PROGRESS_STORAGE_KEY = 'stem-mastery.progress.v1';
 
@@ -51,7 +61,7 @@ export type ProgressContextValue = {
   getConceptStatus: (conceptId: string) => ConceptStatus;
   getRecommendedConceptId: (subjectId?: SubjectId) => string | undefined;
   completeConcept: (conceptId: string) => void;
-  recordPlacement: (results: readonly PlacementResult[], options?: RecordPlacementOptions) => void;
+  recordPlacement: (results: readonly PlacementResult[], options?: RecordPlacementOptions) => Promise<void>;
   resetProgress: () => void;
 };
 
@@ -64,36 +74,42 @@ const ProgressContext = createContext<ProgressContextValue>({
   getConceptStatus: () => 'open',
   getRecommendedConceptId: () => CONCEPTS[0]?.id,
   completeConcept: () => {},
-  recordPlacement: () => {},
+  recordPlacement: async () => {},
   resetProgress: () => {},
 });
 
-function seedSkipCompletions(results: readonly PlacementResult[]): string[] {
-  const seeded: string[] = [];
-  const seededSubjects = new Set(
-    results.filter((result) => result.passed).map((result) => result.subjectId),
-  );
-  const visitedTopics = new Set<string>();
-  for (const concept of CONCEPTS) {
-    if (!seededSubjects.has(concept.subjectId)) continue;
-    if (visitedTopics.has(concept.topicId)) continue;
-    visitedTopics.add(concept.topicId);
-    seeded.push(concept.id);
-  }
-  return seeded;
-}
-
 export function ProgressProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  const { refreshProfile } = useProfile();
   const [completedConcepts, setCompletedConcepts] = useState<string[]>([]);
   const [placement, setPlacement] = useState<Partial<Record<SubjectId, PlacementResult>>>({});
   const completedRef = useRef(completedConcepts);
   completedRef.current = completedConcepts;
+  const remote = !!user;
 
   useEffect(() => {
-    if (!STORAGE) return;
     let mounted = true;
-    STORAGE.getItem(PROGRESS_STORAGE_KEY)
-      .then((raw) => {
+    setCompletedConcepts([]);
+    setPlacement({});
+    (async () => {
+      const supabase = getSupabase();
+      if (supabase && user) {
+        try {
+          const [ids, storedPlacement] = await Promise.all([
+            loadCompletedConceptIds(supabase, user.id),
+            loadPlacement(supabase, user.id),
+          ]);
+          if (!mounted) return;
+          setCompletedConcepts(ids);
+          setPlacement((storedPlacement as Partial<Record<SubjectId, PlacementResult>>) ?? {});
+          return;
+        } catch (e) {
+          return;
+        }
+      }
+      if (!STORAGE) return;
+      try {
+        const raw = await STORAGE.getItem(PROGRESS_STORAGE_KEY);
         if (!mounted || !raw) return;
         const parsed = JSON.parse(raw) as {
           completedConcepts?: string[];
@@ -101,23 +117,36 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
         };
         if (Array.isArray(parsed?.completedConcepts)) setCompletedConcepts(parsed.completedConcepts);
         if (parsed?.placement) setPlacement(parsed.placement);
-      })
-      .catch(() => {});
+      } catch {
+        // ignore
+      }
+    })();
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [user]);
 
   const persist = useCallback((nextCompleted: string[], nextPlacement: Partial<Record<SubjectId, PlacementResult>>) => {
+    if (remote) {
+      return; // Supabase writes happen on mutations; we don't duplicate to local when remote.
+    }
     if (!STORAGE) return;
     STORAGE.setItem(
       PROGRESS_STORAGE_KEY,
       JSON.stringify({ completedConcepts: nextCompleted, placement: nextPlacement }),
     ).catch(() => {});
-  }, []);
+  }, [remote]);
 
   const completeConcept = useCallback(
-    (conceptId: string) => {
+    async (conceptId: string) => {
+      const supabase = getSupabase();
+      if (supabase && user) {
+        await addCompletedConcepts(supabase, user.id, [conceptId]);
+        const ids = await loadCompletedConceptIds(supabase, user.id);
+        setCompletedConcepts(ids);
+        void refreshProfile();
+        return;
+      }
       setCompletedConcepts((current) => {
         if (current.includes(conceptId)) return current;
         const next = [...current, conceptId];
@@ -125,7 +154,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
         return next;
       });
     },
-    [persist, placement],
+    [user, placement, persist, refreshProfile],
   );
 
   const isConceptCompleted = useCallback(
@@ -171,22 +200,33 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
   );
 
   const recordPlacement = useCallback(
-    (results: readonly PlacementResult[], options?: RecordPlacementOptions) => {
+    async     (results: readonly PlacementResult[], _options?: RecordPlacementOptions) => {
+      const supabase = getSupabase();
+      if (supabase && user) {
+        const nextPlacement = { ...placement };
+        for (const result of results) nextPlacement[result.subjectId] = result;
+        await savePlacement(supabase, user.id, nextPlacement as StoredPlacement);
+        const [ids] = await Promise.all([
+          loadCompletedConceptIds(supabase, user.id),
+          loadPlacement(supabase, user.id).then((p) => setPlacement((p as any) ?? {})),
+        ]);
+        setCompletedConcepts(ids);
+        void refreshProfile();
+        return;
+      }
       setPlacement((currentPlacement) => {
         const nextPlacement = { ...currentPlacement };
         for (const result of results) nextPlacement[result.subjectId] = result;
 
         setCompletedConcepts((current) => {
-          const skipSeed = options?.startFromBeginning ? [] : seedSkipCompletions(results);
-          const merged = Array.from(new Set([...current, ...skipSeed]));
-          persist(merged, nextPlacement);
-          return merged;
+          persist(current, nextPlacement);
+          return current;
         });
 
         return nextPlacement;
       });
     },
-    [persist],
+    [user, placement, persist, refreshProfile],
   );
 
   const resetProgress = useCallback(() => {

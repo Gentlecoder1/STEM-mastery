@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { ActivityIndicator, StatusBar, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -15,14 +15,15 @@ import {
 import { colors } from './src/theme';
 import { ThemeProvider, useTheme, useThemedStyles } from './src/themeContext';
 import { AuthProvider, useAuth } from './src/auth/AuthContext';
-import { ProfileProvider } from './src/profileContext';
+import { ProfileProvider, useProfile } from './src/profileContext';
 import { PreferencesProvider } from './src/preferencesContext';
 import { ProgressProvider } from './src/progressContext';
 import ThemeRevealOverlay from './src/components/ThemeRevealOverlay';
 import SplashScreen from './src/screens/SplashScreen';
 import SignUpScreen from './src/screens/SignUpScreen';
 import LoginScreen from './src/screens/LoginScreen';
-import VerifyEmailScreen from './src/screens/VerifyEmailScreen';import OnboardingFlow from './src/screens/OnboardingFlow';
+import VerifyEmailScreen from './src/screens/VerifyEmailScreen';
+import OnboardingFlow from './src/screens/OnboardingFlow';
 import PlacementTestScreen from './src/screens/PlacementTestScreen';
 import HomeDashboardScreen from './src/screens/HomeDashboardScreen';
 import SubjectsScreen from './src/screens/SubjectsScreen';
@@ -57,6 +58,7 @@ function AppShell() {
   });
   const { mode } = useTheme();
   const { isInitializing, isAuthenticated } = useAuth();
+  const { profile, isLoading: profileLoading, error: profileError } = useProfile();
   const styles = useThemedStyles(createStyles);
 
   const navTheme = useMemo(
@@ -74,10 +76,22 @@ function AppShell() {
     [mode],
   );
 
-  if (!fontsLoaded || isInitializing) {
+  if (
+    !fontsLoaded ||
+    isInitializing ||
+    (isAuthenticated && (profileLoading || (!profile && !profileError)))
+  ) {
     return (
       <View style={styles.loader}>
         <ActivityIndicator color={colors.primary} />
+      </View>
+    );
+  }
+
+  if (isAuthenticated && profileError && !profile) {
+    return (
+      <View style={styles.loader}>
+        <Text style={styles.errorText}>We could not load your profile. Please try again.</Text>
       </View>
     );
   }
@@ -87,7 +101,7 @@ function AppShell() {
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
       <NavigationContainer theme={navTheme}>
         <Stack.Navigator
-          initialRouteName={isAuthenticated ? 'Home' : 'Splash'}
+          initialRouteName={isAuthenticated && profile?.onboardedAt ? 'Home' : isAuthenticated ? 'Onboarding' : 'Splash'}
           screenOptions={{
             headerShown: false,
             animation: 'slide_from_right',
@@ -160,5 +174,10 @@ const createStyles = () => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.surface,
+  },
+  errorText: {
+    color: colors.ink,
+    textAlign: 'center',
+    paddingHorizontal: 32,
   },
 });

@@ -11,6 +11,7 @@ import { CONTENT_LABELS, getConceptContent, getConcept, getConceptQuiz } from '.
 import type { ContentType, LearningContent } from '../data/learning';
 import type { RootScreenProps } from '../navigation/types';
 import { useThemedStyles, useTheme } from '../themeContext';
+import { useProgress } from '../progressContext';
 
 const TYPE_TINT: Record<ContentType, ColorToken> = {
   DEFINITION: 'blue',
@@ -85,12 +86,14 @@ export default function ConceptLearningScreen({
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
   const { statusBarStyle } = useTheme();
+  const { isConceptCompleted } = useProgress();
   const { conceptId } = route.params;
 
   const items = useMemo(() => getConceptContent(conceptId), [conceptId]);
   const concept = getConcept(conceptId);
   const lessonItems = items.filter((item) => item.contentType !== 'QUESTION');
   const quizCount = getConceptQuiz(conceptId).length;
+  const mastery = isConceptCompleted(conceptId) ? 100 : 0;
 
   if (!concept || lessonItems.length === 0) {
     return (
@@ -119,7 +122,7 @@ export default function ConceptLearningScreen({
           <Text style={styles.headerCounter}>{lessonItems.length} lessons</Text>
       </View>
 
-      <ProgressBar progress={concept.mastery} style={styles.headerProgress} />
+      <ProgressBar progress={mastery} style={styles.headerProgress} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}

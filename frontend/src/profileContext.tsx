@@ -9,7 +9,6 @@ import {
 } from 'react';
 
 import { useAuth } from './auth/AuthContext';
-import { usePreferences } from './preferencesContext';
 import { getSupabase } from './lib/supabase';
 import {
   firstNameOf,
@@ -69,7 +68,14 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     async (patch: ProfilePatch) => {
       const supabase = getSupabase();
       if (!supabase || !user) return;
-      setProfile(await persistProfile(supabase, user.id, patch));
+      try {
+        setProfile(await persistProfile(supabase, user.id, patch));
+        setError(null);
+      } catch (updateError) {
+        const message = updateError instanceof Error ? updateError.message : 'Could not save profile.';
+        setError(message);
+        throw updateError;
+      }
     },
     [user],
   );
@@ -91,14 +97,4 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
 
 export function useProfile(): ProfileContextValue {
   return useContext(ProfileContext);
-}
-
-/**
- * The name to greet the user with, sourced from their Supabase profile and
- * falling back to the locally saved preference. Returns '' when unknown.
- */
-export function useDisplayName(): string {
-  const { firstName } = useProfile();
-  const { userName } = usePreferences();
-  return firstName || userName.trim();
 }

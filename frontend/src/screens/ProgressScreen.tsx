@@ -11,45 +11,75 @@ import { colors, fonts, lightColors, shadow, type ColorToken } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
 import { navigateToTab } from '../navigation/tabs';
 import type { RootScreenProps } from '../navigation/types';
-import { useDisplayName } from '../profileContext';
+import { getSubjects } from '../theme';
+import { CONCEPTS } from '../data/learning';
+import { useProfile } from '../profileContext';
+import { useProgress } from '../progressContext';
+import { useDisplayName } from '../displayName';
 
-const DAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'] as const;
-const DONE_DAYS = 4;
-
-const METRICS = [
-  { value: '23', label: 'Lessons', tint: 'blue' as ColorToken },
-  { value: '86%', label: 'Accuracy', tint: 'success' as ColorToken },
-  { value: '6h 42m', label: 'Learning', tint: 'primary' as ColorToken },
-] as const;
-
-const MASTERY = [
-  { name: 'Mathematics', Icon: SigmaIcon, tint: 'green' as ColorToken, soft: 'greenSoft' as ColorToken, delta: '+4% this month', percent: 74 },
-  { name: 'Physics', Icon: AtomIcon, tint: 'blue' as ColorToken, soft: 'blueSoft' as ColorToken, delta: '+6% this month', percent: 68 },
-  { name: 'Chemistry', Icon: FlaskIcon, tint: 'violet' as ColorToken, soft: 'violetSoft' as ColorToken, delta: '+2% this month', percent: 55 },
-] as const;
-
-const MILESTONES = [
-  {
-    title: 'Graph reader',
-    subtitle: '75% mastery reached',
-    bg: 'yellowSoft' as ColorToken,
-    Icon: MedalIcon,
-    tint: 'orange' as ColorToken,
-  },
-  {
-    title: 'Week warrior',
-    subtitle: '4 days in a row',
-    bg: 'primarySoft' as ColorToken,
-    Icon: FlameIcon,
-    tint: 'primary' as ColorToken,
-  },
-] as const;
+  const DAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'] as const;
 
 export default function ProgressScreen({ navigation }: RootScreenProps<'Progress'>) {
   const insets = useSafeAreaInsets();
   const { statusBarStyle } = useTheme();
   const styles = useThemedStyles(createStyles);
   const name = useDisplayName();
+  const { profile } = useProfile();
+  const { completedConcepts } = useProgress();
+  const subjectsMeta = getSubjects();
+
+  const completedCount = completedConcepts.length;
+  const streak = profile?.streak ?? 0;
+  const xp = profile?.xp ?? 0;
+
+  const METRICS_REAL = [
+    { value: String(completedCount), label: 'Lessons', tint: 'blue' as ColorToken },
+    { value: String(xp), label: 'XP', tint: 'success' as ColorToken },
+    { value: String(streak), label: 'Streak', tint: 'primary' as ColorToken },
+  ];
+
+  const MASTERY_REAL = subjectsMeta.map((s) => {
+    const total = CONCEPTS.filter((c) => c.subjectId === s.id).length;
+    const done = CONCEPTS.filter((c) => c.subjectId === s.id && completedConcepts.includes(c.id)).length;
+    const pct = total ? Math.round((done / total) * 100) : 0;
+    const Icon = s.id === 'mathematics' ? SigmaIcon : s.id === 'physics' ? AtomIcon : FlaskIcon;
+    return {
+      name: s.name,
+      Icon,
+      tint: s.accent as ColorToken,
+      delta: pct === 0 ? '0% mastered' : `${pct}% mastered`,
+      percent: pct,
+    };
+  });
+
+  const MILESTONES_REAL: Array<{ title: string; subtitle: string; bg: ColorToken; Icon: any; tint: ColorToken }> = [];
+  if (completedCount > 0) {
+    MILESTONES_REAL.push({
+      title: 'First lesson',
+      subtitle: 'Started your journey',
+      bg: 'yellowSoft',
+      Icon: MedalIcon,
+      tint: 'orange',
+    });
+  }
+  if (streak >= 4) {
+    MILESTONES_REAL.push({
+      title: 'Week warrior',
+      subtitle: `${streak} day streak`,
+      bg: 'primarySoft',
+      Icon: FlameIcon,
+      tint: 'primary',
+    });
+  }
+  if (MILESTONES_REAL.length === 0) {
+    MILESTONES_REAL.push({
+      title: 'Get started',
+      subtitle: 'Complete your first concept',
+      bg: 'blueSoft',
+      Icon: MedalIcon,
+      tint: 'blue',
+    });
+  }
 
   return (
     <View style={styles.root}>
@@ -73,16 +103,16 @@ export default function ProgressScreen({ navigation }: RootScreenProps<'Progress
         <View style={styles.streakCard}>
           <Text style={styles.streakEyebrow}>THIS WEEK</Text>
           <View style={styles.streakRow}>
-            <Text style={styles.streakTitle}>4-day streak 🔥</Text>
-            <Pill bg={colors.yellow} tint={lightColors.inkDeep} size={11}>
-              +340 XP
-            </Pill>
+          <Text style={styles.streakTitle}>{streak === 0 ? 'No streak yet' : `${streak}-day streak 🔥`}</Text>
+          <Pill bg={colors.yellow} tint={lightColors.inkDeep} size={11}>
+            {xp} XP
+          </Pill>
           </View>
           <View style={styles.daysRow}>
             {DAYS.map((day, index) => {
-              const done = index < DONE_DAYS;
+              const done = index < Math.min(streak, DAYS.length);
               return (
-                <View key={`${day}-${index}`} style={styles.dayWrap}>
+                <View key={index} style={styles.dayWrap}>
                   <View style={[styles.dayDot, !done && styles.dayDotPending]}>
                     {done ? (
                       <CheckIcon size={14} color={lightColors.surface} strokeWidth={2} />
@@ -95,11 +125,11 @@ export default function ProgressScreen({ navigation }: RootScreenProps<'Progress
               );
             })}
           </View>
-          <Text style={styles.streakCaption}>One more day to beat last week</Text>
+          <Text style={styles.streakCaption}>{streak === 0 ? 'Complete a concept to start your streak' : streak < 4 ? 'Keep going to build your streak' : 'One more day to beat last week'}</Text>
         </View>
 
         <View style={styles.metricsCard}>
-          {METRICS.map(({ value, label, tint }, index) => (
+            {METRICS_REAL.map(({ value, label, tint }, index) => (
             <View key={label} style={styles.metricsRow}>
               {index > 0 ? <View style={styles.metricDivider} /> : null}
               <View style={styles.metric}>
@@ -112,18 +142,18 @@ export default function ProgressScreen({ navigation }: RootScreenProps<'Progress
 
         <SectionHeading title="Subject mastery" action="Details" onAction={() => navigation.navigate('ConceptProgress')} />
         <View style={styles.masteryList}>
-          {MASTERY.map(({ name, Icon, tint, soft, delta, percent }) => (
+          {MASTERY_REAL.map(({ name: mname, Icon, tint, delta, percent }) => (
             <Pressable
-              key={name}
+              key={mname}
               style={styles.masteryRow}
               onPress={() => navigation.navigate('ConceptProgress')}
               accessibilityRole="button"
             >
-              <View style={[styles.masteryIcon, { backgroundColor: colors[soft] }]}>
+              <View style={styles.masteryIcon}>
                 <Icon size={19} color={colors[tint]} />
               </View>
               <View style={styles.masteryCopy}>
-                <Text style={styles.masteryName}>{name}</Text>
+                <Text style={styles.masteryName}>{mname}</Text>
                 <Text style={[styles.masteryDelta, { color: colors.success }]}>{delta}</Text>
               </View>
               <MasteryRing percent={percent} color={colors[tint]} size={46} />
@@ -133,7 +163,7 @@ export default function ProgressScreen({ navigation }: RootScreenProps<'Progress
 
         <SectionHeading title="Recent milestones" />
         <View style={styles.milestoneRow}>
-          {MILESTONES.map(({ title, subtitle, bg, Icon, tint }) => (
+          {MILESTONES_REAL.map(({ title, subtitle, bg, Icon, tint }) => (
             <View key={title} style={[styles.milestoneCard, { backgroundColor: colors[bg] }]}>
               <View style={styles.milestoneIcon}>
                 <Icon size={24} color={colors[tint]} />

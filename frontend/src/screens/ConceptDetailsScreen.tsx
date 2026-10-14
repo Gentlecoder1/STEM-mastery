@@ -28,6 +28,7 @@ export default function ConceptDetailsScreen({ navigation, route }: RootScreenPr
 
   const itemCount = concept.content.length;
   const isOpen = isConceptOpen(concept.id) || isConceptCompleted(concept.id);
+  const mastery = isConceptCompleted(concept.id) ? 100 : 0;
   const previous = getPreviousConcept(concept.id);
 
   return (
@@ -56,13 +57,13 @@ export default function ConceptDetailsScreen({ navigation, route }: RootScreenPr
       >
         <View style={styles.hero}>
           <View style={styles.heroRing}>
-            <MasteryRing percent={concept.mastery} color={colors[concept.tint]} size={76} />
+            <MasteryRing percent={mastery} color={colors[concept.tint]} size={76} />
           </View>
           <View style={styles.heroCopy}>
             <Text style={[styles.heroStatus, { color: colors[concept.tint] }]}>
-              {concept.mastery === 0
+              {mastery === 0
                 ? 'NOT STARTED'
-                : concept.mastery >= 80
+                : mastery >= 80
                   ? 'STRONG'
                   : 'IN PROGRESS'}
             </Text>

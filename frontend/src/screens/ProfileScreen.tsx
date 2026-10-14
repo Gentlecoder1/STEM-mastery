@@ -7,11 +7,8 @@ import BottomNav from '../components/BottomNav';
 import BottomSheetDrawer from '../components/BottomSheetDrawer';
 import { ChevronRightIcon } from '../components/icons';
 import {
-  BrainIcon,
   DownloadIcon,
-  FlameIcon,
   GraduationCapIcon,
-  MedalIcon,
   SettingsIcon,
   TargetIcon,
   TrashIcon,
@@ -26,12 +23,6 @@ import { CLASS_OPTIONS, SUBJECT_OPTIONS, usePreferences, type ClassLevel } from 
 import { useProfile } from '../profileContext';
 import type { SubjectId } from '../theme';
 import { CONCEPTS } from '../data/learning';
-
-const ACHIEVEMENTS = [
-  { label: 'Graph reader', Icon: MedalIcon, bg: 'blueSoft' as ColorToken, tint: 'blue' as ColorToken },
-  { label: '7-day streak', Icon: FlameIcon, bg: 'orangeSoft' as ColorToken, tint: 'orange' as ColorToken },
-  { label: 'Deep thinker', Icon: BrainIcon, bg: 'primarySoft' as ColorToken, tint: 'primary' as ColorToken },
-];
 
 const MENU = [
   {
@@ -78,7 +69,7 @@ export default function ProfileScreen({ navigation }: RootScreenProps<'Profile'>
   const stats = [
     { value: (profile?.xp ?? 0).toLocaleString('en-US'), label: 'Total XP', tint: 'orange' as ColorToken },
     { value: String(profile?.streak ?? 0), label: 'Streak', tint: 'danger' as ColorToken },
-    { value: '18', label: 'Badges', tint: 'primary' as ColorToken },
+    { value: '0', label: 'Badges', tint: 'primary' as ColorToken },
   ];
   const dailyGoal = profile?.dailyGoal ?? '20 minutes';
 
@@ -115,7 +106,7 @@ export default function ProfileScreen({ navigation }: RootScreenProps<'Profile'>
           <View style={styles.avatar}>
             <UserIcon size={40} color={colors.primary} strokeWidth={1.4} />
             <View style={styles.levelBadge}>
-              <Text style={styles.levelText}>12</Text>
+              <Text style={styles.levelText}>1</Text>
             </View>
           </View>
           <Text style={styles.name}>{profile?.fullName || userName}</Text>
@@ -134,16 +125,9 @@ export default function ProfileScreen({ navigation }: RootScreenProps<'Profile'>
           ))}
         </View>
 
-        <SectionHeading title="Achievements" action="View all 18" />
-        <View style={styles.achievementRow}>
-          {ACHIEVEMENTS.map(({ label, Icon, bg, tint }) => (
-            <View key={label} style={styles.achievementCard}>
-              <View style={[styles.badge, { backgroundColor: colors[bg] }]}>
-                <Icon size={20} color={colors[tint]} />
-              </View>
-              <Text style={styles.achievementLabel}>{label}</Text>
-            </View>
-          ))}
+        <SectionHeading title="Achievements" />
+        <View style={styles.emptyAchievement}>
+          <Text style={styles.emptyAchievementText}>Complete your first lesson to earn a badge.</Text>
         </View>
 
         <SectionHeading title="Learning profile" />
@@ -367,6 +351,19 @@ const createStyles = () => StyleSheet.create({
     fontSize: 10,
     lineHeight: 13,
     color: colors.ink,
+    textAlign: 'center',
+  },
+  emptyAchievement: {
+    padding: 16,
+    borderRadius: 18,
+    backgroundColor: colors.surface,
+    ...shadow.frame,
+  },
+  emptyAchievementText: {
+    fontFamily: fonts.medium,
+    fontSize: 12,
+    lineHeight: 16,
+    color: colors.slate,
     textAlign: 'center',
   },
 

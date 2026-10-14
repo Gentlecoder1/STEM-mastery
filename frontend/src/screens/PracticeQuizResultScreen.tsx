@@ -16,18 +16,18 @@ import { Pill } from '../components/PracticeUI';
 import { colors, fonts, lightColors, shadow, type ColorToken } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
 import type { RootScreenProps } from '../navigation/types';
-import { useDisplayName } from '../profileContext';
+import { useDisplayName } from '../displayName';
 
 const STATS = [
-  { value: '5', label: 'First try', tint: 'success' as ColorToken },
-  { value: '04:38', label: 'Time', tint: 'blue' as ColorToken },
-  { value: '3', label: 'Best streak', tint: 'orange' as ColorToken },
+  { value: '0', label: 'First try', tint: 'success' as ColorToken },
+  { value: '00:00', label: 'Time', tint: 'blue' as ColorToken },
+  { value: '0', label: 'Best streak', tint: 'orange' as ColorToken },
 ];
 
 const UPDATES = [
   {
     title: 'Graph interpretation',
-    subtitle: '68% → 75% • Strong improvement',
+    subtitle: '0% → 0% • No progress recorded',
     Icon: LineChartIcon,
     tint: 'success' as ColorToken,
     soft: 'greenSoft' as ColorToken,
@@ -35,7 +35,7 @@ const UPDATES = [
   },
   {
     title: 'Acceleration reasoning',
-    subtitle: '41% • Needs one quick review',
+    subtitle: '0% • Not started',
     Icon: TrendingUpIcon,
     tint: 'orange' as ColorToken,
     soft: 'orangeSoft' as ColorToken,
@@ -50,8 +50,8 @@ export default function PracticeQuizResultScreen({
   const insets = useSafeAreaInsets();
   const { statusBarStyle } = useTheme();
   const styles = useThemedStyles(createStyles);
-  const correct = route.params?.correct ?? 6;
-  const xp = route.params?.xp ?? 75;
+  const correct = route.params?.correct ?? 0;
+  const xp = route.params?.xp ?? 0;
   const name = useDisplayName();
 
   return (
@@ -80,7 +80,7 @@ export default function PracticeQuizResultScreen({
 
         <View style={styles.scoreCard}>
           <View style={styles.scoreRow}>
-            <MasteryRing percent={75} color={colors.primary} size={92} />
+            <MasteryRing percent={correct === 0 ? 0 : Math.round((correct / 8) * 100)} color={colors.primary} size={92} />
             <View style={styles.scoreCopy}>
               <Text style={styles.scoreEyebrow}>YOUR SCORE</Text>
               <Text style={styles.scoreTitle}>{correct} of 8 correct</Text>
