@@ -1,0 +1,13 @@
+# Runtime dependencies for the Vercel serverless function.
+# Kept lean on purpose: no CLI/dev extras (uvicorn, fastapi-cli, sentry).
+# Vercel provides the ASGI runtime, so the server entrypoint is only `app`.
+#
+# Regenerate the full lock with:  uv export --no-dev --no-hashes
+# These top-level pins match the versions resolved in uv.lock.
+fastapi==0.143.0
+pydantic==2.14.1
+pydantic-settings==2.15.0
+neo4j==6.4.0
+httpx==0.28.1
+pyjwt[crypto]==2.15.1
+cryptography==50.0.2

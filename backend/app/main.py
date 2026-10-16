@@ -2,8 +2,10 @@ import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from neo4j.exceptions import Neo4jError
 
 from app.api.routes import assessment, catalog, graph, health, placement, progress
 from app.core.config import settings
@@ -48,6 +50,22 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(Neo4jError)
+async def neo4j_error_handler(request: Request, exc: Neo4jError) -> JSONResponse:
+    """Return 503 instead of crashing when the graph is unreachable.
+
+    Covers the case where Neo4j is configured but Aura is down, still booting,
+    or the credentials are wrong. The app keeps serving health and learner-state
+    routes; only graph-dependent endpoints degrade.
+    """
+    logger.warning("Neo4j operation failed for %s: %s", request.url.path, exc)
+    return JSONResponse(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        content={"detail": "Curriculum database is unavailable."},
+    )
+
 
 app.include_router(health.router)
 app.include_router(health.router, prefix=settings.api_prefix)

@@ -43,6 +43,40 @@ uv run ruff check .
 uv run ruff format .
 ```
 
+## Deploy to Vercel
+
+The backend is serverless-ready and deploys as a single ASGI function. It starts
+successfully **without** Neo4j configured; graph endpoints then answer `503`
+instead of crashing, so you can ship now and add AuraDB later.
+
+Files added for Vercel:
+
+- `api/index.py` — exposes the FastAPI ASGI `app` to Vercel's Python runtime.
+- `vercel.json` — rewrites every path to `api/index.py`.
+- `requirements.txt` — lean runtime-only dependency list (no CLI/dev extras).
+
+To deploy:
+
+1. From the `backend/` directory, run `vercel` (or point the Vercel project's root
+   directory at `backend/`).
+2. Set the environment variables in Vercel (Project → Settings → Environment
+   Variables). Leave the `STEM_NEO4J_*` values blank until AuraDB is ready:
+
+   | Variable | Value |
+   | --- | --- |
+   | `STEM_ENV` | `production` |
+   | `STEM_API_PREFIX` | `/api/v1` |
+   | `STEM_CORS_ORIGINS` | `["https://your-app-origin"]` |
+   | `STEM_SUPABASE_URL` | Supabase project URL |
+   | `STEM_SUPABASE_SERVICE_ROLE_KEY` | Supabase service-role key (server-only) |
+   | `STEM_NEO4J_URI` | _(empty until AuraDB exists)_ |
+   | `STEM_NEO4J_USER` | _(empty until AuraDB exists)_ |
+   | `STEM_NEO4J_PASSWORD` | _(empty until AuraDB exists)_ |
+3. Deploy. `GET /health` should return `200`; `GET /api/v1/subjects` returns
+   `503` until `STEM_NEO4J_*` are set.
+4. When AuraDB is available, fill in the `STEM_NEO4J_*` values and redeploy.
+   No code change is required — connection details are fully environment-driven.
+
 ## Configuration
 
 Settings are read from environment variables prefixed with `STEM_` (and from a local `.env`).
@@ -58,7 +92,7 @@ authoritative source for the curriculum; access is **read-only**.
 | `STEM_NEO4J_PASSWORD` | Aura password |
 | `STEM_NEO4J_DATABASE` | Aura database name |
 
-Leave `STEM_NEO4J_URI` blank to boot without a database: catalog endpoints return `503`.
+Leave `STEM_NEO4J_URI` blank to boot without a database: catalog endpoints return `503`. If Neo4j is configured but unreachable, graph endpoints also return `503` (never a crash). No mock curriculum is ever served as a fallback.
 
 ## API
 

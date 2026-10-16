@@ -1,19 +1,42 @@
+import logging
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request, status
 
-from app.core.db import Neo4jDatabase
+from app.core.config import settings
+from app.core.db import Neo4jDatabase, create_database
 from app.repositories.graph import GraphRepository
 from app.repositories.learner_state import LearnerStateRepository
 
+logger = logging.getLogger("stem_mastery")
+
 
 def get_database(request: Request) -> Neo4jDatabase:
+    """Return the Neo4j wrapper, or fail with 503 when it is unavailable.
+
+    The driver is normally created once during app startup (lifespan). On
+    serverless platforms such as Vercel lifespan may not run, so fall back to
+    creating it lazily on first use. Connection details stay environment-driven
+    so AuraDB can be enabled later without any code changes.
+    """
     database: Neo4jDatabase | None = getattr(request.app.state, "db", None)
     if database is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Neo4j is not configured.",
-        )
+        if not settings.neo4j_uri:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Curriculum database is not configured.",
+            )
+        try:
+            database = create_database()
+        except Exception:  # noqa: BLE001 - surface any driver/URI error as 503
+            logger.exception("Could not create the Neo4j driver from configuration.")
+            database = None
+        if database is None:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Curriculum database is not configured.",
+            )
+        request.app.state.db = database
     return database
 
 
