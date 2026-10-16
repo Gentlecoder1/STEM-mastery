@@ -1,66 +1,59 @@
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import BottomNav from '../components/BottomNav';
-import CatalogNotice from '../components/CatalogNotice';
 import { navigateToTab } from '../navigation/tabs';
 import MasteryRing from '../components/MasteryRing';
 import { GaugeIcon, ChartIcon, BookOpenIcon } from '../components/glyphs';
-import { CheckCircleIcon, ChevronRightIcon, LockIcon, MoreIcon, ArrowLeftIcon, ClockIcon } from '../components/icons';
-import { colors, fonts, lightColors, shadow, type ColorToken, type SubjectId } from '../theme';
+import { CheckCircleIcon, ChevronRightIcon, MoreIcon, ArrowLeftIcon } from '../components/icons';
+import { colors, fonts, lightColors, shadow } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
 import type { RootScreenProps } from '../navigation/types';
 import { useProgress } from '../progressContext';
 import { usePreferences } from '../preferencesContext';
 import { useCatalog } from '../catalogContext';
+import { subjectTheme, type CatalogTopic } from '../types/catalog';
+import type { SubjectId } from '../theme';
 
-const SUBJECT_DETAILS: Record<SubjectId, { name: string; mastery: number; focus: string }> = {
-  physics: { name: 'Physics', mastery: 0, focus: 'motion' },
-  mathematics: { name: 'Mathematics', mastery: 0, focus: 'number skills' },
-  chemistry: { name: 'Chemistry', mastery: 0, focus: 'atomic structure' },
+const SUBJECT_NAMES: Record<SubjectId, { name: string; focus: string }> = {
+  physics: { name: 'Physics', focus: 'motion' },
+  mathematics: { name: 'Mathematics', focus: 'number skills' },
+  chemistry: { name: 'Chemistry', focus: 'atomic structure' },
 };
 
-type TopicState = 'done' | 'current' | 'next';
-
-const topics: readonly {
-  title: string;
-  subtitle: string;
-  icon: string;
-  tint: ColorToken;
-  soft: ColorToken;
-  state: TopicState;
-}[] = [
-  { title: 'Speed and Velocity', subtitle: 'Not started', icon: 'speed', tint: 'blue', soft: 'blueSoft', state: 'current' },
-  { title: 'Motion', subtitle: 'Locked', icon: 'motion', tint: 'green', soft: 'greenSoft', state: 'next' },
-  { title: 'Acceleration', subtitle: 'Recommended next', icon: 'acceleration', tint: 'orange', soft: 'orangeSoft', state: 'next' },
-  { title: 'Forces', subtitle: 'Up next • key test required', icon: 'forces', tint: 'slate', soft: 'border', state: 'next' },
-] as const;
-
-function TopicIcon({ type, color }: { type: string; color: string }) {
+function TopicRow({
+  topic,
+  mastery,
+  onPress,
+}: {
+  topic: CatalogTopic;
+  mastery: number;
+  onPress: () => void;
+}) {
   const styles = useThemedStyles(createStyles);
-  if (type === 'motion') return <Text style={[styles.topicSymbol, { color }]}>→</Text>;
-  if (type === 'speed') return <GaugeIcon size={22} color={color} />;
-  if (type === 'acceleration') return <ChartIcon size={22} color={color} />;
-  return <Text style={[styles.topicSymbol, { color }]}>+/-</Text>;
-}
+  const theme = subjectTheme(String(topic.subjectId));
+  const subtitle =
+    mastery >= 100 ? 'Mastered' : mastery > 0 ? `${mastery}% complete` : 'Not started';
 
-function TopicRow({ topic, onPress }: { topic: (typeof topics)[number]; onPress?: () => void }) {
-  const styles = useThemedStyles(createStyles);
-  const isCurrent = topic.state === 'current';
-  const isLocked = topic.state === 'next';
   return (
-    <Pressable onPress={onPress} style={[styles.topicRow, isCurrent && styles.topicRowCurrent]} accessibilityState={{ disabled: isLocked }}>
-      <View style={[styles.topicIcon, { backgroundColor: colors[topic.soft] }]}>
-        {topic.state === 'done' ? <CheckCircleIcon size={22} color={colors[topic.tint]} /> : <TopicIcon type={topic.icon} color={colors[topic.tint]} />}
+    <Pressable style={styles.topicRow} onPress={onPress} accessibilityRole="button">
+      <View style={[styles.topicIcon, { backgroundColor: colors[theme.soft] }]}>
+        {mastery >= 100 ? (
+          <CheckCircleIcon size={22} color={colors[theme.tint]} />
+        ) : (
+          <GaugeIcon size={22} color={colors[theme.tint]} />
+        )}
       </View>
       <View style={styles.topicCopy}>
-        <Text style={styles.topicTitle}>{topic.title}</Text>
-        <Text style={styles.topicSubtitle}>{topic.subtitle}</Text>
+        <Text style={styles.topicTitle}>{topic.name}</Text>
+        <Text style={styles.topicSubtitle}>{subtitle}</Text>
       </View>
-      {topic.state === 'done' ? <CheckCircleIcon size={23} color={colors.green} /> : null}
-      {topic.state === 'current' ? <ChevronRightIcon size={22} color={colors.blue} /> : null}
-      {isLocked ? <LockIcon size={18} color={colors.slate} /> : null}
+      {mastery >= 100 ? (
+        <CheckCircleIcon size={23} color={colors.green} />
+      ) : (
+        <ChevronRightIcon size={22} color={colors[theme.tint]} />
+      )}
     </Pressable>
   );
 }
@@ -69,11 +62,25 @@ export default function SubjectDashboardScreen({ navigation, route }: RootScreen
   const insets = useSafeAreaInsets();
   const { statusBarStyle } = useTheme();
   const styles = useThemedStyles(createStyles);
-  const subject = SUBJECT_DETAILS[route.params.subjectId];
-  const { getSubjectMastery } = useProgress();
+  const subject = SUBJECT_NAMES[route.params.subjectId];
+  const { getSubjectMastery, getTopicMastery, topicAssessments } = useProgress();
   const { classLevel } = usePreferences();
-  const { status, error, refresh } = useCatalog();
+  const { getTopicsForSubject, getTopicConceptIds } = useCatalog();
   const subjectMastery = getSubjectMastery(route.params.subjectId);
+
+  const topics = getTopicsForSubject(route.params.subjectId);
+  const conceptCount = topics.reduce(
+    (total, topic) => total + getTopicConceptIds(topic.id).length,
+    0,
+  );
+
+  const assessments = Object.values(topicAssessments);
+  const accuracy = assessments.length
+    ? Math.round(assessments.reduce((sum, item) => sum + item.scorePct, 0) / assessments.length)
+    : 0;
+
+  const continueTopic =
+    topics.find((topic) => getTopicMastery(topic.id) < 100) ?? topics[0];
 
   return (
     <View style={styles.root}>
@@ -92,14 +99,6 @@ export default function SubjectDashboardScreen({ navigation, route }: RootScreen
       </View>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 18 }]}>
 
-        {status === 'error' ? (
-          <CatalogNotice
-            title={`Couldn't load ${subject.name} lessons`}
-            message={error ?? 'Could not load the curriculum.'}
-            onRetry={() => void refresh()}
-          />
-        ) : null}
-
         <View style={styles.hero}>
           <MasteryRing percent={subjectMastery} color={colors.yellow} size={84} labelColor={lightColors.surface} />
           <View style={styles.heroCopy}>
@@ -108,29 +107,45 @@ export default function SubjectDashboardScreen({ navigation, route }: RootScreen
           </View>
         </View>
 
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Start learning</Text>
-          <Pressable onPress={() => navigation.navigate('TopicOverview')}><Text style={styles.link}>View map</Text></Pressable>
-        </View>
-        <Pressable style={styles.continueCard} onPress={() => navigation.navigate('TopicOverview')}>
-          <View style={[styles.topicIcon, styles.continueIcon]}><GaugeIcon size={22} color={colors.blue} /></View>
-          <View style={styles.topicCopy}><Text style={styles.topicTitle}>Speed and Velocity</Text><Text style={styles.topicSubtitle}>Lesson 1 of 5 • Ready to begin</Text></View>
-          <View style={styles.resumePill}><Text style={styles.resumeLabel}>START</Text></View>
-        </Pressable>
+        {continueTopic ? (
+          <>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Start learning</Text>
+            </View>
+            <Pressable
+              style={styles.continueCard}
+              onPress={() => navigation.navigate('TopicOverview', { topicId: continueTopic.id })}
+            >
+              <View style={[styles.topicIcon, styles.continueIcon]}>
+                <GaugeIcon size={22} color={colors.blue} />
+              </View>
+              <View style={styles.topicCopy}>
+                <Text style={styles.topicTitle}>{continueTopic.name}</Text>
+                <Text style={styles.topicSubtitle}>
+                  {getTopicMastery(continueTopic.id) > 0 ? 'Continue where you left off' : 'Ready to begin'}
+                </Text>
+              </View>
+              <View style={styles.resumePill}><Text style={styles.resumeLabel}>START</Text></View>
+            </Pressable>
+          </>
+        ) : null}
 
         <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>All topics</Text></View>
-        <View style={styles.topicList}>{topics.map((topic) => <TopicRow key={topic.title} topic={topic} onPress={() => {
-          if (topic.state === 'next') {
-            Alert.alert('Topic locked', 'Complete the previous topic and pass its test with at least 60% to unlock this topic.');
-            return;
-          }
-          navigation.navigate('TopicOverview');
-        }} />)}</View>
+        <View style={styles.topicList}>
+          {topics.map((topic) => (
+            <TopicRow
+              key={topic.id}
+              topic={topic}
+              mastery={getTopicMastery(topic.id)}
+              onPress={() => navigation.navigate('TopicOverview', { topicId: topic.id })}
+            />
+          ))}
+        </View>
 
         <View style={styles.stats}>
-          <View style={[styles.stat, { backgroundColor: colors.blueSoft }]}><BookOpenIcon size={21} color={colors.blue} /><Text style={styles.statValue}>18</Text><Text style={styles.statLabel}>Lessons</Text></View>
-          <View style={[styles.stat, { backgroundColor: colors.greenSoft }]}><CheckCircleIcon size={21} color={colors.green} /><Text style={styles.statValue}>0%</Text><Text style={styles.statLabel}>Accuracy</Text></View>
-          <View style={[styles.stat, { backgroundColor: colors.primarySoft }]}><ClockIcon size={21} color={colors.primary} /><Text style={styles.statValue}>0m</Text><Text style={styles.statLabel}>Learned</Text></View>
+          <View style={[styles.stat, { backgroundColor: colors.blueSoft }]}><BookOpenIcon size={21} color={colors.blue} /><Text style={styles.statValue}>{conceptCount}</Text><Text style={styles.statLabel}>Lessons</Text></View>
+          <View style={[styles.stat, { backgroundColor: colors.greenSoft }]}><ChartIcon size={21} color={colors.green} /><Text style={styles.statValue}>{topics.length}</Text><Text style={styles.statLabel}>Topics</Text></View>
+          <View style={[styles.stat, { backgroundColor: colors.primarySoft }]}><CheckCircleIcon size={21} color={colors.primary} /><Text style={styles.statValue}>{accuracy}%</Text><Text style={styles.statLabel}>Accuracy</Text></View>
         </View>
       </ScrollView>
       <BottomNav active="Subjects" onSelect={navigateToTab(navigation, 'Subjects')} />

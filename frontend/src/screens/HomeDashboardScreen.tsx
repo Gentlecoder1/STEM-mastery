@@ -22,6 +22,7 @@ import { useTheme, useThemedStyles } from '../themeContext';
 import { useProfile } from '../profileContext';
 import { useDisplayName } from '../displayName';
 import { useProgress } from '../progressContext';
+import { useCatalog } from '../catalogContext';
 import type { RootScreenProps } from '../navigation/types';
 import type { IconProps } from '../components/icons';
 
@@ -136,7 +137,8 @@ export default function HomeDashboardScreen({ navigation }: RootScreenProps<'Hom
   const styles = useThemedStyles(createStyles);
   const { profile } = useProfile();
   const displayName = useDisplayName();
-  const { getSubjectMastery } = useProgress();
+  const { getSubjectMastery, lastConcept } = useProgress();
+  const { subjects } = useCatalog();
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -144,6 +146,28 @@ export default function HomeDashboardScreen({ navigation }: RootScreenProps<'Hom
     if (hour < 18) return 'Good afternoon';
     return 'Good evening';
   }, []);
+
+  const hero = useMemo(() => {
+    if (lastConcept) {
+      const subjectName = subjects.find(
+        (subject) => String(subject.id) === String(lastConcept.subjectId),
+      )?.name;
+      return {
+        pill: 'CONTINUE WHERE YOU LEFT OFF',
+        subject: subjectName ? subjectName.toUpperCase() : '',
+        title: 'Continue your lesson',
+        lesson: lastConcept.title,
+        progress: getSubjectMastery(lastConcept.subjectId),
+      };
+    }
+    return {
+      pill: 'START YOUR LEARNING PATH',
+      subject: '',
+      title: 'Begin your first lesson',
+      lesson: '',
+      progress: 0,
+    };
+  }, [lastConcept, subjects, getSubjectMastery]);
 
   const openSubjects = () => navigation.navigate('Subjects');
 
@@ -173,9 +197,8 @@ export default function HomeDashboardScreen({ navigation }: RootScreenProps<'Hom
             <View style={styles.heroHead}>
               <View style={styles.nextUp}>
                 <ZapIcon size={13} color="#FFD84D" />
-                <Text style={styles.nextUpLabel}>START YOUR LEARNING PATH</Text>
+                <Text style={styles.nextUpLabel}>{hero.pill}</Text>
               </View>
-              <Text style={styles.heroTime}>6 min</Text>
             </View>
 
             <View style={styles.lesson}>
@@ -183,19 +206,20 @@ export default function HomeDashboardScreen({ navigation }: RootScreenProps<'Hom
                 <GaugeIcon size={27} color="#FFFFFF" />
               </View>
               <View style={styles.lessonCopy}>
-                <Text style={styles.lessonSubject}>PHYSICS • SPEED &amp; VELOCITY</Text>
-                <Text style={styles.lessonTitle}>Begin your first lesson</Text>
+                {hero.subject ? <Text style={styles.lessonSubject}>{hero.subject}</Text> : null}
+                <Text style={styles.lessonTitle}>{hero.title}</Text>
+                {hero.lesson ? <Text style={styles.lessonSub}>{hero.lesson}</Text> : null}
               </View>
             </View>
 
             <View style={styles.progressRow}>
               <ProgressBar
-                progress={0}
+                progress={hero.progress}
                 track="rgba(255,255,255,0.1451)"
                 fill={colors.yellow}
                 style={styles.heroBar}
               />
-              <Text style={styles.progressValue}>0%</Text>
+              <Text style={styles.progressValue}>{hero.progress}%</Text>
             </View>
           </View>
 
@@ -311,8 +335,8 @@ const createStyles = () => StyleSheet.create({
     lineHeight: 12,
     color: colors.yellow,
   },
-  heroTime: {
-    fontFamily: fonts.regular,
+  lessonSub: {
+    fontFamily: fonts.medium,
     fontSize: 12,
     lineHeight: 15,
     color: '#BEC6E9',

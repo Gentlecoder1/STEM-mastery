@@ -11,7 +11,7 @@ export type RootStackParamList = {
   Home: undefined;
   Subjects: undefined;
   SubjectDashboard: { subjectId: SubjectId };
-  TopicOverview: undefined;
+  TopicOverview: { topicId?: string } | undefined;
   ConceptDetails: { conceptId: string };
   ConceptLearning: { conceptId: string; startAt?: number };
   ConceptQuiz: {

@@ -10,6 +10,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { SubjectId } from './theme';
 import { useCatalog } from './catalogContext';
+import type { Concept } from './types/catalog';
 import { useAuth } from './auth/AuthContext';
 import { getSupabase } from './lib/supabase';
 import {
@@ -21,6 +22,7 @@ import {
 import { useProfile } from './profileContext';
 
 const PROGRESS_STORAGE_KEY = 'stem-mastery.progress.v1';
+const LAST_LESSON_STORAGE_KEY = 'stem-mastery.lastLesson.v1';
 
 type StorageLike = {
   getItem: (key: string) => Promise<string | null>;
@@ -63,6 +65,10 @@ export type ProgressContextValue = {
   placement: PlacementState;
   placementTaken: boolean;
   topicAssessments: Record<string, TopicAssessment>;
+  /** Concept id of the lesson the learner most recently opened (device-local). */
+  lastConceptId: string | null;
+  lastConcept: Concept | undefined;
+  recordLastConcept: (conceptId: string) => void;
   isTopicMastered: (topicId: string) => boolean;
   getTopicMastery: (topicId: string) => number;
   getSubjectMastery: (subjectId: SubjectId) => number;
@@ -81,6 +87,9 @@ const ProgressContext = createContext<ProgressContextValue>({
   placement: EMPTY_PLACEMENT,
   placementTaken: false,
   topicAssessments: {},
+  lastConceptId: null,
+  lastConcept: undefined,
+  recordLastConcept: () => {},
   isTopicMastered: () => false,
   getTopicMastery: () => 0,
   getSubjectMastery: () => 0,
@@ -112,6 +121,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
   const [completedConcepts, setCompletedConcepts] = useState<string[]>([]);
   const [placement, setPlacement] = useState<PlacementState>(EMPTY_PLACEMENT);
   const [topicAssessments, setTopicAssessments] = useState<Record<string, TopicAssessment>>({});
+  const [lastConceptId, setLastConceptId] = useState<string | null>(null);
   const remote = !!user;
 
   const load = useCallback(async () => {
@@ -153,6 +163,24 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     void load();
   }, [load]);
 
+  // The "last lesson" pointer is device-local so it survives closing the app
+  // (and logging out) regardless of whether progress is synced remotely.
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      if (!STORAGE) return;
+      try {
+        const raw = await STORAGE.getItem(LAST_LESSON_STORAGE_KEY);
+        if (mounted && raw) setLastConceptId(raw);
+      } catch {
+        // ignore
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const persist = useCallback(
     (nextCompleted: string[], nextPlacement: PlacementState) => {
       if (remote || !STORAGE) return;
@@ -182,6 +210,13 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       [topicId]: { topicId, scorePct, passed: scorePct >= 60 },
     }));
   }, []);
+
+  const recordLastConcept = useCallback((conceptId: string) => {
+    setLastConceptId(conceptId);
+    if (STORAGE) STORAGE.setItem(LAST_LESSON_STORAGE_KEY, conceptId).catch(() => {});
+  }, []);
+
+  const lastConcept = lastConceptId ? getConcept(lastConceptId) : undefined;
 
   const isConceptCompleted = useCallback(
     (conceptId: string) => completedConcepts.includes(conceptId),
@@ -287,6 +322,9 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       completedConcepts,
       placement,
       topicAssessments,
+      lastConceptId,
+      lastConcept,
+      recordLastConcept,
       isTopicMastered,
       getTopicMastery,
       getSubjectMastery,
@@ -304,6 +342,9 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       completedConcepts,
       placement,
       topicAssessments,
+      lastConceptId,
+      lastConcept,
+      recordLastConcept,
       isTopicMastered,
       getTopicMastery,
       getSubjectMastery,

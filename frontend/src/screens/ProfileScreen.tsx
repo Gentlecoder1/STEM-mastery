@@ -27,14 +27,14 @@ import { useCatalog } from '../catalogContext';
 const MENU = [
   {
     title: 'Class and subjects',
-    subtitle: 'SS1 • Mathematics, Physics, Chemistry',
+    subtitle: '',
     Icon: GraduationCapIcon,
     bg: 'blueSoft' as ColorToken,
     tint: 'blue' as ColorToken,
   },
   {
     title: 'Learning goals',
-    subtitle: '20 minutes a day • 5 days a week',
+    subtitle: '',
     Icon: TargetIcon,
     bg: 'orangeSoft' as ColorToken,
     tint: 'orange' as ColorToken,
@@ -62,7 +62,7 @@ export default function ProfileScreen({ navigation }: RootScreenProps<'Profile'>
     location,
   } = usePreferences();
   const { profile } = useProfile();
-  const { concepts } = useCatalog();
+  const { concepts, topics, subjects: catalogSubjects } = useCatalog();
   const [drawerKey, setDrawerKey] = useState<string | null>(null);
   const [draftClass, setDraftClass] = useState<ClassLevel>(classLevel);
   const [draftSubjects, setDraftSubjects] = useState<SubjectId[]>(subjects);
@@ -139,7 +139,13 @@ export default function ProfileScreen({ navigation }: RootScreenProps<'Profile'>
                 ? `${downloadedLessons.length} ${downloadedLessons.length === 1 ? 'lesson' : 'lessons'} downloaded`
                 : title === 'Learning goals'
                   ? `${dailyGoal} a day`
-                  : subtitle;
+                  : title === 'Class and subjects'
+                    ? `${classLevel} • ${
+                        subjects
+                          .map((id) => SUBJECT_OPTIONS.find((option) => option.id === id)?.label ?? id)
+                          .join(', ') || 'No subjects selected'
+                      }`
+                    : subtitle;
             return (
               <Pressable
                 key={title}
@@ -229,7 +235,16 @@ export default function ProfileScreen({ navigation }: RootScreenProps<'Profile'>
                     }}
                   >
                     <Text style={styles.menuTitle}>{concept.title}</Text>
-                    <Text style={styles.menuSubtitle}>Physics • Speed and Velocity</Text>
+                    <Text style={styles.menuSubtitle}>
+                      {[
+                        catalogSubjects.find(
+                          (subject) => String(subject.id) === String(concept.subjectId),
+                        )?.name,
+                        topics.find((topic) => topic.id === concept.topicId)?.name,
+                      ]
+                        .filter(Boolean)
+                        .join(' • ')}
+                    </Text>
                   </Pressable>
                   <Pressable
                     style={styles.deleteButton}

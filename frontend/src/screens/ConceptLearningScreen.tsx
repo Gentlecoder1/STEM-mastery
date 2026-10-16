@@ -88,7 +88,7 @@ export default function ConceptLearningScreen({
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
   const { statusBarStyle } = useTheme();
-  const { isConceptCompleted } = useProgress();
+  const { isConceptCompleted, recordLastConcept } = useProgress();
   const { getConcept, loadConcept } = useCatalog();
   const offline = useOffline();
   const { conceptId } = route.params;
@@ -99,6 +99,7 @@ export default function ConceptLearningScreen({
   useEffect(() => {
     void loadConcept(conceptId);
     void offline.ensureLesson(conceptId);
+    recordLastConcept(conceptId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conceptId]);
 

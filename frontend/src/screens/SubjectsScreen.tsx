@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import BottomNav from '../components/BottomNav';
+import ComingSoonModal from '../components/ComingSoonModal';
 import { ProgressBar } from '../components/PracticeUI';
 import {
   SearchIcon,
@@ -21,10 +23,11 @@ import { useThemedStyles, useTheme } from '../themeContext';
 import { useDisplayName } from '../displayName';
 import { useProgress } from '../progressContext';
 import { usePreferences } from '../preferencesContext';
+import { useCatalog } from '../catalogContext';
 
 type IconComponent = (props: IconProps) => React.JSX.Element;
 
-type Subject = {
+type SubjectConfig = {
   id: SubjectId;
   name: string;
   Icon: IconComponent;
@@ -33,12 +36,15 @@ type Subject = {
   card: ColorToken;
   border: ColorToken;
   borderWidth: number;
-  detail: string;
-  mastery: number;
   action?: string;
 };
 
-const SUBJECTS: readonly Subject[] = [
+type Subject = SubjectConfig & {
+  detail: string;
+  mastery: number;
+};
+
+const SUBJECTS: readonly SubjectConfig[] = [
   {
     id: 'physics',
     name: 'Physics',
@@ -48,8 +54,6 @@ const SUBJECTS: readonly Subject[] = [
     card: 'surface',
     border: 'border',
     borderWidth: 1,
-    detail: '0 of 8 topics started',
-    mastery: 0,
   },
   {
     id: 'mathematics',
@@ -60,8 +64,6 @@ const SUBJECTS: readonly Subject[] = [
     card: 'surface',
     border: 'border',
     borderWidth: 1,
-    detail: '0 of 10 topics started',
-    mastery: 0,
   },
   {
     id: 'chemistry',
@@ -72,8 +74,6 @@ const SUBJECTS: readonly Subject[] = [
     card: 'surface',
     border: 'border',
     borderWidth: 1,
-    detail: '0 of 9 topics started',
-    mastery: 0,
   },
 ];
 
@@ -135,8 +135,11 @@ export default function SubjectsScreen({ navigation }: RootScreenProps<'Subjects
   const styles = useThemedStyles(createStyles);
   const { statusBarStyle } = useTheme();
   const name = useDisplayName();
-  const { getSubjectMastery } = useProgress();
+  const { getSubjectMastery, completedConcepts } = useProgress();
+  const { topics, getTopicsForSubject, getTopicConceptIds } = useCatalog();
   const { classLevel } = usePreferences();
+  const [blockedSubject, setBlockedSubject] = useState<string | null>(null);
+  const curriculumAvailable = topics.length > 0;
 
   return (
     <View style={styles.root}>
@@ -171,13 +174,30 @@ export default function SubjectsScreen({ navigation }: RootScreenProps<'Subjects
             </View>
           </View>
 
-          {SUBJECTS.map((s) => (
-            <SubjectCard
-              key={s.name}
-              subject={{ ...s, mastery: getSubjectMastery(s.id) }}
-              onPress={() => navigation.navigate('SubjectDashboard', { subjectId: s.id })}
-            />
-          ))}
+          {SUBJECTS.map((s) => {
+            const subjectTopics = getTopicsForSubject(s.id);
+            const started = subjectTopics.filter((topic) =>
+              getTopicConceptIds(topic.id).some((conceptId) => completedConcepts.includes(conceptId)),
+            ).length;
+            const detail = curriculumAvailable
+              ? `${started} of ${subjectTopics.length} ${
+                  subjectTopics.length === 1 ? 'topic' : 'topics'
+                } started`
+              : 'Curriculum coming soon';
+            return (
+              <SubjectCard
+                key={s.name}
+                subject={{ ...s, mastery: getSubjectMastery(s.id), detail }}
+                onPress={() => {
+                  if (!curriculumAvailable) {
+                    setBlockedSubject(s.name);
+                    return;
+                  }
+                  navigation.navigate('SubjectDashboard', { subjectId: s.id });
+                }}
+              />
+            );
+          })}
 
           <Pressable
             style={styles.challenge}
@@ -197,6 +217,12 @@ export default function SubjectsScreen({ navigation }: RootScreenProps<'Subjects
       </View>
 
       <BottomNav active="Subjects" onSelect={navigateToTab(navigation, 'Subjects')} />
+
+      <ComingSoonModal
+        visible={blockedSubject !== null}
+        onClose={() => setBlockedSubject(null)}
+        message={`${blockedSubject ?? 'This subject'} lessons are coming soon. We are still connecting this subject's curriculum.`}
+      />
     </View>
   );
 }

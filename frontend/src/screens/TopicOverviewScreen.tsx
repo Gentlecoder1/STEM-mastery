@@ -3,7 +3,6 @@ import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import BottomNav from '../components/BottomNav';
-import CatalogNotice from '../components/CatalogNotice';
 import { navigateToTab } from '../navigation/tabs';
 import { DownloadIcon, GaugeIcon } from '../components/glyphs';
 import { ProgressBar } from '../components/PracticeUI';
@@ -23,17 +22,18 @@ type PathConcept = {
   soft: ColorToken;
 };
 
-export default function TopicOverviewScreen({ navigation }: RootScreenProps<'TopicOverview'>) {
+export default function TopicOverviewScreen({ navigation, route }: RootScreenProps<'TopicOverview'>) {
   const insets = useSafeAreaInsets();
   const { statusBarStyle } = useTheme();
   const styles = useThemedStyles(createStyles);
   const { downloadedLessons, downloadsEnabled, toggleTopicDownload } = usePreferences();
   const { getConceptStatus, getTopicMastery, topicAssessments } = useProgress();
-  const { topics, getConcept, getTopicConceptIds, status, error, refresh } = useCatalog();
-  const catalogFailed = status === 'error';
-  const topic = topics[0];
-  const topicId = topic?.id ?? 'topic-speed-velocity';
-  const topicTitle = topic?.name ?? 'Speed and Velocity';
+  const { topics, subjects, getConcept, getTopicConceptIds } = useCatalog();
+  const requestedTopicId = route.params?.topicId;
+  const topic = (requestedTopicId ? topics.find((item) => item.id === requestedTopicId) : undefined) ?? topics[0];
+  const topicId = topic?.id ?? '';
+  const topicTitle = topic?.name ?? 'Topic';
+  const subjectName = subjects.find((item) => String(item.id) === String(topic?.subjectId))?.name ?? 'Subject';
   const topicLessonIds = getTopicConceptIds(topicId);
   const topicMastery = getTopicMastery(topicId);
   const latestAssessment = topicAssessments[topicId];
@@ -56,7 +56,7 @@ export default function TopicOverviewScreen({ navigation }: RootScreenProps<'Top
       <StatusBar style={statusBarStyle} />
       <View style={[styles.header, { paddingTop: insets.top + 4 }]}>
           <Pressable style={styles.iconButton} onPress={() => navigation.goBack()} accessibilityLabel="Go back"><ArrowLeftIcon size={23} color={colors.ink} /></Pressable>
-          <View style={styles.headerCopy}><Text style={styles.title}>{topicTitle}</Text><Text style={styles.subtitle}>Physics • Motion</Text></View>
+          <View style={styles.headerCopy}><Text style={styles.title}>{topicTitle}</Text><Text style={styles.subtitle}>{subjectName}</Text></View>
           {downloadsEnabled ? (
             <Pressable
               style={[styles.iconButton, isDownloaded && styles.downloadedButton]}
@@ -71,7 +71,7 @@ export default function TopicOverviewScreen({ navigation }: RootScreenProps<'Top
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 18 }]}>
         <View style={styles.hero}>
           <View style={styles.heroIcon}><GaugeIcon size={34} color={lightColors.surface} /></View>
-          <View style={styles.heroCopy}><Text style={styles.eyebrow}>START HERE</Text><Text style={styles.heroTitle}>Understand how motion changes over time.</Text><Text style={styles.meta}>5 lessons <Text style={styles.dot}>•</Text> 42 min</Text></View>
+          <View style={styles.heroCopy}><Text style={styles.eyebrow}>{subjectName.toUpperCase()}</Text><Text style={styles.heroTitle}>{topicTitle}</Text><Text style={styles.meta}>{topicLessonIds.length} {topicLessonIds.length === 1 ? 'lesson' : 'lessons'}</Text></View>
           <ProgressBar progress={topicMastery} track={colors.surface} fill={colors.blue} style={styles.heroBar} />
         </View>
         <View style={styles.sectionHeader}>
@@ -79,29 +79,21 @@ export default function TopicOverviewScreen({ navigation }: RootScreenProps<'Top
           <Text style={styles.link}>Open map</Text>
         </View>
 
-        {catalogFailed ? (
-          <CatalogNotice
-            title="Couldn't load this topic"
-            message={error ?? 'Could not load the curriculum.'}
-            onRetry={() => void refresh()}
-          />
-        ) : (
-          <View style={styles.conceptList}>
-            {concepts.map((concept) => (
-              <ConceptRow
-                key={concept.id}
-                concept={concept}
-                onPress={() => {
-                  if (concept.status === 'open') {
-                    Alert.alert('Concept locked', 'Complete and pass the previous concept quiz with at least 60% to unlock this concept.');
-                    return;
-                  }
-                  navigation.navigate('ConceptDetails', { conceptId: concept.id });
-                }}
-              />
-            ))}
-          </View>
-        )}
+        <View style={styles.conceptList}>
+          {concepts.map((concept) => (
+            <ConceptRow
+              key={concept.id}
+              concept={concept}
+              onPress={() => {
+                if (concept.status === 'open') {
+                  Alert.alert('Concept locked', 'Complete and pass the previous concept quiz with at least 60% to unlock this concept.');
+                  return;
+                }
+                navigation.navigate('ConceptDetails', { conceptId: concept.id });
+              }}
+            />
+          ))}
+        </View>
         {latestAssessment && !latestAssessment.passed ? (
           <View style={styles.retakeCard}>
             <Text style={styles.retakeTitle}>Keep building this topic</Text>
