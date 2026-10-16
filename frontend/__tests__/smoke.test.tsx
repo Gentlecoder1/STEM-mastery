@@ -19,6 +19,8 @@ import SignUpScreen from '../src/screens/SignUpScreen';
 import LoginScreen from '../src/screens/LoginScreen';
 import VerifyEmailScreen from '../src/screens/VerifyEmailScreen';
 import OnboardingFlow from '../src/screens/OnboardingFlow';
+import { CatalogProvider } from '../src/catalogContext';
+import { OfflineProvider } from '../src/offlineContext';
 import type { RootStackParamList, RootScreenProps } from '../src/navigation/types';
 
 const makeNavigation = () =>
@@ -88,7 +90,11 @@ function renderAndCollect(element: React.JSX.Element): string[] {
   });
   try {
     TestRenderer.act(() => {
-      TestRenderer.create(element);
+      TestRenderer.create(
+        <CatalogProvider>
+          <OfflineProvider>{element}</OfflineProvider>
+        </CatalogProvider>,
+      );
     });
   } catch (e) {
     const err = e as { stack?: string } | undefined;

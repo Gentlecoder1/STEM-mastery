@@ -1,36 +1,114 @@
-import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowLeftIcon, ArrowRightIcon, CheckCircleIcon } from '../components/icons';
 import { ProgressBar } from '../components/PracticeUI';
-import { CONCEPTS, type QuizQuestion } from '../data/learning';
 import { colors, fonts } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
+import { useCatalog } from '../catalogContext';
+import { checkAnswer, fetchConceptQuestions } from '../lib/assessmentApi';
+import { mapQuestions, type QuizQuestion } from '../types/catalog';
 import type { RootScreenProps } from '../navigation/types';
 
-type ChallengeQuestion = QuizQuestion & { id: string };
+type ChallengeQuestion = QuizQuestion & { conceptId: string };
 
-function getQuestions(): ChallengeQuestion[] {
-  const pool = CONCEPTS.flatMap((concept) =>
-    concept.quiz
-      .filter((question) => question.type === 'mcq')
-      .map((question, index) => ({ ...question, id: `${concept.id}-${index}` })),
-  );
-  return [...pool].sort(() => Math.random() - 0.5).slice(0, 10);
+const MAX_QUESTIONS = 10;
+const MAX_CONCEPTS = 6;
+
+function shuffle<T>(items: T[]): T[] {
+  const copy = [...items];
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
 }
 
 export default function ChallengeQuizScreen({ navigation, route }: RootScreenProps<'ChallengeQuiz'>) {
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
   const { statusBarStyle } = useTheme();
-  const questions = useMemo(() => getQuestions(), [route.params.topicId]);
+  const { getTopicConceptIds } = useCatalog();
+  const { topicId, topicTitle } = route.params;
+
+  const [questions, setQuestions] = useState<ChallengeQuestion[]>([]);
+  const [loading, setLoading] = useState(true);
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [correct, setCorrect] = useState(0);
+  const [busy, setBusy] = useState(false);
   const [finished, setFinished] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    const conceptIds = getTopicConceptIds(topicId).slice(0, MAX_CONCEPTS);
+    Promise.all(
+      conceptIds.map(async (conceptId) => {
+        try {
+          const data = await fetchConceptQuestions(conceptId);
+          return mapQuestions(data)
+            .filter((question) => question.type === 'mcq' && (question.options?.length ?? 0) > 0)
+            .map((question) => ({ ...question, conceptId }));
+        } catch {
+          return [] as ChallengeQuestion[];
+        }
+      }),
+    ).then((groups) => {
+      if (!mounted) return;
+      const pool = shuffle(groups.flat()).slice(0, MAX_QUESTIONS);
+      setQuestions(pool);
+      setLoading(false);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [getTopicConceptIds, topicId]);
+
   const question = questions[index];
+
+  const submit = async () => {
+    if (!question || !selected || busy) return;
+    if (!submitted) {
+      setBusy(true);
+      try {
+        const outcome = await checkAnswer(question.conceptId, question.id, selected);
+        if (outcome.correct) setCorrect((value) => value + 1);
+        setSubmitted(true);
+      } catch {
+        setSubmitted(true);
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+    if (index === questions.length - 1) {
+      setFinished(true);
+      return;
+    }
+    setIndex((value) => value + 1);
+    setSelected(null);
+    setSubmitted(false);
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.root, styles.centered]}>
+        <StatusBar style={statusBarStyle} />
+        <ActivityIndicator color={colors.primary} />
+      </View>
+    );
+  }
+
+  if (questions.length === 0) {
+    return (
+      <View style={[styles.root, styles.centered]}>
+        <StatusBar style={statusBarStyle} />
+        <Text style={styles.missing}>No challenge questions available yet.</Text>
+      </View>
+    );
+  }
 
   if (finished) {
     return (
@@ -48,23 +126,6 @@ export default function ChallengeQuizScreen({ navigation, route }: RootScreenPro
     );
   }
 
-  const isCorrect = question?.answerId === selected;
-  const submit = () => {
-    if (!selected) return;
-    if (!submitted) {
-      if (isCorrect) setCorrect((value) => value + 1);
-      setSubmitted(true);
-      return;
-    }
-    if (index === questions.length - 1) {
-      setFinished(true);
-      return;
-    }
-    setIndex((value) => value + 1);
-    setSelected(null);
-    setSubmitted(false);
-  };
-
   return (
     <View style={styles.root}>
       <StatusBar style={statusBarStyle} />
@@ -74,22 +135,21 @@ export default function ChallengeQuizScreen({ navigation, route }: RootScreenPro
         </Pressable>
         <View style={styles.headerCopy}>
           <Text style={styles.eyebrow}>CHALLENGE</Text>
-          <Text style={styles.headerTitle}>{route.params.topicTitle}</Text>
+          <Text style={styles.headerTitle}>{topicTitle}</Text>
         </View>
         <Text style={styles.counter}>{index + 1} / {questions.length}</Text>
       </View>
       <ProgressBar progress={((index + 1) / questions.length) * 100} />
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
         <Text style={styles.questionType}>MULTIPLE CHOICE</Text>
-        <Text style={styles.question}>{question?.prompt}</Text>
+        <Text style={styles.question}>{question.prompt}</Text>
         <View style={styles.options}>
-          {question?.options?.map((option) => {
+          {question.options?.map((option) => {
             const active = selected === option.id;
-            const right = submitted && option.id === question.answerId;
             return (
               <Pressable
                 key={option.id}
-                style={[styles.option, active && styles.optionActive, right && styles.optionCorrect]}
+                style={[styles.option, active && styles.optionActive]}
                 onPress={() => !submitted && setSelected(option.id)}
               >
                 <Text style={styles.optionLabel}>{option.label}</Text>
@@ -98,10 +158,22 @@ export default function ChallengeQuizScreen({ navigation, route }: RootScreenPro
             );
           })}
         </View>
-        {submitted ? <Text style={[styles.feedback, isCorrect ? styles.correct : styles.incorrect]}>{isCorrect ? 'Correct!' : 'Review the answer and keep going.'}</Text> : null}
-        <Pressable style={[styles.primaryButton, !selected && styles.disabled]} onPress={submit} disabled={!selected}>
-          <Text style={styles.primaryText}>{submitted ? (index === questions.length - 1 ? 'See result' : 'Next question') : 'Check answer'}</Text>
-          <ArrowRightIcon size={18} color={colors.onPrimary} />
+        {submitted ? <Text style={[styles.feedback, styles.correct]}>Answer recorded.</Text> : null}
+        <Pressable
+          style={[styles.primaryButton, (!selected || busy) && styles.disabled]}
+          onPress={() => void submit()}
+          disabled={!selected || busy}
+        >
+          {busy ? (
+            <ActivityIndicator color={colors.onPrimary} />
+          ) : (
+            <>
+              <Text style={styles.primaryText}>
+                {submitted ? (index === questions.length - 1 ? 'See result' : 'Next question') : 'Check answer'}
+              </Text>
+              <ArrowRightIcon size={18} color={colors.onPrimary} />
+            </>
+          )}
         </Pressable>
       </ScrollView>
     </View>
@@ -110,6 +182,8 @@ export default function ChallengeQuizScreen({ navigation, route }: RootScreenPro
 
 const createStyles = () => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.canvas },
+  centered: { alignItems: 'center', justifyContent: 'center' },
+  missing: { fontFamily: fonts.medium, fontSize: 14, color: colors.slate, textAlign: 'center', paddingHorizontal: 24 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 18, paddingBottom: 14 },
   headerCopy: { flex: 1, gap: 3 },
   eyebrow: { fontFamily: fonts.bold, fontSize: 10, letterSpacing: 1, color: colors.primary },
@@ -121,16 +195,14 @@ const createStyles = () => StyleSheet.create({
   options: { gap: 10 },
   option: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 15, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
   optionActive: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
-  optionCorrect: { borderColor: colors.success, backgroundColor: colors.greenSoft },
   optionLabel: { fontFamily: fonts.bold, color: colors.primary },
   optionText: { flex: 1, fontFamily: fonts.regular, fontSize: 15, color: colors.ink },
   feedback: { fontFamily: fonts.bold, fontSize: 14 },
   correct: { color: colors.success },
-  incorrect: { color: colors.orange },
   primaryButton: { minHeight: 52, borderRadius: 14, backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 18 },
   disabled: { opacity: 0.45 },
   primaryText: { fontFamily: fonts.bold, color: colors.onPrimary },
-  result: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16, paddingHorizontal: 24 },
-  resultTitle: { fontFamily: fonts.extrabold, fontSize: 25, color: colors.ink },
-  resultSubtitle: { fontFamily: fonts.regular, fontSize: 16, color: colors.slate },
+  result: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  resultTitle: { fontFamily: fonts.regular, fontSize: 24, lineHeight: 29, color: colors.ink, marginTop: 12 },
+  resultSubtitle: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.slate, marginTop: 6, marginBottom: 18 },
 });

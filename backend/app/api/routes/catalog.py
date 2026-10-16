@@ -1,0 +1,69 @@
+from fastapi import APIRouter, HTTPException, status
+
+from app.api.deps import RepositoryDep
+from app.models.catalog import (
+    Concept,
+    ConceptRef,
+    ConceptSummary,
+    LearningContent,
+    Question,
+    QuestionOption,
+    Subject,
+    Topic,
+)
+
+router = APIRouter(tags=["catalog"])
+
+
+def _question(row: dict) -> Question:
+    data = dict(row)
+    options = [QuestionOption(**option) for option in data.pop("options", [])]
+    return Question(**data, options=options)
+
+
+@router.get("/subjects", response_model=list[Subject])
+async def list_subjects(repo: RepositoryDep) -> list[Subject]:
+    return [Subject(**row) for row in await repo.list_subjects()]
+
+
+@router.get("/subjects/{subject_id}/topics", response_model=list[Topic])
+async def list_topics(subject_id: str, repo: RepositoryDep) -> list[Topic]:
+    return [Topic(**row) for row in await repo.list_topics(subject_id)]
+
+
+@router.get("/topics/{topic_id}/concepts", response_model=list[ConceptSummary])
+async def list_concepts(topic_id: str, repo: RepositoryDep) -> list[ConceptSummary]:
+    return [ConceptSummary(**row) for row in await repo.list_concepts(topic_id)]
+
+
+@router.get("/concepts/{concept_id}", response_model=Concept)
+async def get_concept(concept_id: str, repo: RepositoryDep) -> Concept:
+    row = await repo.get_concept(concept_id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Concept not found.")
+
+    data = dict(row)
+    prerequisites = [ConceptRef(**item) for item in data.pop("prerequisites", [])]
+    related = [ConceptRef(**item) for item in data.pop("related", [])]
+    data.pop("content", None)
+    data.pop("questions", None)
+
+    content = [LearningContent(**item) for item in await repo.list_content(concept_id)]
+    questions = [_question(item) for item in await repo.list_questions(concept_id)]
+    return Concept(
+        **data,
+        prerequisites=prerequisites,
+        related=related,
+        content=content,
+        questions=questions,
+    )
+
+
+@router.get("/concepts/{concept_id}/content", response_model=list[LearningContent])
+async def list_content(concept_id: str, repo: RepositoryDep) -> list[LearningContent]:
+    return [LearningContent(**row) for row in await repo.list_content(concept_id)]
+
+
+@router.get("/concepts/{concept_id}/questions", response_model=list[Question])
+async def list_questions(concept_id: str, repo: RepositoryDep) -> list[Question]:
+    return [_question(row) for row in await repo.list_questions(concept_id)]

@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -11,18 +11,16 @@ import { GraduationCapIcon } from '../components/glyphs';
 import { colors, fonts, getSubjects, shadow, type SubjectId, type ThemeColors } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
 import { usePreferences } from '../preferencesContext';
-import { useProgress, type PlacementResult } from '../progressContext';
+import { useProgress } from '../progressContext';
 import {
-  PLACEMENT_PASS_RATIO,
-  getPlacementQuestions,
+  checkAnswer,
+  fetchPlacementQuestions,
+  submitPlacement,
   type PlacementQuestion,
-} from '../data/placement';
+  type PlacementSubmitResult,
+} from '../lib/assessmentApi';
+import { resolveSubjectId } from '../types/catalog';
 import type { RootScreenProps } from '../navigation/types';
-
-type ScheduledQuestion = {
-  subjectId: SubjectId;
-  question: PlacementQuestion;
-};
 
 type Phase = 'intro' | 'question' | 'result';
 
@@ -31,7 +29,7 @@ export default function PlacementTestScreen({ navigation }: RootScreenProps<'Pla
   const { statusBarStyle } = useTheme();
   const styles = useThemedStyles(createStyles);
   const { subjects: selectedSubjects } = usePreferences();
-  const { recordPlacement } = useProgress();
+  const { refresh } = useProgress();
   const subjectMeta = useMemo(() => getSubjects(), []);
 
   const subjects = useMemo<readonly SubjectId[]>(
@@ -39,42 +37,98 @@ export default function PlacementTestScreen({ navigation }: RootScreenProps<'Pla
     [selectedSubjects, subjectMeta],
   );
 
-  const scheduled = useMemo<ScheduledQuestion[]>(
-    () =>
-      subjects.flatMap((subjectId) =>
-        getPlacementQuestions(subjectId).map((question) => ({ subjectId, question })),
-      ),
-    [subjects],
-  );
-
   const [phase, setPhase] = useState<Phase>('intro');
+  const [questions, setQuestions] = useState<PlacementQuestion[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [index, setIndex] = useState(0);
   const [responses, setResponses] = useState<Record<string, string>>({});
-  const [checked, setChecked] = useState<Record<string, boolean>>({});
+  const [checked, setChecked] = useState<Record<string, boolean | null>>({});
+  const [result, setResult] = useState<PlacementSubmitResult | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  const current = scheduled[index];
-  const subjectForName = (id: SubjectId) => subjectMeta.find((s) => s.id === id);
+  useEffect(() => {
+    let mounted = true;
+    setLoading(true);
+    fetchPlacementQuestions([...subjects], Math.max(3, subjects.length * 3))
+      .then((data) => {
+        if (!mounted) return;
+        setQuestions(data);
+        setLoading(false);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setError('We could not load the placement check. Please try again.');
+        setLoading(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [subjects]);
 
-  const results = useMemo<PlacementResult[]>(
-    () =>
-      subjects.map((subjectId) => {
-        const questions = getPlacementQuestions(subjectId);
-        const correct = questions.filter((q) => responses[q.id] === q.answerId).length;
-        const total = questions.length;
-        const scorePct = total > 0 ? Math.round((correct / total) * 100) : 0;
-        return { subjectId, correct, total, scorePct, passed: scorePct >= PLACEMENT_PASS_RATIO * 100 };
-      }),
-    [subjects, responses],
-  );
+  const subjectForName = (id: string) => subjectMeta.find((s) => s.id === resolveSubjectId(id));
+  const current = questions[index];
+  const isLast = index === questions.length - 1;
 
-  const overallCorrect = results.reduce((sum, r) => sum + r.correct, 0);
-  const overallTotal = results.reduce((sum, r) => sum + r.total, 0);
-  const overallPct = overallTotal > 0 ? Math.round((overallCorrect / overallTotal) * 100) : 0;
-  const anyPassed = results.some((r) => r.passed);
+  const overallPct = result
+    ? result.results.length > 0
+      ? Math.round(
+          result.results.reduce((sum, r) => sum + r.scorePct, 0) / result.results.length,
+        )
+      : 0
+    : 0;
+  const overallCorrect = result ? result.results.reduce((sum, r) => sum + r.correct, 0) : 0;
+  const overallTotal = result ? result.results.reduce((sum, r) => sum + r.total, 0) : 0;
+  const anyPassed = result ? result.results.some((r) => r.passed) : false;
 
-  const finish = (startFromBeginning: boolean) => {
-    recordPlacement(results, { startFromBeginning });
+  const finish = async () => {
+    await refresh();
     navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+  };
+
+  const handlePrimary = async () => {
+    if (!current) return;
+    const answer = responses[current.id];
+    if (!(current.id in checked)) {
+      if (!answer) return;
+      setBusy(true);
+      try {
+        const outcome = await checkAnswer(current.conceptId ?? '', current.id, answer);
+        setChecked((prev) => ({ ...prev, [current.id]: outcome.correct }));
+      } catch {
+        setChecked((prev) => ({ ...prev, [current.id]: null }));
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+    if (isLast) {
+      setBusy(true);
+      setError(null);
+      try {
+        const answers = questions.map((item) => ({
+          questionId: item.id,
+          response: responses[item.id] ?? null,
+        }));
+        const submission = await submitPlacement(answers);
+        setResult(submission);
+        setPhase('result');
+      } catch {
+        setError('We could not save your placement. Please try again.');
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+    setIndex((value) => value + 1);
+  };
+
+  const handleBack = () => {
+    if (index === 0) {
+      navigation.goBack();
+      return;
+    }
+    setIndex((value) => value - 1);
   };
 
   if (phase === 'intro') {
@@ -91,31 +145,38 @@ export default function PlacementTestScreen({ navigation }: RootScreenProps<'Pla
             whether you can skip ahead or should start from the beginning.
           </Text>
           <View style={styles.introCard}>
-            {subjects.map((id) => {
-              const meta = subjectForName(id);
-              return (
-                <View key={id} style={styles.introRow}>
-                  <View style={[styles.introBadge, { backgroundColor: meta?.soft }]}>
-                    <Text style={[styles.introBadgeText, { color: meta?.accent }]}>
-                      {meta?.name.charAt(0)}
-                    </Text>
+            {loading ? (
+              <ActivityIndicator color={colors.primary} />
+            ) : (
+              subjects.map((id) => {
+                const meta = subjectForName(id);
+                return (
+                  <View key={id} style={styles.introRow}>
+                    <View style={[styles.introBadge, { backgroundColor: meta?.soft }]}>
+                      <Text style={[styles.introBadgeText, { color: meta?.accent }]}>
+                        {meta?.name.charAt(0)}
+                      </Text>
+                    </View>
+                    <Text style={styles.introRowText}>{meta?.name}</Text>
                   </View>
-                  <Text style={styles.introRowText}>
-                    {meta?.name} · {getPlacementQuestions(id).length} questions
-                  </Text>
-                </View>
-              );
-            })}
+                );
+              })
+            )}
           </View>
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
           <View style={styles.introFooter}>
-            <PrimaryButton title="Start placement check" onPress={() => setPhase('question')} />
+            <PrimaryButton
+              title={loading ? 'Loading…' : `${questions.length} questions`}
+              onPress={() => (questions.length > 0 ? setPhase('question') : undefined)}
+              disabled={loading || questions.length === 0}
+            />
           </View>
         </View>
       </View>
     );
   }
 
-  if (phase === 'result') {
+  if (phase === 'result' && result) {
     return (
       <View style={styles.root}>
         <StatusBar style={statusBarStyle} />
@@ -153,34 +214,34 @@ export default function PlacementTestScreen({ navigation }: RootScreenProps<'Pla
 
           <Text style={styles.sectionTitle}>By subject</Text>
           <View style={styles.subjectCard}>
-            {results.map((result) => {
-              const meta = subjectForName(result.subjectId);
+            {result.results.map((subjectResult) => {
+              const meta = subjectForName(subjectResult.subjectId);
               return (
-                <View key={result.subjectId} style={styles.subjectRow}>
+                <View key={subjectResult.subjectId} style={styles.subjectRow}>
                   <View style={[styles.subjectIcon, { backgroundColor: meta?.soft }]}>
                     <Text style={[styles.subjectIconText, { color: meta?.accent }]}>
-                      {meta?.name.charAt(0)}
+                      {meta?.name?.charAt(0) ?? '?'}
                     </Text>
                   </View>
                   <View style={styles.subjectCopy}>
-                    <Text style={styles.subjectName}>{meta?.name}</Text>
+                    <Text style={styles.subjectName}>{meta?.name ?? subjectResult.subjectId}</Text>
                     <Text style={styles.subjectMeta}>
-                      {result.correct} of {result.total} correct · {result.scorePct}%
+                      {subjectResult.correct} of {subjectResult.total} correct · {subjectResult.scorePct}%
                     </Text>
                   </View>
                   <View
                     style={[
                       styles.resultBadge,
-                      result.passed ? styles.resultBadgePass : styles.resultBadgeFail,
+                      subjectResult.passed ? styles.resultBadgePass : styles.resultBadgeFail,
                     ]}
                   >
                     <Text
                       style={[
                         styles.resultBadgeText,
-                        { color: result.passed ? colors.success : colors.orange },
+                        { color: subjectResult.passed ? colors.success : colors.orange },
                       ]}
                     >
-                      {result.passed ? 'PASSED' : 'REVIEW'}
+                      {subjectResult.passed ? 'PASSED' : 'REVIEW'}
                     </Text>
                   </View>
                 </View>
@@ -190,20 +251,20 @@ export default function PlacementTestScreen({ navigation }: RootScreenProps<'Pla
 
           <Text style={styles.sectionTitle}>Recommendation</Text>
           <View style={styles.recommendCard}>
-            {results.map((result) => {
-              const meta = subjectForName(result.subjectId);
+            {result.results.map((subjectResult) => {
+              const meta = subjectForName(subjectResult.subjectId);
               return (
-                <View key={result.subjectId} style={styles.recommendRow}>
+                <View key={subjectResult.subjectId} style={styles.recommendRow}>
                   <View style={styles.recommendIcon}>
                     <CheckCircleIcon
                       size={18}
-                      color={result.passed ? colors.success : colors.slate}
+                      color={subjectResult.passed ? colors.success : colors.slate}
                     />
                   </View>
                   <Text style={styles.recommendText}>
-                    {result.passed
-                      ? `Skip the basics in ${meta?.name} and start at the recommended lesson.`
-                      : `Start ${meta?.name} from the very beginning.`}
+                    {subjectResult.passed
+                      ? `Skip the basics in ${meta?.name ?? subjectResult.subjectId} and start at the recommended lesson.`
+                      : `Start ${meta?.name ?? subjectResult.subjectId} from the very beginning.`}
                   </Text>
                 </View>
               );
@@ -211,61 +272,29 @@ export default function PlacementTestScreen({ navigation }: RootScreenProps<'Pla
           </View>
 
           <View style={styles.actions}>
-            {anyPassed ? (
-              <>
-                <PrimaryButton
-                  title="Start at recommended lessons"
-                  icon={<ArrowRightIcon size={18} color={colors.onPrimary} />}
-                  onPress={() => finish(false)}
-                />
-                <Pressable
-                  style={styles.secondaryButton}
-                  onPress={() => finish(true)}
-                  accessibilityRole="button"
-                >
-                  <Text style={styles.secondaryText}>Start from the beginning anyway</Text>
-                </Pressable>
-              </>
-            ) : (
-              <PrimaryButton
-                title="Start from the beginning"
-                icon={<ArrowRightIcon size={18} color={colors.onPrimary} />}
-                onPress={() => finish(true)}
-              />
-            )}
+            <PrimaryButton
+              title="Start learning"
+              icon={<ArrowRightIcon size={18} color={colors.onPrimary} />}
+              onPress={() => void finish()}
+            />
           </View>
         </ScrollView>
       </View>
     );
   }
 
-  const isChecked = current ? Boolean(checked[current.question.id]) : false;
-  const selected = current ? responses[current.question.id] : undefined;
-  const isCorrect = current ? selected === current.question.answerId : false;
-  const isLast = index === scheduled.length - 1;
-  const meta = current ? subjectForName(current.subjectId) : undefined;
+  if (!current) {
+    return (
+      <View style={[styles.root, styles.centered]}>
+        <ActivityIndicator color={colors.primary} />
+      </View>
+    );
+  }
 
-  const handleBack = () => {
-    if (index === 0) {
-      navigation.goBack();
-      return;
-    }
-    setIndex((value) => value - 1);
-  };
-
-  const handlePrimary = () => {
-    if (!current) return;
-    if (!isChecked) {
-      if (!selected) return;
-      setChecked((prev) => ({ ...prev, [current.question.id]: true }));
-      return;
-    }
-    if (isLast) {
-      setPhase('result');
-      return;
-    }
-    setIndex((value) => value + 1);
-  };
+  const isChecked = current.id in checked;
+  const feedbackValue = checked[current.id];
+  const selected = responses[current.id];
+  const meta = subjectForName(current.subjectId ?? '');
 
   return (
     <View style={styles.root}>
@@ -276,44 +305,31 @@ export default function PlacementTestScreen({ navigation }: RootScreenProps<'Pla
         </Pressable>
         <View style={styles.headerCopy}>
           <Text style={styles.eyebrow}>PLACEMENT · {(meta?.name ?? '').toUpperCase()}</Text>
-          <Text style={styles.headerTitle}>Question {index + 1} of {scheduled.length}</Text>
+          <Text style={styles.headerTitle}>Question {index + 1} of {questions.length}</Text>
         </View>
       </View>
 
-      <ProgressBar
-        progress={scheduled.length > 0 ? ((index + 1) / scheduled.length) * 100 : 0}
-        style={styles.headerProgress}
-      />
+      <ProgressBar progress={questions.length > 0 ? ((index + 1) / questions.length) * 100 : 0} style={styles.headerProgress} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 96 }]}
       >
-        <Text style={styles.prompt}>{current?.question.prompt}</Text>
+        <Text style={styles.prompt}>{current.prompt}</Text>
 
         <View style={styles.options}>
-          {current?.question.options.map((option) => {
+          {current.options.map((option) => {
             const isSelected = selected === option.id;
-            const showCorrect = isChecked && option.id === current.question.answerId;
-            const showWrong = isChecked && isSelected && !isCorrect;
             return (
               <Pressable
                 key={option.id}
                 disabled={isChecked}
-                onPress={() =>
-                  current &&
-                  setResponses((prev) => ({ ...prev, [current.question.id]: option.id }))
-                }
-                style={[
-                  styles.option,
-                  isSelected && styles.optionSelected,
-                  showCorrect && styles.optionCorrect,
-                  showWrong && styles.optionWrong,
-                ]}
+                onPress={() => setResponses((prev) => ({ ...prev, [current.id]: option.id }))}
+                style={[styles.option, isSelected && styles.optionSelected]}
               >
                 <View style={[styles.optionLabel, isSelected && styles.optionLabelSelected]}>
                   <Text style={[styles.optionLabelText, isSelected && styles.optionLabelTextSelected]}>
-                    {option.label}
+                    {option.label ?? option.id.toUpperCase()}
                   </Text>
                 </View>
                 <Text style={styles.optionText}>{option.text}</Text>
@@ -323,24 +339,22 @@ export default function PlacementTestScreen({ navigation }: RootScreenProps<'Pla
         </View>
 
         {isChecked ? (
-          <View style={[styles.feedback, isCorrect ? styles.feedbackGood : styles.feedbackNeedsWork]}>
-            <Text style={styles.feedbackTitle}>{isCorrect ? 'Correct' : 'Review this one'}</Text>
-            <Text style={styles.feedbackText}>{current?.question.explanation}</Text>
+          <View style={[styles.feedback, feedbackValue ? styles.feedbackGood : styles.feedbackNeedsWork]}>
+            <Text style={styles.feedbackTitle}>
+              {feedbackValue === true ? 'Correct' : feedbackValue === false ? 'Review this one' : 'Answer recorded'}
+            </Text>
           </View>
         ) : null}
+
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 14 }]}>
         <PrimaryButton
-          title={
-            isChecked
-              ? isLast
-                ? 'See my results'
-                : 'Next question'
-              : 'Check answer'
-          }
-          disabled={!isChecked && !selected}
-          onPress={handlePrimary}
+          title={isChecked ? (isLast ? 'See result' : 'Next question') : 'Check answer'}
+          icon={isChecked ? <ArrowRightIcon size={18} color={colors.onPrimary} /> : undefined}
+          onPress={() => void handlePrimary()}
+          disabled={!selected || busy}
         />
       </View>
     </View>
@@ -349,36 +363,14 @@ export default function PlacementTestScreen({ navigation }: RootScreenProps<'Pla
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
   root: { flex: 1, backgroundColor: c.canvas },
+  centered: { alignItems: 'center', justifyContent: 'center' },
+  errorText: { fontFamily: fonts.medium, fontSize: 12, color: c.danger, textAlign: 'center' },
 
-  introWrap: { flex: 1, paddingHorizontal: 20, alignItems: 'center', gap: 16 },
-  introIcon: {
-    width: 78,
-    height: 78,
-    borderRadius: 24,
-    backgroundColor: c.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadow.card,
-  },
-  introTitle: { fontFamily: fonts.regular, fontSize: 28, lineHeight: 32, color: c.ink, textAlign: 'center' },
-  introBody: {
-    fontFamily: fonts.regular,
-    fontSize: 15,
-    lineHeight: 22,
-    color: c.slate,
-    textAlign: 'center',
-    maxWidth: 340,
-  },
-  introCard: {
-    alignSelf: 'stretch',
-    padding: 14,
-    borderRadius: 18,
-    backgroundColor: c.surface,
-    borderWidth: 1,
-    borderColor: c.border,
-    gap: 12,
-    ...shadow.frame,
-  },
+  introWrap: { flex: 1, paddingHorizontal: 18, alignItems: 'center', gap: 12 },
+  introIcon: { width: 72, height: 72, borderRadius: 24, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center', ...shadow.card },
+  introTitle: { fontFamily: fonts.extrabold, fontSize: 26, lineHeight: 31, color: c.ink, textAlign: 'center' },
+  introBody: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 21, color: c.slate, textAlign: 'center', maxWidth: 340 },
+  introCard: { alignSelf: 'stretch', padding: 14, borderRadius: 18, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, gap: 12, ...shadow.frame },
   introRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   introBadge: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   introBadgeText: { fontFamily: fonts.bold, fontSize: 18 },
@@ -386,16 +378,7 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   introFooter: { alignSelf: 'stretch', marginTop: 'auto' },
 
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingBottom: 14 },
-  iconButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
-    backgroundColor: c.surface,
-    borderWidth: 1,
-    borderColor: c.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  iconButton: { width: 42, height: 42, borderRadius: 12, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, alignItems: 'center', justifyContent: 'center' },
   headerCopy: { flex: 1, gap: 2 },
   eyebrow: { fontFamily: fonts.bold, fontSize: 10, lineHeight: 12, color: c.primary },
   headerTitle: { fontFamily: fonts.regular, fontSize: 20, lineHeight: 24, color: c.ink },
@@ -404,21 +387,8 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   content: { paddingHorizontal: 18, paddingTop: 24, gap: 18 },
   prompt: { fontFamily: fonts.extrabold, fontSize: 24, lineHeight: 30, color: c.ink },
   options: { gap: 10 },
-  option: {
-    minHeight: 62,
-    padding: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: c.border,
-    backgroundColor: c.surface,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    ...shadow.frame,
-  },
+  option: { minHeight: 62, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface, flexDirection: 'row', alignItems: 'center', gap: 12, ...shadow.frame },
   optionSelected: { borderColor: c.primary, backgroundColor: c.primarySoft },
-  optionCorrect: { borderColor: c.success, backgroundColor: c.greenSoft },
-  optionWrong: { borderColor: c.danger, backgroundColor: c.pinkSoft },
   optionLabel: { width: 32, height: 32, borderRadius: 999, backgroundColor: c.canvas, alignItems: 'center', justifyContent: 'center' },
   optionLabelSelected: { backgroundColor: c.primary },
   optionLabelText: { fontFamily: fonts.bold, fontSize: 13, color: c.slate },
@@ -428,43 +398,15 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   feedbackGood: { backgroundColor: c.greenSoft },
   feedbackNeedsWork: { backgroundColor: c.orangeSoft },
   feedbackTitle: { fontFamily: fonts.bold, fontSize: 13, color: c.ink },
-  feedbackText: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 19, color: c.ink },
 
-  footer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingHorizontal: 18,
-    paddingTop: 12,
-    backgroundColor: c.canvas,
-    borderTopWidth: 1,
-    borderTopColor: c.border,
-  },
+  footer: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 18, paddingTop: 12, backgroundColor: c.canvas, borderTopWidth: 1, borderTopColor: c.border },
 
   resultContent: { paddingHorizontal: 18, gap: 14, alignItems: 'center' },
-  resultPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: c.primarySoft,
-    borderRadius: 999,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-  },
+  resultPill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: c.primarySoft, borderRadius: 999, paddingVertical: 6, paddingHorizontal: 12 },
   resultPillText: { fontFamily: fonts.extrabold, fontSize: 10, letterSpacing: 0.5, color: c.primary },
   resultTitle: { fontFamily: fonts.regular, fontSize: 26, lineHeight: 31, color: c.ink, textAlign: 'center' },
   resultSubtitle: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: c.slate, textAlign: 'center', maxWidth: 340 },
-  scoreCard: {
-    alignSelf: 'stretch',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    padding: 16,
-    borderRadius: 18,
-    backgroundColor: c.surface,
-    ...shadow.frame,
-  },
+  scoreCard: { alignSelf: 'stretch', flexDirection: 'row', alignItems: 'center', gap: 16, padding: 16, borderRadius: 18, backgroundColor: c.surface, ...shadow.frame },
   scoreCopy: { flex: 1, gap: 4 },
   scoreEyebrow: { fontFamily: fonts.extrabold, fontSize: 10, letterSpacing: 1, color: c.slate },
   scoreTitle: { fontFamily: fonts.regular, fontSize: 22, lineHeight: 26, color: c.ink },
@@ -483,29 +425,10 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   resultBadgeFail: { backgroundColor: c.orangeSoft },
   resultBadgeText: { fontFamily: fonts.bold, fontSize: 10, letterSpacing: 0.4 },
 
-  recommendCard: {
-    alignSelf: 'stretch',
-    padding: 14,
-    borderRadius: 18,
-    backgroundColor: c.surface,
-    borderWidth: 1,
-    borderColor: c.border,
-    gap: 12,
-    ...shadow.frame,
-  },
+  recommendCard: { alignSelf: 'stretch', padding: 14, borderRadius: 18, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, gap: 12, ...shadow.frame },
   recommendRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   recommendIcon: { width: 26, alignItems: 'center' },
   recommendText: { flex: 1, fontFamily: fonts.regular, fontSize: 13, lineHeight: 19, color: c.ink },
 
   actions: { alignSelf: 'stretch', gap: 10, paddingTop: 4 },
-  secondaryButton: {
-    height: 52,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: c.border,
-    backgroundColor: c.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  secondaryText: { fontFamily: fonts.medium, fontSize: 15, color: c.ink },
 });

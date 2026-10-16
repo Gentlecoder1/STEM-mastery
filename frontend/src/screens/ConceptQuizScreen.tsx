@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -11,47 +11,110 @@ import { TextField } from '../components/TextField';
 import { colors, fonts, shadow, type ThemeColors } from '../theme';
 import { useThemedStyles, useTheme } from '../themeContext';
 import { useProgress } from '../progressContext';
-import {
-  QUIZ_PASS_RATIO,
-  getConcept,
-  getConceptQuiz,
-  getNextConcept,
-} from '../data/learning';
+import { useCatalog } from '../catalogContext';
+import { checkAnswer, fetchConceptQuestions, submitQuiz, type QuizSubmitResult } from '../lib/assessmentApi';
+import { mapQuestions, type QuizQuestion } from '../types/catalog';
 import type { RootScreenProps } from '../navigation/types';
+
+const PASS_RATIO = 0.6;
 
 export default function ConceptQuizScreen({ navigation, route }: RootScreenProps<'ConceptQuiz'>) {
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
   const { statusBarStyle } = useTheme();
-  const { completeConcept, recordTopicAssessment } = useProgress();
+  const { refresh } = useProgress();
+  const { getConcept, getNextConcept, loadConcept } = useCatalog();
   const { conceptId, mode = 'lesson', targetConceptId } = route.params;
-
   const concept = getConcept(conceptId);
-  const questions = useMemo(() => getConceptQuiz(conceptId), [conceptId]);
   const target = targetConceptId ? getConcept(targetConceptId) : undefined;
+  const isKey = mode === 'key';
 
+  const [questions, setQuestions] = useState<QuizQuestion[]>([]);
+  const [loading, setLoading] = useState(true);
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
   const [writtenText, setWrittenText] = useState('');
   const [submitted, setSubmitted] = useState(false);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [finished, setFinished] = useState(false);
+  const [feedback, setFeedback] = useState<{ correct: boolean | null; correctOptionId: string | null }>({
+    correct: null,
+    correctOptionId: null,
+  });
+  const [responses, setResponses] = useState<Record<string, string>>({});
+  const [result, setResult] = useState<QuizSubmitResult | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const mcqItems = useMemo(
-    () => questions.map((q, i) => ({ q, i })).filter((entry) => entry.q.type === 'mcq'),
-    [questions],
-  );
+  useEffect(() => {
+    let mounted = true;
+    void loadConcept(conceptId);
+    setLoading(true);
+    fetchConceptQuestions(conceptId)
+      .then((data) => {
+        if (mounted) {
+          setQuestions(mapQuestions(data));
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (mounted) {
+          setError('We could not load this quiz. Check your connection and try again.');
+          setLoading(false);
+        }
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [conceptId, loadConcept]);
 
-  const score = useMemo(() => {
-    if (mcqItems.length === 0) return { correct: 0, total: 0, pct: 100 };
-    const correct = mcqItems.filter((entry) => answers[String(entry.i)] === entry.q.answerId).length;
-    const pct = Math.round((correct / mcqItems.length) * 100);
-    return { correct, total: mcqItems.length, pct };
-  }, [mcqItems, answers]);
+  const question = questions[index];
+  const isWritten = question?.type === 'written';
 
-  const passed = score.total === 0 || score.pct >= QUIZ_PASS_RATIO * 100;
+  const finish = useCallback(async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const payload = questions.map((item) => ({
+        questionId: item.id,
+        response: responses[item.id] ?? null,
+      }));
+      const submission = await submitQuiz(conceptId, payload, mode, targetConceptId);
+      setResult(submission);
+      await refresh();
+    } catch {
+      setError('We could not save your result. Please try again.');
+    } finally {
+      setBusy(false);
+    }
+  }, [conceptId, mode, questions, refresh, responses, targetConceptId]);
 
-  if (!concept || questions.length === 0) {
+  const restart = () => {
+    setIndex(0);
+    setSelected(null);
+    setWrittenText('');
+    setSubmitted(false);
+    setFeedback({ correct: null, correctOptionId: null });
+    setResponses({});
+    setResult(null);
+    setError(null);
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.root, styles.missing]}>
+        <ActivityIndicator color={colors.primary} />
+      </View>
+    );
+  }
+
+  if (error && questions.length === 0) {
+    return (
+      <View style={[styles.root, styles.missing]}>
+        <Text style={styles.missingText}>{error}</Text>
+      </View>
+    );
+  }
+
+  if (questions.length === 0) {
     return (
       <View style={[styles.root, styles.missing]}>
         <Text style={styles.missingText}>Quiz unavailable.</Text>
@@ -59,33 +122,9 @@ export default function ConceptQuizScreen({ navigation, route }: RootScreenProps
     );
   }
 
-  const isKey = mode === 'key';
-  const eyebrow = isKey ? 'KEY TEST' : 'QUICK CHECK';
-
-  const finish = async () => {
-    await recordTopicAssessment(concept.topicId, score.pct);
-    if (passed) {
-      await completeConcept(conceptId);
-    }
-    if (isKey && targetConceptId) {
-      navigation.navigate('ConceptDetails', { conceptId: targetConceptId });
-      return;
-    }
-    const next = getNextConcept(conceptId);
-    if (next) navigation.navigate('ConceptDetails', { conceptId: next.id });
-    else navigation.navigate('TopicOverview');
-  };
-
-  const restart = () => {
-    setIndex(0);
-    setSelected(null);
-    setWrittenText('');
-    setSubmitted(false);
-    setAnswers({});
-    setFinished(false);
-  };
-
-  if (finished) {
+  if (result) {
+    const passed = result.passed;
+    const pct = result.scorePct;
     return (
       <View style={styles.root}>
         <StatusBar style={statusBarStyle} />
@@ -110,39 +149,32 @@ export default function ConceptQuizScreen({ navigation, route }: RootScreenProps
           <Text style={styles.resultSubtitle}>
             {passed
               ? isKey
-                ? `${concept.title} is complete, so ${target?.title ?? 'the next lesson'} is now open.`
-                : `${concept.title} is marked complete. Your next lesson is ready.`
-              : `You need ${Math.round(QUIZ_PASS_RATIO * 100)}% to ${isKey ? 'unlock this lesson' : 'complete this concept'}. Review and try again.`}
+                ? `${concept?.title ?? 'This concept'} is complete, so ${target?.title ?? 'the next lesson'} is now open.`
+                : `${concept?.title ?? 'This concept'} is marked complete. Your next lesson is ready.`
+              : `You need ${Math.round(PASS_RATIO * 100)}% to ${isKey ? 'unlock this lesson' : 'complete this concept'}. Review and try again.`}
           </Text>
 
           <View style={styles.scoreCard}>
-            <MasteryRing percent={score.pct} color={passed ? colors.success : colors.orange} size={86} />
+            <MasteryRing percent={pct} color={passed ? colors.success : colors.orange} size={86} />
             <View style={styles.scoreCopy}>
               <Text style={styles.scoreEyebrow}>YOUR SCORE</Text>
               <Text style={styles.scoreTitle}>
-                {score.total > 0 ? `${score.correct} of ${score.total} correct` : 'Completed'}
+                {result.total > 0 ? `${result.correct} of ${result.total} correct` : 'Completed'}
               </Text>
-              <Text style={styles.scorePercent}>{score.pct}%</Text>
+              <Text style={styles.scorePercent}>{pct}%</Text>
             </View>
           </View>
 
           <View style={styles.actions}>
             {passed ? (
-              <Pressable style={styles.primaryButton} onPress={() => void finish()} accessibilityRole="button">
+              <Pressable style={styles.primaryButton} onPress={goNext} accessibilityRole="button">
                 <Text style={styles.primaryText}>
                   {isKey ? 'Open unlocked lesson' : 'Continue'}
                 </Text>
                 <ArrowRightIcon size={18} color={colors.onPrimary} />
               </Pressable>
             ) : (
-              <Pressable
-                style={styles.primaryButton}
-                onPress={() => {
-                  void recordTopicAssessment(concept.topicId, score.pct);
-                  restart();
-                }}
-                accessibilityRole="button"
-              >
+              <Pressable style={styles.primaryButton} onPress={restart} accessibilityRole="button">
                 <Text style={styles.primaryText}>Try again</Text>
                 <ArrowRightIcon size={18} color={colors.onPrimary} />
               </Pressable>
@@ -158,32 +190,52 @@ export default function ConceptQuizScreen({ navigation, route }: RootScreenProps
         </ScrollView>
       </View>
     );
+
+    function goNext() {
+      if (isKey && targetConceptId) {
+        navigation.navigate('ConceptDetails', { conceptId: targetConceptId });
+        return;
+      }
+      const nextId = result?.nextConceptId ?? getNextConcept(conceptId)?.id;
+      if (nextId) navigation.navigate('ConceptDetails', { conceptId: nextId });
+      else navigation.navigate('TopicOverview');
+    }
   }
 
-  const question = questions[index];
-  const isWritten = question.type === 'written';
   const canSubmit = isWritten ? writtenText.trim().length > 0 : selected !== null;
-  const correct = question.type === 'mcq' && selected === question.answerId;
+  const correctSelected = feedback.correct === true;
   const isLast = index === questions.length - 1;
 
-  const submit = () => {
-    if (!canSubmit) return;
+  const submit = async () => {
+    if (!canSubmit || busy) return;
     if (!submitted) {
-      if (question.type === 'mcq' && selected) {
-        setAnswers((prev) => ({ ...prev, [String(index)]: selected }));
+      setBusy(true);
+      setError(null);
+      try {
+        const response = isWritten ? writtenText.trim() : selected;
+        setResponses((prev) => ({ ...prev, [question.id]: response ?? '' }));
+        const outcome = await checkAnswer(conceptId, question.id, response);
+        setFeedback({ correct: outcome.correct, correctOptionId: outcome.correctOptionId });
+        setSubmitted(true);
+      } catch {
+        setError('We could not check that answer. Please try again.');
+      } finally {
+        setBusy(false);
       }
-      setSubmitted(true);
       return;
     }
     if (isLast) {
-      setFinished(true);
+      await finish();
       return;
     }
     setIndex((value) => value + 1);
     setSelected(null);
     setWrittenText('');
     setSubmitted(false);
+    setFeedback({ correct: null, correctOptionId: null });
   };
+
+  const eyebrow = isKey ? 'KEY TEST' : 'QUICK CHECK';
 
   return (
     <View style={styles.root}>
@@ -195,7 +247,7 @@ export default function ConceptQuizScreen({ navigation, route }: RootScreenProps
         <View style={styles.headerCopy}>
           <Text style={styles.eyebrow}>{eyebrow}</Text>
           <Text style={styles.headerTitle}>
-            {isKey ? `Unlock: ${target?.title ?? concept.title}` : concept.title}
+            {isKey ? `Unlock: ${target?.title ?? concept?.title ?? ''}` : concept?.title ?? ''}
           </Text>
         </View>
         <Text style={styles.counter}>{index + 1} of {questions.length}</Text>
@@ -211,7 +263,7 @@ export default function ConceptQuizScreen({ navigation, route }: RootScreenProps
         {isKey ? (
           <View style={styles.keyBanner}>
             <Text style={styles.keyBannerText}>
-              Pass {concept.title}’s test to unlock the lesson you want to jump to.
+              Pass {concept?.title ?? 'this'} test to unlock the lesson you want to jump to.
             </Text>
           </View>
         ) : null}
@@ -228,7 +280,7 @@ export default function ConceptQuizScreen({ navigation, route }: RootScreenProps
               value={writtenText}
               onChangeText={setWrittenText}
               editable={!submitted}
-              placeholder={question.hint}
+              placeholder={question.hint ?? undefined}
               placeholderTextColor={colors.slate}
               textAlignVertical="top"
               style={styles.input}
@@ -241,8 +293,8 @@ export default function ConceptQuizScreen({ navigation, route }: RootScreenProps
           <View style={styles.options}>
             {question.options?.map((option) => {
               const isSelected = selected === option.id;
-              const isCorrect = submitted && option.id === question.answerId;
-              const isWrong = submitted && isSelected && !correct;
+              const isCorrect = submitted && option.id === feedback.correctOptionId;
+              const isWrong = submitted && isSelected && !correctSelected;
               return (
                 <Pressable
                   key={option.id}
@@ -251,7 +303,9 @@ export default function ConceptQuizScreen({ navigation, route }: RootScreenProps
                   style={[styles.option, isSelected && styles.optionSelected, isCorrect && styles.optionCorrect, isWrong && styles.optionWrong]}
                 >
                   <View style={[styles.optionLabel, isSelected && styles.optionLabelSelected]}>
-                    <Text style={[styles.optionLabelText, isSelected && styles.optionLabelTextSelected]}>{option.label}</Text>
+                    <Text style={[styles.optionLabelText, isSelected && styles.optionLabelTextSelected]}>
+                      {option.label}
+                    </Text>
                   </View>
                   <Text style={styles.optionText}>{option.text}</Text>
                 </Pressable>
@@ -261,11 +315,18 @@ export default function ConceptQuizScreen({ navigation, route }: RootScreenProps
         )}
 
         {submitted ? (
-          <View style={[styles.feedback, correct || isWritten ? styles.feedbackGood : styles.feedbackNeedsWork]}>
-            <Text style={styles.feedbackTitle}>{isWritten ? 'Good thinking' : correct ? 'Correct' : 'Review this one'}</Text>
-            <Text style={styles.feedbackText}>{question.explanation}</Text>
+          <View style={[styles.feedback, correctSelected || (isWritten && feedback.correct !== false) ? styles.feedbackGood : styles.feedbackNeedsWork]}>
+            <Text style={styles.feedbackTitle}>
+              {isWritten
+                ? 'Answer recorded'
+                : correctSelected
+                  ? 'Correct'
+                  : 'Review the answer and keep going.'}
+            </Text>
           </View>
         ) : null}
+
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
       </KeyboardAwareScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 14 }]}>
@@ -283,21 +344,32 @@ export default function ConceptQuizScreen({ navigation, route }: RootScreenProps
             setIndex((value) => value - 1);
             setSelected(null);
             setWrittenText('');
+            setFeedback({ correct: null, correctOptionId: null });
           }}
           accessibilityRole="button"
         >
           <Text style={styles.secondaryText}>Back</Text>
         </Pressable>
         <Pressable
-          style={[styles.primaryButton, !canSubmit && styles.primaryDisabled]}
-          disabled={!canSubmit}
-          onPress={submit}
+          style={[styles.primaryButton, (!canSubmit || busy) && styles.primaryDisabled]}
+          disabled={!canSubmit || busy}
+          onPress={() => void submit()}
           accessibilityRole="button"
         >
-          <Text style={styles.primaryText}>
-            {submitted ? (isLast ? 'See result' : 'Next question') : isWritten ? 'Submit answer' : 'Check answer'}
-          </Text>
-          {submitted && isLast ? <CheckCircleIcon size={18} color={colors.onPrimary} /> : <ArrowRightIcon size={18} color={colors.onPrimary} />}
+          {busy ? (
+            <ActivityIndicator color={colors.onPrimary} />
+          ) : (
+            <>
+              <Text style={styles.primaryText}>
+                {submitted ? (isLast ? 'See result' : 'Next question') : isWritten ? 'Submit answer' : 'Check answer'}
+              </Text>
+              {submitted && isLast ? (
+                <CheckCircleIcon size={18} color={colors.onPrimary} />
+              ) : (
+                <ArrowRightIcon size={18} color={colors.onPrimary} />
+              )}
+            </>
+          )}
         </Pressable>
       </View>
     </View>
@@ -306,8 +378,8 @@ export default function ConceptQuizScreen({ navigation, route }: RootScreenProps
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
   root: { flex: 1, backgroundColor: c.canvas },
-  missing: { alignItems: 'center', justifyContent: 'center' },
-  missingText: { fontFamily: fonts.medium, fontSize: 14, color: c.slate },
+  missing: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
+  missingText: { fontFamily: fonts.medium, fontSize: 14, color: c.slate, textAlign: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingBottom: 14 },
   iconButton: { width: 42, height: 42, borderRadius: 12, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, alignItems: 'center', justifyContent: 'center' },
   headerCopy: { flex: 1, gap: 2 },
@@ -338,7 +410,7 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   feedbackGood: { backgroundColor: c.greenSoft },
   feedbackNeedsWork: { backgroundColor: c.orangeSoft },
   feedbackTitle: { fontFamily: fonts.bold, fontSize: 13, color: c.ink },
-  feedbackText: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 19, color: c.ink },
+  errorText: { fontFamily: fonts.medium, fontSize: 12, color: c.danger },
   footer: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', gap: 10, paddingHorizontal: 18, paddingTop: 12, backgroundColor: c.canvas, borderTopWidth: 1, borderTopColor: c.border },
   secondaryButton: { height: 52, paddingHorizontal: 22, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.border, backgroundColor: c.surface },
   secondaryText: { fontFamily: fonts.medium, fontSize: 15, lineHeight: 18, color: c.ink },

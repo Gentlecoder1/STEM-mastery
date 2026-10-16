@@ -4,24 +4,19 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
 } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { SubjectId } from './theme';
-import { CONCEPTS, getConcept, getTopicConceptIds } from './data/learning';
+import { useCatalog } from './catalogContext';
 import { useAuth } from './auth/AuthContext';
 import { getSupabase } from './lib/supabase';
 import {
-  addCompletedConcepts,
   loadCompletedConceptIds,
   loadPlacement,
   loadTopicAssessments,
-  savePlacement,
-  saveTopicAssessment,
   type TopicAssessment,
-  type StoredPlacement,
 } from './lib/progress';
 import { useProfile } from './profileContext';
 
@@ -49,121 +44,128 @@ export type PlacementResult = {
   passed: boolean;
 };
 
-export type ConceptStatus = 'done' | 'current' | 'open';
-
-export type RecordPlacementOptions = {
-  startFromBeginning?: boolean;
+export type PlacementState = {
+  subjects: Record<string, PlacementResult>;
+  conceptMastery: Record<string, number>;
+  recommendedStartConceptId: string | null;
 };
+
+const EMPTY_PLACEMENT: PlacementState = {
+  subjects: {},
+  conceptMastery: {},
+  recommendedStartConceptId: null,
+};
+
+export type ConceptStatus = 'done' | 'current' | 'open';
 
 export type ProgressContextValue = {
   completedConcepts: readonly string[];
-  placement: Partial<Record<SubjectId, PlacementResult>>;
+  placement: PlacementState;
   placementTaken: boolean;
   topicAssessments: Record<string, TopicAssessment>;
   isTopicMastered: (topicId: string) => boolean;
   getTopicMastery: (topicId: string) => number;
   getSubjectMastery: (subjectId: SubjectId) => number;
-  recordTopicAssessment: (topicId: string, scorePct: number) => Promise<void>;
   isConceptCompleted: (conceptId: string) => boolean;
   isConceptOpen: (conceptId: string) => boolean;
   getConceptStatus: (conceptId: string) => ConceptStatus;
   getRecommendedConceptId: (subjectId?: SubjectId) => string | undefined;
   completeConcept: (conceptId: string) => void;
-  recordPlacement: (results: readonly PlacementResult[], options?: RecordPlacementOptions) => Promise<void>;
+  recordTopicAssessment: (topicId: string, scorePct: number) => void;
+  refresh: () => Promise<void>;
   resetProgress: () => void;
 };
 
 const ProgressContext = createContext<ProgressContextValue>({
   completedConcepts: [],
-  placement: {},
+  placement: EMPTY_PLACEMENT,
   placementTaken: false,
   topicAssessments: {},
   isTopicMastered: () => false,
   getTopicMastery: () => 0,
   getSubjectMastery: () => 0,
-  recordTopicAssessment: async () => {},
   isConceptCompleted: () => false,
-  isConceptOpen: (conceptId) => getTopicConceptIds(getConcept(conceptId)?.topicId ?? '').indexOf(conceptId) <= 0,
+  isConceptOpen: () => false,
   getConceptStatus: () => 'open',
-  getRecommendedConceptId: () => CONCEPTS[0]?.id,
+  getRecommendedConceptId: () => undefined,
   completeConcept: () => {},
-  recordPlacement: async () => {},
+  recordTopicAssessment: () => {},
+  refresh: async () => {},
   resetProgress: () => {},
 });
+
+function normalizePlacement(raw: unknown): PlacementState {
+  if (!raw || typeof raw !== 'object') return EMPTY_PLACEMENT;
+  const value = raw as Partial<PlacementState> & { subjects?: Record<string, PlacementResult> };
+  return {
+    subjects: (value.subjects ?? {}) as Record<string, PlacementResult>,
+    conceptMastery: (value.conceptMastery ?? {}) as Record<string, number>,
+    recommendedStartConceptId:
+      typeof value.recommendedStartConceptId === 'string' ? value.recommendedStartConceptId : null,
+  };
+}
 
 export function ProgressProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const { refreshProfile } = useProfile();
+  const { concepts, getConcept, getTopicConceptIds } = useCatalog();
   const [completedConcepts, setCompletedConcepts] = useState<string[]>([]);
-  const [placement, setPlacement] = useState<Partial<Record<SubjectId, PlacementResult>>>({});
+  const [placement, setPlacement] = useState<PlacementState>(EMPTY_PLACEMENT);
   const [topicAssessments, setTopicAssessments] = useState<Record<string, TopicAssessment>>({});
-  const completedRef = useRef(completedConcepts);
-  completedRef.current = completedConcepts;
   const remote = !!user;
 
-  useEffect(() => {
-    let mounted = true;
-    setCompletedConcepts([]);
-    setPlacement({});
-    setTopicAssessments({});
-    (async () => {
-      const supabase = getSupabase();
-      if (supabase && user) {
-        try {
-          const [ids, storedPlacement, storedAssessments] = await Promise.all([
-            loadCompletedConceptIds(supabase, user.id),
-            loadPlacement(supabase, user.id),
-            loadTopicAssessments(supabase, user.id),
-          ]);
-          if (!mounted) return;
-          setCompletedConcepts(ids);
-          setPlacement((storedPlacement as Partial<Record<SubjectId, PlacementResult>>) ?? {});
-          setTopicAssessments(storedAssessments);
-          return;
-        } catch (e) {
-          return;
-        }
-      }
-      if (!STORAGE) return;
+  const load = useCallback(async () => {
+    const supabase = getSupabase();
+    if (supabase && user) {
       try {
-        const raw = await STORAGE.getItem(PROGRESS_STORAGE_KEY);
-        if (!mounted || !raw) return;
-        const parsed = JSON.parse(raw) as {
-          completedConcepts?: string[];
-          placement?: Partial<Record<SubjectId, PlacementResult>>;
-        };
-        if (Array.isArray(parsed?.completedConcepts)) setCompletedConcepts(parsed.completedConcepts);
-        if (parsed?.placement) setPlacement(parsed.placement);
-      } catch {
-        // ignore
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, [user]);
-
-  const persist = useCallback((nextCompleted: string[], nextPlacement: Partial<Record<SubjectId, PlacementResult>>) => {
-    if (remote) {
-      return; // Supabase writes happen on mutations; we don't duplicate to local when remote.
-    }
-    if (!STORAGE) return;
-    STORAGE.setItem(
-      PROGRESS_STORAGE_KEY,
-      JSON.stringify({ completedConcepts: nextCompleted, placement: nextPlacement }),
-    ).catch(() => {});
-  }, [remote]);
-
-  const completeConcept = useCallback(
-    async (conceptId: string) => {
-      const supabase = getSupabase();
-      if (supabase && user) {
-        await addCompletedConcepts(supabase, user.id, [conceptId]);
-        const ids = await loadCompletedConceptIds(supabase, user.id);
+        const [ids, storedPlacement, storedAssessments] = await Promise.all([
+          loadCompletedConceptIds(supabase, user.id),
+          loadPlacement(supabase, user.id),
+          loadTopicAssessments(supabase, user.id),
+        ]);
         setCompletedConcepts(ids);
-        void refreshProfile();
+        setPlacement(normalizePlacement(storedPlacement));
+        setTopicAssessments(storedAssessments);
+        return;
+      } catch {
         return;
       }
+    }
+    if (!STORAGE) return;
+    try {
+      const raw = await STORAGE.getItem(PROGRESS_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as {
+        completedConcepts?: string[];
+        placement?: PlacementState;
+      };
+      if (Array.isArray(parsed?.completedConcepts)) setCompletedConcepts(parsed.completedConcepts);
+      if (parsed?.placement) setPlacement(normalizePlacement(parsed.placement));
+    } catch {
+      // ignore
+    }
+  }, [user]);
+
+  useEffect(() => {
+    setCompletedConcepts([]);
+    setPlacement(EMPTY_PLACEMENT);
+    setTopicAssessments({});
+    void load();
+  }, [load]);
+
+  const persist = useCallback(
+    (nextCompleted: string[], nextPlacement: PlacementState) => {
+      if (remote || !STORAGE) return;
+      STORAGE.setItem(
+        PROGRESS_STORAGE_KEY,
+        JSON.stringify({ completedConcepts: nextCompleted, placement: nextPlacement }),
+      ).catch(() => {});
+    },
+    [remote],
+  );
+
+  const completeConcept = useCallback(
+    (conceptId: string) => {
       setCompletedConcepts((current) => {
         if (current.includes(conceptId)) return current;
         const next = [...current, conceptId];
@@ -171,8 +173,15 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
         return next;
       });
     },
-    [user, placement, persist, refreshProfile],
+    [placement, persist],
   );
+
+  const recordTopicAssessment = useCallback((topicId: string, scorePct: number) => {
+    setTopicAssessments((current) => ({
+      ...current,
+      [topicId]: { topicId, scorePct, passed: scorePct >= 60 },
+    }));
+  }, []);
 
   const isConceptCompleted = useCallback(
     (conceptId: string) => completedConcepts.includes(conceptId),
@@ -188,7 +197,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
         topicAssessments[topicId]?.passed === true
       );
     },
-    [completedConcepts, topicAssessments],
+    [completedConcepts, getTopicConceptIds, topicAssessments],
   );
 
   const getTopicMastery = useCallback(
@@ -199,26 +208,22 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
         (conceptIds.filter((id) => completedConcepts.includes(id)).length / conceptIds.length) * 100,
       );
     },
-    [completedConcepts, topicAssessments],
+    [completedConcepts, getTopicConceptIds, topicAssessments],
   );
 
   const getSubjectMastery = useCallback(
     (subjectId: SubjectId) => {
-      const topicIds = Array.from(new Set(CONCEPTS.filter((concept) => concept.subjectId === subjectId).map((concept) => concept.topicId)));
+      const topicIds = Array.from(
+        new Set(
+          concepts
+            .filter((concept) => concept.subjectId === subjectId)
+            .map((concept) => concept.topicId),
+        ),
+      );
       if (topicIds.length === 0) return 0;
       return Math.round((topicIds.filter(isTopicMastered).length / topicIds.length) * 100);
     },
-    [isTopicMastered],
-  );
-
-  const recordTopicAssessment = useCallback(
-    async (topicId: string, scorePct: number) => {
-      const assessment = { topicId, scorePct, passed: scorePct >= 60 };
-      setTopicAssessments((current) => ({ ...current, [topicId]: assessment }));
-      const supabase = getSupabase();
-      if (supabase && user) await saveTopicAssessment(supabase, user.id, assessment);
-    },
-    [user],
+    [concepts, isTopicMastered],
   );
 
   const isConceptOpen = useCallback(
@@ -230,7 +235,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       if (index <= 0) return true;
       return completedConcepts.includes(sequence[index - 1]);
     },
-    [completedConcepts],
+    [completedConcepts, getConcept, getTopicConceptIds],
   );
 
   const getConceptStatus = useCallback(
@@ -246,52 +251,35 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       if (!earlierIncomplete && isConceptOpen(conceptId)) return 'current';
       return 'open';
     },
-    [completedConcepts, isConceptOpen],
+    [completedConcepts, getConcept, getTopicConceptIds, isConceptOpen],
   );
 
   const getRecommendedConceptId = useCallback(
     (subjectId?: SubjectId) => {
-      const pool = subjectId ? CONCEPTS.filter((concept) => concept.subjectId === subjectId) : CONCEPTS;
+      if (placement.recommendedStartConceptId) {
+        const recommended = getConcept(placement.recommendedStartConceptId);
+        if (recommended && (!subjectId || recommended.subjectId === subjectId)) {
+          return recommended.id;
+        }
+      }
+      const pool = subjectId
+        ? concepts.filter((concept) => concept.subjectId === subjectId)
+        : concepts;
       const next = pool.find((concept) => !completedConcepts.includes(concept.id));
       return next?.id ?? pool[pool.length - 1]?.id;
     },
-    [completedConcepts],
+    [completedConcepts, concepts, getConcept, placement.recommendedStartConceptId],
   );
 
-  const recordPlacement = useCallback(
-    async     (results: readonly PlacementResult[], _options?: RecordPlacementOptions) => {
-      const supabase = getSupabase();
-      if (supabase && user) {
-        const nextPlacement = { ...placement };
-        for (const result of results) nextPlacement[result.subjectId] = result;
-        await savePlacement(supabase, user.id, nextPlacement as StoredPlacement);
-        const [ids] = await Promise.all([
-          loadCompletedConceptIds(supabase, user.id),
-          loadPlacement(supabase, user.id).then((p) => setPlacement((p as any) ?? {})),
-        ]);
-        setCompletedConcepts(ids);
-        void refreshProfile();
-        return;
-      }
-      setPlacement((currentPlacement) => {
-        const nextPlacement = { ...currentPlacement };
-        for (const result of results) nextPlacement[result.subjectId] = result;
-
-        setCompletedConcepts((current) => {
-          persist(current, nextPlacement);
-          return current;
-        });
-
-        return nextPlacement;
-      });
-    },
-    [user, placement, persist, refreshProfile],
-  );
+  const refresh = useCallback(async () => {
+    await load();
+    void refreshProfile();
+  }, [load, refreshProfile]);
 
   const resetProgress = useCallback(() => {
     setCompletedConcepts([]);
-    setPlacement({});
-    persist([], {});
+    setPlacement(EMPTY_PLACEMENT);
+    persist([], EMPTY_PLACEMENT);
   }, [persist]);
 
   const value = useMemo<ProgressContextValue>(
@@ -303,13 +291,13 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       getTopicMastery,
       getSubjectMastery,
       recordTopicAssessment,
-      placementTaken: Object.keys(placement).length > 0,
+      placementTaken: Object.keys(placement.subjects).length > 0,
       isConceptCompleted,
       isConceptOpen,
       getConceptStatus,
       getRecommendedConceptId,
       completeConcept,
-      recordPlacement,
+      refresh,
       resetProgress,
     }),
     [
@@ -325,7 +313,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       getConceptStatus,
       getRecommendedConceptId,
       completeConcept,
-      recordPlacement,
+      refresh,
       resetProgress,
     ],
   );

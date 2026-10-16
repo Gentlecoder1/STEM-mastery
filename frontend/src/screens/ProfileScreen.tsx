@@ -22,7 +22,7 @@ import type { RootScreenProps } from '../navigation/types';
 import { CLASS_OPTIONS, SUBJECT_OPTIONS, usePreferences, type ClassLevel } from '../preferencesContext';
 import { useProfile } from '../profileContext';
 import type { SubjectId } from '../theme';
-import { CONCEPTS } from '../data/learning';
+import { useCatalog } from '../catalogContext';
 
 const MENU = [
   {
@@ -62,6 +62,7 @@ export default function ProfileScreen({ navigation }: RootScreenProps<'Profile'>
     location,
   } = usePreferences();
   const { profile } = useProfile();
+  const { concepts } = useCatalog();
   const [drawerKey, setDrawerKey] = useState<string | null>(null);
   const [draftClass, setDraftClass] = useState<ClassLevel>(classLevel);
   const [draftSubjects, setDraftSubjects] = useState<SubjectId[]>(subjects);
@@ -218,7 +219,7 @@ export default function ProfileScreen({ navigation }: RootScreenProps<'Profile'>
             {downloadedLessons.length === 0 ? (
               <Text style={styles.itemBody}>No lessons have been downloaded yet.</Text>
             ) : (
-              CONCEPTS.filter((concept) => downloadedLessons.includes(concept.id)).map((concept) => (
+              concepts.filter((concept) => downloadedLessons.includes(concept.id)).map((concept) => (
                 <View key={concept.id} style={styles.downloadedLesson}>
                   <Pressable
                     style={styles.downloadedCopy}

@@ -15,7 +15,10 @@ import {
 import { colors } from './src/theme';
 import { ThemeProvider, useTheme, useThemedStyles } from './src/themeContext';
 import { AuthProvider, useAuth } from './src/auth/AuthContext';
+import { ConnectivityProvider } from './src/connectivityContext';
+import { CatalogProvider } from './src/catalogContext';
 import { ProfileProvider, useProfile } from './src/profileContext';
+import { OfflineProvider } from './src/offlineContext';
 import { PreferencesProvider } from './src/preferencesContext';
 import { ProgressProvider } from './src/progressContext';
 import ThemeRevealOverlay from './src/components/ThemeRevealOverlay';
@@ -145,15 +148,21 @@ function AppShell() {
 export default function App() {
   return (
     <AuthProvider>
-      <ProfileProvider>
-        <PreferencesProvider>
-          <ProgressProvider>
-            <ThemeProvider>
-              <AppShell />
-            </ThemeProvider>
-          </ProgressProvider>
-        </PreferencesProvider>
-      </ProfileProvider>
+      <ConnectivityProvider>
+        <CatalogProvider>
+          <ProfileProvider>
+            <OfflineProvider>
+              <PreferencesProvider>
+                <ProgressProvider>
+                  <ThemeProvider>
+                    <AppShell />
+                  </ThemeProvider>
+                </ProgressProvider>
+              </PreferencesProvider>
+            </OfflineProvider>
+          </ProfileProvider>
+        </CatalogProvider>
+      </ConnectivityProvider>
     </AuthProvider>
   );
 }

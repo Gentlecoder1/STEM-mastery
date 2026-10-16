@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,11 +7,13 @@ import { ArrowLeftIcon, ArrowRightIcon } from '../components/icons';
 import { ProgressBar } from '../components/PracticeUI';
 import { colors, fonts, shadow } from '../theme';
 import type { ColorToken } from '../theme';
-import { CONTENT_LABELS, getConceptContent, getConcept, getConceptQuiz } from '../data/learning';
-import type { ContentType, LearningContent } from '../data/learning';
+import { CONTENT_LABELS, type ContentType, type LearningContent } from '../types/catalog';
 import type { RootScreenProps } from '../navigation/types';
 import { useThemedStyles, useTheme } from '../themeContext';
 import { useProgress } from '../progressContext';
+import { useCatalog } from '../catalogContext';
+import { useOffline } from '../offlineContext';
+import { fetchConceptQuestions } from '../lib/assessmentApi';
 
 const TYPE_TINT: Record<ContentType, ColorToken> = {
   DEFINITION: 'blue',
@@ -87,18 +89,54 @@ export default function ConceptLearningScreen({
   const styles = useThemedStyles(createStyles);
   const { statusBarStyle } = useTheme();
   const { isConceptCompleted } = useProgress();
+  const { getConcept, loadConcept } = useCatalog();
+  const offline = useOffline();
   const { conceptId } = route.params;
-
-  const items = useMemo(() => getConceptContent(conceptId), [conceptId]);
   const concept = getConcept(conceptId);
-  const lessonItems = items.filter((item) => item.contentType !== 'QUESTION');
-  const quizCount = getConceptQuiz(conceptId).length;
+  const cachedContent = offline.getLessonContent(conceptId);
+  const [quizCount, setQuizCount] = useState(0);
+
+  useEffect(() => {
+    void loadConcept(conceptId);
+    void offline.ensureLesson(conceptId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conceptId]);
+
+  useEffect(() => {
+    let mounted = true;
+    fetchConceptQuestions(conceptId)
+      .then((questions) => {
+        if (mounted) setQuizCount(questions.length);
+      })
+      .catch(() => {
+        if (mounted) setQuizCount(0);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [conceptId]);
+
+  const lessonItems = useMemo(
+    () =>
+      (cachedContent ?? concept?.content ?? []).filter((item) => item.contentType !== 'QUESTION'),
+    [cachedContent, concept],
+  );
   const mastery = isConceptCompleted(conceptId) ? 100 : 0;
 
-  if (!concept || lessonItems.length === 0) {
+  if (!concept && !cachedContent) {
     return (
       <View style={[styles.root, styles.missing]}>
-        <Text style={styles.missingText}>No learning content available.</Text>
+        <Text style={styles.missingText}>Loading lesson…</Text>
+      </View>
+    );
+  }
+
+  if (lessonItems.length === 0) {
+    return (
+      <View style={[styles.root, styles.missing]}>
+        <Text style={styles.missingText}>
+          This lesson has not been loaded yet. Connect to the internet to open it.
+        </Text>
       </View>
     );
   }
@@ -116,8 +154,10 @@ export default function ConceptLearningScreen({
           <ArrowLeftIcon size={22} color={colors.ink} />
         </Pressable>
         <View style={styles.headerCopy}>
-          <Text style={styles.headerTitle}>Speed and Velocity</Text>
-          <Text style={styles.headerSubtitle}>Chapter 6 • SS1 Physics</Text>
+          <Text style={styles.headerTitle}>{concept?.title ?? 'Lesson'}</Text>
+          <Text style={styles.headerSubtitle}>
+            {offline.isDownloaded(conceptId) ? 'Available offline' : 'Online lesson'}
+          </Text>
         </View>
           <Text style={styles.headerCounter}>{lessonItems.length} lessons</Text>
       </View>
@@ -137,16 +177,24 @@ export default function ConceptLearningScreen({
       <View style={[styles.footer, { paddingBottom: insets.bottom + 14 }]}>
         <Pressable
           style={styles.secondaryButton}
-          onPress={() => navigation.goBack()}
+          onPress={() => {
+            offline.markLessonComplete(conceptId);
+            navigation.goBack();
+          }}
           accessibilityRole="button"
         >
           <Text style={styles.secondaryText}>Back</Text>
         </Pressable>
         <Pressable
           style={styles.primaryButton}
-          onPress={() => quizCount > 0
-            ? navigation.navigate('ConceptQuiz', { conceptId, mode: 'lesson' })
-            : navigation.navigate('ConceptDetails', { conceptId })}
+          onPress={() => {
+            offline.markLessonComplete(conceptId);
+            if (quizCount > 0) {
+              navigation.navigate('ConceptQuiz', { conceptId, mode: 'lesson' });
+            } else {
+              navigation.navigate('ConceptDetails', { conceptId });
+            }
+          }}
           accessibilityRole="button"
         >
           <Text style={styles.primaryText}>{quizCount > 0 ? 'Take quick check' : 'Back to concept'}</Text>

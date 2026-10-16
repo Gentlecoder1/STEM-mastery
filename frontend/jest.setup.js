@@ -36,6 +36,15 @@ jest.mock('@expo-google-fonts/inter', () => ({
 
 jest.mock('react-native-url-polyfill/auto', () => ({}));
 
+jest.mock('expo-network', () => ({
+  getNetworkStateAsync: jest.fn(async () => ({
+    isConnected: false,
+    isInternetReachable: false,
+    type: 'NONE',
+  })),
+  addNetworkStateListener: jest.fn(() => ({ remove: jest.fn() })),
+}));
+
 jest.mock('@supabase/supabase-js', () => ({
   createClient: jest.fn(() => ({
     auth: {

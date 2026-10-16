@@ -8,9 +8,9 @@ import { DownloadIcon, GaugeIcon } from '../components/glyphs';
 import { ProgressBar } from '../components/PracticeUI';
 import { ArrowLeftIcon, ChevronRightIcon, LockIcon } from '../components/icons';
 import { colors, fonts, lightColors, shadow, type ColorToken } from '../theme';
-import { useTheme, useThemedStyles } from '../themeContext';
+import { useThemedStyles, useTheme } from '../themeContext';
 import { useProgress, type ConceptStatus } from '../progressContext';
-import { CONCEPTS, getTopicConceptIds } from '../data/learning';
+import { useCatalog } from '../catalogContext';
 import type { RootScreenProps } from '../navigation/types';
 import { usePreferences } from '../preferencesContext';
 
@@ -28,30 +28,37 @@ export default function TopicOverviewScreen({ navigation }: RootScreenProps<'Top
   const styles = useThemedStyles(createStyles);
   const { downloadedLessons, downloadsEnabled, toggleTopicDownload } = usePreferences();
   const { getConceptStatus, getTopicMastery, topicAssessments } = useProgress();
-  const topicLessonIds = getTopicConceptIds('topic-speed-velocity');
-  const topicMastery = getTopicMastery('topic-speed-velocity');
-  const latestAssessment = topicAssessments['topic-speed-velocity'];
+  const { topics, getConcept, getTopicConceptIds } = useCatalog();
+  const topic = topics[0];
+  const topicId = topic?.id ?? 'topic-speed-velocity';
+  const topicTitle = topic?.name ?? 'Speed and Velocity';
+  const topicLessonIds = getTopicConceptIds(topicId);
+  const topicMastery = getTopicMastery(topicId);
+  const latestAssessment = topicAssessments[topicId];
   const isDownloaded =
     topicLessonIds.length > 0 && topicLessonIds.every((id) => downloadedLessons.includes(id));
 
-  const concepts: PathConcept[] = CONCEPTS.map((concept) => ({
-    id: concept.id,
-    title: concept.title,
-    status: getConceptStatus(concept.id),
-    tint: concept.tint,
-    soft: concept.soft,
-  }));
+  const concepts: PathConcept[] = topicLessonIds
+    .map((id) => getConcept(id))
+    .filter((concept): concept is NonNullable<typeof concept> => Boolean(concept))
+    .map((concept) => ({
+      id: concept.id,
+      title: concept.title,
+      status: getConceptStatus(concept.id),
+      tint: concept.tint,
+      soft: concept.soft,
+    }));
 
   return (
     <View style={styles.root}>
       <StatusBar style={statusBarStyle} />
       <View style={[styles.header, { paddingTop: insets.top + 4 }]}>
           <Pressable style={styles.iconButton} onPress={() => navigation.goBack()} accessibilityLabel="Go back"><ArrowLeftIcon size={23} color={colors.ink} /></Pressable>
-          <View style={styles.headerCopy}><Text style={styles.title}>Speed and Velocity</Text><Text style={styles.subtitle}>Physics • Motion</Text></View>
+          <View style={styles.headerCopy}><Text style={styles.title}>{topicTitle}</Text><Text style={styles.subtitle}>Physics • Motion</Text></View>
           {downloadsEnabled ? (
             <Pressable
               style={[styles.iconButton, isDownloaded && styles.downloadedButton]}
-              onPress={() => toggleTopicDownload('topic-speed-velocity')}
+              onPress={() => toggleTopicDownload(topicId)}
               accessibilityRole="button"
               accessibilityLabel={isDownloaded ? 'Remove download' : 'Download topic'}
             >

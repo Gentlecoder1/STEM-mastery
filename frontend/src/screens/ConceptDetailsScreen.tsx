@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,7 +9,8 @@ import { BookOpenIcon } from '../components/glyphs';
 import { colors, fonts, shadow } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
 import { useProgress } from '../progressContext';
-import { CONTENT_LABELS, getConcept, getPreviousConcept } from '../data/learning';
+import { useCatalog } from '../catalogContext';
+import { CONTENT_LABELS } from '../types/catalog';
 import type { RootScreenProps } from '../navigation/types';
 
 export default function ConceptDetailsScreen({ navigation, route }: RootScreenProps<'ConceptDetails'>) {
@@ -16,7 +18,12 @@ export default function ConceptDetailsScreen({ navigation, route }: RootScreenPr
   const { statusBarStyle } = useTheme();
   const styles = useThemedStyles(createStyles);
   const { isConceptOpen, isConceptCompleted } = useProgress();
+  const { getConcept, getPreviousConcept, loadConcept } = useCatalog();
   const concept = getConcept(route.params.conceptId);
+
+  useEffect(() => {
+    void loadConcept(route.params.conceptId);
+  }, [loadConcept, route.params.conceptId]);
 
   if (!concept) {
     return (
