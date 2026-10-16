@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import BottomNav from '../components/BottomNav';
+import CatalogNotice from '../components/CatalogNotice';
 import { navigateToTab } from '../navigation/tabs';
 import MasteryRing from '../components/MasteryRing';
 import { GaugeIcon, ChartIcon, BookOpenIcon } from '../components/glyphs';
@@ -12,6 +13,7 @@ import { useTheme, useThemedStyles } from '../themeContext';
 import type { RootScreenProps } from '../navigation/types';
 import { useProgress } from '../progressContext';
 import { usePreferences } from '../preferencesContext';
+import { useCatalog } from '../catalogContext';
 
 const SUBJECT_DETAILS: Record<SubjectId, { name: string; mastery: number; focus: string }> = {
   physics: { name: 'Physics', mastery: 0, focus: 'motion' },
@@ -70,6 +72,7 @@ export default function SubjectDashboardScreen({ navigation, route }: RootScreen
   const subject = SUBJECT_DETAILS[route.params.subjectId];
   const { getSubjectMastery } = useProgress();
   const { classLevel } = usePreferences();
+  const { status, error, refresh } = useCatalog();
   const subjectMastery = getSubjectMastery(route.params.subjectId);
 
   return (
@@ -88,6 +91,14 @@ export default function SubjectDashboardScreen({ navigation, route }: RootScreen
           </Pressable>
       </View>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 18 }]}>
+
+        {status === 'error' ? (
+          <CatalogNotice
+            title={`Couldn't load ${subject.name} lessons`}
+            message={error ?? 'Could not load the curriculum.'}
+            onRetry={() => void refresh()}
+          />
+        ) : null}
 
         <View style={styles.hero}>
           <MasteryRing percent={subjectMastery} color={colors.yellow} size={84} labelColor={lightColors.surface} />

@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from 'react';
 
-import { isApiConfigured } from './lib/api';
+import { ApiError, isApiConfigured } from './lib/api';
 import { fetchConcept, fetchConcepts, fetchSubjects, fetchTopics } from './lib/catalogApi';
 import { loadCatalogSnapshot, saveCatalogSnapshot, type CatalogSnapshot } from './lib/catalogCache';
 import {
@@ -28,6 +28,7 @@ export type CatalogSource = 'api' | 'cache' | null;
 type CatalogContextValue = {
   status: CatalogStatus;
   source: CatalogSource;
+  error: string | null;
   lastSyncedAt: string | null;
   subjects: CatalogSubject[];
   topics: CatalogTopic[];
@@ -43,10 +44,24 @@ type CatalogContextValue = {
 
 const CatalogContext = createContext<CatalogContextValue | null>(null);
 
+function describeCatalogError(error: unknown): string {
+  if (error instanceof ApiError) {
+    if (error.status === 503) {
+      return `Curriculum service unavailable (503). ${error.message}`;
+    }
+    if (error.status === 0) {
+      return `Could not reach the curriculum service. ${error.message}`;
+    }
+    return `Curriculum request failed (${error.status}). ${error.message}`;
+  }
+  return 'Could not load the curriculum. Please try again.';
+}
+
 export function CatalogProvider({ children }: { children: ReactNode }) {
   const { isOnline } = useConnectivity();
   const [status, setStatus] = useState<CatalogStatus>('loading');
   const [source, setSource] = useState<CatalogSource>(null);
+  const [error, setError] = useState<string | null>(null);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   const [subjects, setSubjects] = useState<CatalogSubject[]>([]);
   const [topics, setTopics] = useState<CatalogTopic[]>([]);
@@ -106,10 +121,12 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
       const snapshot = await fetchAll();
       applySnapshot(snapshot);
       setSource('api');
+      setError(null);
       setStatus(snapshot.concepts.length > 0 ? 'ready' : 'empty');
       await saveCatalogSnapshot(snapshot);
-    } catch {
+    } catch (error) {
       // Keep any cached data; only surface an error when we have nothing.
+      setError(describeCatalogError(error));
       setStatus((current) => (current === 'ready' ? 'ready' : 'error'));
     } finally {
       inFlight.current = false;
@@ -208,6 +225,7 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
     () => ({
       status,
       source,
+      error,
       lastSyncedAt,
       subjects,
       topics,
@@ -223,6 +241,7 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
     [
       status,
       source,
+      error,
       lastSyncedAt,
       subjects,
       topics,

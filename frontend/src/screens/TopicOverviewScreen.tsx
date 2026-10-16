@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import BottomNav from '../components/BottomNav';
+import CatalogNotice from '../components/CatalogNotice';
 import { navigateToTab } from '../navigation/tabs';
 import { DownloadIcon, GaugeIcon } from '../components/glyphs';
 import { ProgressBar } from '../components/PracticeUI';
@@ -28,7 +29,8 @@ export default function TopicOverviewScreen({ navigation }: RootScreenProps<'Top
   const styles = useThemedStyles(createStyles);
   const { downloadedLessons, downloadsEnabled, toggleTopicDownload } = usePreferences();
   const { getConceptStatus, getTopicMastery, topicAssessments } = useProgress();
-  const { topics, getConcept, getTopicConceptIds } = useCatalog();
+  const { topics, getConcept, getTopicConceptIds, status, error, refresh } = useCatalog();
+  const catalogFailed = status === 'error';
   const topic = topics[0];
   const topicId = topic?.id ?? 'topic-speed-velocity';
   const topicTitle = topic?.name ?? 'Speed and Velocity';
@@ -77,21 +79,29 @@ export default function TopicOverviewScreen({ navigation }: RootScreenProps<'Top
           <Text style={styles.link}>Open map</Text>
         </View>
 
-        <View style={styles.conceptList}>
-          {concepts.map((concept) => (
-            <ConceptRow
-              key={concept.id}
-              concept={concept}
-              onPress={() => {
-                if (concept.status === 'open') {
-                  Alert.alert('Concept locked', 'Complete and pass the previous concept quiz with at least 60% to unlock this concept.');
-                  return;
-                }
-                navigation.navigate('ConceptDetails', { conceptId: concept.id });
-              }}
-            />
-          ))}
-        </View>
+        {catalogFailed ? (
+          <CatalogNotice
+            title="Couldn't load this topic"
+            message={error ?? 'Could not load the curriculum.'}
+            onRetry={() => void refresh()}
+          />
+        ) : (
+          <View style={styles.conceptList}>
+            {concepts.map((concept) => (
+              <ConceptRow
+                key={concept.id}
+                concept={concept}
+                onPress={() => {
+                  if (concept.status === 'open') {
+                    Alert.alert('Concept locked', 'Complete and pass the previous concept quiz with at least 60% to unlock this concept.');
+                    return;
+                  }
+                  navigation.navigate('ConceptDetails', { conceptId: concept.id });
+                }}
+              />
+            ))}
+          </View>
+        )}
         {latestAssessment && !latestAssessment.passed ? (
           <View style={styles.retakeCard}>
             <Text style={styles.retakeTitle}>Keep building this topic</Text>
