@@ -38,6 +38,7 @@ async def list_concepts(topic_id: str, repo: RepositoryDep) -> list[ConceptSumma
 
 @router.get("/concepts/{concept_id}", response_model=Concept)
 async def get_concept(concept_id: str, repo: RepositoryDep) -> Concept:
+    """Concept metadata only — lesson payload and quizzes live on their own routes."""
     row = await repo.get_concept(concept_id)
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Concept not found.")
@@ -45,22 +46,21 @@ async def get_concept(concept_id: str, repo: RepositoryDep) -> Concept:
     data = dict(row)
     prerequisites = [ConceptRef(**item) for item in data.pop("prerequisites", [])]
     related = [ConceptRef(**item) for item in data.pop("related", [])]
-    data.pop("content", None)
-    data.pop("questions", None)
+    for obsolete in ("content", "questions", "topicId", "subjectId", "definition", "title"):
+        data.pop(obsolete, None)
 
-    content = [LearningContent(**item) for item in await repo.list_content(concept_id)]
-    questions = [_question(item) for item in await repo.list_questions(concept_id)]
     return Concept(
         **data,
+        title=row.get("name") or row.get("prefLabel"),
         prerequisites=prerequisites,
         related=related,
-        content=content,
-        questions=questions,
+        prerequisiteIds=[ref.id for ref in prerequisites],
+        relatedConceptIds=[ref.id for ref in related],
     )
 
 
-@router.get("/concepts/{concept_id}/content", response_model=list[LearningContent])
-async def list_content(concept_id: str, repo: RepositoryDep) -> list[LearningContent]:
+@router.get("/concepts/{concept_id}/lesson", response_model=list[LearningContent])
+async def get_lesson(concept_id: str, repo: RepositoryDep) -> list[LearningContent]:
     return [LearningContent(**row) for row in await repo.list_content(concept_id)]
 
 

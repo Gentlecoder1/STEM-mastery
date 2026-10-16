@@ -32,15 +32,26 @@ def test_get_concept(client: TestClient) -> None:
     response = client.get("/api/v1/concepts/concept-velocity")
     assert response.status_code == 200
     body = response.json()
-    assert body["subjectId"] == "physics"
-    assert body["topicId"] == "topic-speed-velocity"
-    assert body["definition"].startswith("Velocity")
-    assert body["whyItMatters"] is None
+    assert body["title"] == "Velocity"
+    assert body["subjectIds"] == ["physics"]
+    assert body["topicIds"] == ["topic-speed-velocity"]
+    assert body["shortDescription"].startswith("Velocity")
+    assert body["hasLesson"] is True
+    assert body["prerequisiteIds"] == ["concept-displacement"]
+    assert body["relatedConceptIds"] == ["concept-acceleration"]
     assert body["prerequisites"] == [
         {"id": "concept-displacement", "name": "Distance and displacement"}
     ]
-    assert body["content"][0]["contentType"] == "Definition"
-    assert body["questions"][0]["prompt"].startswith("Which statement")
+
+
+def test_get_concept_excludes_lesson_payload(client: TestClient) -> None:
+    """The metadata endpoint must not bundle content or quiz questions."""
+    response = client.get("/api/v1/concepts/concept-velocity")
+    assert response.status_code == 200
+    body = response.json()
+    excluded = ("content", "questions", "whyItMatters", "definition", "topicId", "subjectId")
+    for payload_key in excluded:
+        assert payload_key not in body
 
 
 def test_get_concept_not_found(client: TestClient) -> None:
@@ -48,8 +59,8 @@ def test_get_concept_not_found(client: TestClient) -> None:
     assert response.status_code == 404
 
 
-def test_content_endpoint(client: TestClient) -> None:
-    response = client.get("/api/v1/concepts/concept-velocity/content")
+def test_lesson_endpoint(client: TestClient) -> None:
+    response = client.get("/api/v1/concepts/concept-velocity/lesson")
     assert response.status_code == 200
     assert response.json()[0]["id"] == "c-velocity-def"
 

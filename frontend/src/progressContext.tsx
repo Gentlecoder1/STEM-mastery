@@ -71,7 +71,7 @@ export type ProgressContextValue = {
   recordLastConcept: (conceptId: string) => void;
   isTopicMastered: (topicId: string) => boolean;
   getTopicMastery: (topicId: string) => number;
-  getSubjectMastery: (subjectId: SubjectId) => number;
+  getSubjectMastery: (subjectId: string) => number;
   isConceptCompleted: (conceptId: string) => boolean;
   isConceptOpen: (conceptId: string) => boolean;
   getConceptStatus: (conceptId: string) => ConceptStatus;
@@ -223,6 +223,14 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     [completedConcepts],
   );
 
+  const getConceptSequences = useCallback(
+    (concept: Concept) =>
+      concept.topicIds
+        .map((topicId) => getTopicConceptIds(topicId))
+        .filter((sequence) => sequence.includes(concept.id)),
+    [getTopicConceptIds],
+  );
+
   const isTopicMastered = useCallback(
     (topicId: string) => {
       const conceptIds = getTopicConceptIds(topicId);
@@ -247,12 +255,12 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
   );
 
   const getSubjectMastery = useCallback(
-    (subjectId: SubjectId) => {
+    (subjectId: string) => {
       const topicIds = Array.from(
         new Set(
           concepts
-            .filter((concept) => concept.subjectId === subjectId)
-            .map((concept) => concept.topicId),
+            .filter((concept) => concept.subjectIds.includes(subjectId))
+            .flatMap((concept) => concept.topicIds),
         ),
       );
       if (topicIds.length === 0) return 0;
@@ -265,12 +273,16 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     (conceptId: string) => {
       const concept = getConcept(conceptId);
       if (!concept) return false;
-      const sequence = getTopicConceptIds(concept.topicId);
-      const index = sequence.indexOf(conceptId);
-      if (index <= 0) return true;
-      return completedConcepts.includes(sequence[index - 1]);
+      const sequences = getConceptSequences(concept);
+      return (
+        sequences.length === 0 ||
+        sequences.some((sequence) => {
+          const index = sequence.indexOf(conceptId);
+          return index <= 0 || completedConcepts.includes(sequence[index - 1]);
+        })
+      );
     },
-    [completedConcepts, getConcept, getTopicConceptIds],
+    [completedConcepts, getConcept, getConceptSequences],
   );
 
   const getConceptStatus = useCallback(
@@ -278,27 +290,28 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       if (completedConcepts.includes(conceptId)) return 'done';
       const concept = getConcept(conceptId);
       if (!concept) return 'open';
-      const sequence = getTopicConceptIds(concept.topicId);
-      const index = sequence.indexOf(conceptId);
-      const earlierIncomplete = sequence
-        .slice(0, Math.max(index, 0))
-        .some((id) => !completedConcepts.includes(id));
-      if (!earlierIncomplete && isConceptOpen(conceptId)) return 'current';
-      return 'open';
+      const sequences = getConceptSequences(concept);
+      const hasAvailablePath =
+        sequences.length === 0 ||
+        sequences.some((sequence) => {
+          const index = sequence.indexOf(conceptId);
+          return !sequence.slice(0, index).some((id) => !completedConcepts.includes(id));
+        });
+      return hasAvailablePath && isConceptOpen(conceptId) ? 'current' : 'open';
     },
-    [completedConcepts, getConcept, getTopicConceptIds, isConceptOpen],
+    [completedConcepts, getConcept, getConceptSequences, isConceptOpen],
   );
 
   const getRecommendedConceptId = useCallback(
     (subjectId?: SubjectId) => {
       if (placement.recommendedStartConceptId) {
         const recommended = getConcept(placement.recommendedStartConceptId);
-        if (recommended && (!subjectId || recommended.subjectId === subjectId)) {
+        if (recommended && (!subjectId || recommended.subjectIds.includes(subjectId))) {
           return recommended.id;
         }
       }
       const pool = subjectId
-        ? concepts.filter((concept) => concept.subjectId === subjectId)
+        ? concepts.filter((concept) => concept.subjectIds.includes(subjectId))
         : concepts;
       const next = pool.find((concept) => !completedConcepts.includes(concept.id));
       return next?.id ?? pool[pool.length - 1]?.id;

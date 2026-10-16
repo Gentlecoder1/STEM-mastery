@@ -10,8 +10,8 @@ import {
 } from 'react';
 
 import { isApiConfigured } from './lib/api';
-import { fetchConcept } from './lib/catalogApi';
-import { mapConceptDetail, type LearningContent } from './types/catalog';
+import { fetchLesson } from './lib/catalogApi';
+import { mapLesson, type LearningContent } from './types/catalog';
 import {
   emptyReading,
   loadAllReading,
@@ -134,9 +134,8 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     [getTopicConceptIds],
   );
 
-  const cacheConcept = useCallback(async (conceptId: string): Promise<LearningContent[] | null> => {
-    const detail = mapConceptDetail(await fetchConcept(conceptId));
-    const content = [...detail.content];
+  const cacheConcept = useCallback(async (conceptId: string): Promise<LearningContent[]> => {
+    const content = mapLesson(await fetchLesson(conceptId), conceptId);
     await saveLesson(conceptId, content);
     setLessons((current) => ({ ...current, [conceptId]: content }));
     return content;
@@ -163,7 +162,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
 
   const downloadTopic = useCallback(
     async (topicId: string) => {
-      const ids = getTopicConceptIds(topicId);
+      const ids = getTopicConceptIds(topicId).filter((id) => !downloadsRef.current.includes(id));
       let completed = 0;
       for (const id of ids) {
         if (await downloadConcept(id)) completed += 1;

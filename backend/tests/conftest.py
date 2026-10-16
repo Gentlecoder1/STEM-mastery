@@ -131,9 +131,12 @@ class FakeGraphRepository:
             "prefLabel": "Velocity",
             "aliases": ["speed vector"],
             "iri": None,
-            "topicId": "topic-speed-velocity",
-            "subjectId": "physics",
-            "definition": "Velocity is the rate of change of displacement with respect to time.",
+            "topicIds": ["topic-speed-velocity"],
+            "subjectIds": ["physics"],
+            "shortDescription": (
+                "Velocity is the rate of change of displacement with respect to time."
+            ),
+            "hasLesson": True,
             "prerequisites": [{"id": "concept-displacement", "name": "Distance and displacement"}],
             "related": [{"id": "concept-acceleration", "name": "Acceleration"}],
         }

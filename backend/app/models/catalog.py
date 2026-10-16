@@ -69,21 +69,30 @@ class Question(BaseModel):
 
 
 class Concept(BaseModel):
+    """Concept metadata only.
+
+    Lesson payload lives on ``GET /concepts/{id}/lesson`` and quizzes on
+    ``GET /concepts/{id}/questions`` — neither belongs here. A concept may sit
+    under several topics, so membership is returned as arrays.
+    """
+
     id: str
+    title: str | None = None
+    shortDescription: str | None = None
+    topicIds: list[str] = Field(default_factory=list)
+    subjectIds: list[str] = Field(default_factory=list)
+    prerequisiteIds: list[str] = Field(default_factory=list)
+    relatedConceptIds: list[str] = Field(default_factory=list)
+    hasLesson: bool = False
+    # Display companions for the id lists above (names are not resolvable from
+    # the mobile app's concept store when the related concept is not cached).
+    prerequisites: list[ConceptRef] = Field(default_factory=list)
+    related: list[ConceptRef] = Field(default_factory=list)
+    # Raw graph fields kept for compatibility with existing screens.
     name: str | None = None
     prefLabel: str | None = None
     aliases: list[str] = Field(default_factory=list)
     iri: str | None = None
-    topicId: str | None = None
-    subjectId: str | None = None
-    # Derived from the concept's Definition LearningContent; null when absent.
-    definition: str | None = None
-    # Never inferred; null until explicit content exists in the graph.
-    whyItMatters: str | None = None
-    prerequisites: list[ConceptRef] = Field(default_factory=list)
-    related: list[ConceptRef] = Field(default_factory=list)
-    content: list[LearningContent] = Field(default_factory=list)
-    questions: list[Question] = Field(default_factory=list)
 
 
 class GraphSchema(BaseModel):

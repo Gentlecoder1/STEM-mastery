@@ -237,10 +237,15 @@ export default function ProfileScreen({ navigation }: RootScreenProps<'Profile'>
                     <Text style={styles.menuTitle}>{concept.title}</Text>
                     <Text style={styles.menuSubtitle}>
                       {[
-                        catalogSubjects.find(
-                          (subject) => String(subject.id) === String(concept.subjectId),
-                        )?.name,
-                        topics.find((topic) => topic.id === concept.topicId)?.name,
+                        ...concept.subjectIds.map(
+                          (subjectId) =>
+                            catalogSubjects.find(
+                              (subject) => String(subject.id) === String(subjectId),
+                            )?.name,
+                        ),
+                        ...concept.topicIds.map(
+                          (topicId) => topics.find((topic) => topic.id === topicId)?.name,
+                        ),
                       ]
                         .filter(Boolean)
                         .join(' • ')}

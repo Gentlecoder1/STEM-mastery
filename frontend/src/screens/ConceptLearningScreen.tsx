@@ -119,8 +119,8 @@ export default function ConceptLearningScreen({
 
   const lessonItems = useMemo(
     () =>
-      (cachedContent ?? concept?.content ?? []).filter((item) => item.contentType !== 'QUESTION'),
-    [cachedContent, concept],
+      (cachedContent ?? []).filter((item) => item.contentType !== 'QUESTION'),
+    [cachedContent],
   );
   const mastery = isConceptCompleted(conceptId) ? 100 : 0;
 

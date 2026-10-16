@@ -58,7 +58,13 @@ OPTIONAL MATCH (t:Topic)-[:HAS_CONCEPT]->(c)
 OPTIONAL MATCH (c)-[:BELONGS_TO_SUBJECT]->(s:Subject)
 RETURN c.id AS id, coalesce(c.name, c.prefLabel) AS name,
        c.prefLabel AS prefLabel, c.aliases AS aliases, c.iri AS iri,
-       t.id AS topicId, s.id AS subjectId
+       collect(DISTINCT t.id) AS topicIds,
+       collect(DISTINCT s.id) AS subjectIds
+"""
+
+_HAS_LESSON = """
+MATCH (:Concept {id: $concept_id})-[:HAS_CONTENT]->(:LearningContent)
+RETURN count(*) > 0 AS hasLesson
 """
 
 _PREREQUISITES = """
@@ -363,10 +369,16 @@ class GraphRepository:
             return None
         concept = rows[0]
         concept["aliases"] = _as_list(concept.get("aliases"))
+        concept["topicIds"] = [value for value in (concept.get("topicIds") or []) if value]
+        concept["subjectIds"] = [value for value in (concept.get("subjectIds") or []) if value]
         concept["prerequisites"] = await self._read(_PREREQUISITES, concept_id=concept_id)
         concept["related"] = await self._read(_RELATED, concept_id=concept_id)
         definition_rows = await self._read(_DEFINITION, concept_id=concept_id)
-        concept["definition"] = definition_rows[0]["contentText"] if definition_rows else None
+        concept["shortDescription"] = (
+            definition_rows[0]["contentText"] if definition_rows else None
+        )
+        has_lesson_rows = await self._read(_HAS_LESSON, concept_id=concept_id)
+        concept["hasLesson"] = bool(has_lesson_rows and has_lesson_rows[0].get("hasLesson"))
         return concept
 
     async def list_content(self, concept_id: str) -> list[dict[str, Any]]:

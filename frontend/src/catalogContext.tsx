@@ -36,8 +36,9 @@ type CatalogContextValue = {
   getConcept: (id: string) => Concept | undefined;
   getTopicConceptIds: (topicId: string) => string[];
   getTopicsForSubject: (subjectId: string) => CatalogTopic[];
-  getPreviousConcept: (id: string) => Concept | undefined;
-  getNextConcept: (id: string) => Concept | undefined;
+  getPreviousConcept: (id: string, topicId?: string) => Concept | undefined;
+  getNextConcept: (id: string, topicId?: string) => Concept | undefined;
+  /** Merges metadata (definition/related/membership) from the API. Never fetches lessons. */
   loadConcept: (id: string) => Promise<Concept | undefined>;
   refresh: () => Promise<void>;
 };
@@ -84,7 +85,7 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
     const apiSubjects = await fetchSubjects();
     const catalogSubjects = apiSubjects.map(toCatalogSubject);
     const allTopics: CatalogTopic[] = [];
-    const allConcepts: Concept[] = [];
+    const conceptsById = new Map<string, Concept>();
     const order: Record<string, string[]> = {};
 
     await Promise.all(
@@ -98,8 +99,22 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
               mapConceptSummary(summary, topic.id, subjectId),
             );
             allTopics.push({ id: topic.id, name: topic.name, subjectId });
-            allConcepts.push(...topicConcepts);
             order[topic.id] = topicConcepts.map((concept) => concept.id);
+            for (const concept of topicConcepts) {
+              const existing = conceptsById.get(concept.id);
+              conceptsById.set(
+                concept.id,
+                existing
+                  ? {
+                      ...existing,
+                      topicIds: Array.from(new Set([...existing.topicIds, ...concept.topicIds])),
+                      subjectIds: Array.from(
+                        new Set([...existing.subjectIds, ...concept.subjectIds]),
+                      ),
+                    }
+                  : concept,
+              );
+            }
           }),
         );
       }),
@@ -109,7 +124,7 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
       lastSyncedAt: new Date().toISOString(),
       subjects: catalogSubjects,
       topics: allTopics,
-      concepts: allConcepts,
+      concepts: Array.from(conceptsById.values()),
       conceptOrder: order,
     };
   }, []);
@@ -167,8 +182,18 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
   );
 
   const getTopicConceptIds = useCallback(
-    (topicId: string) =>
-      conceptOrder[topicId] ?? concepts.filter((c) => c.topicId === topicId).map((c) => c.id),
+    (topicId: string) => {
+      const orderedIds = conceptOrder[topicId] ?? [];
+      const memberIds = concepts
+        .filter((concept) => concept.topicIds.includes(topicId))
+        .map((concept) => concept.id);
+      return Array.from(
+        new Set([
+          ...orderedIds.filter((id) => concepts.some((concept) => concept.id === id)),
+          ...memberIds,
+        ]),
+      );
+    },
     [conceptOrder, concepts],
   );
 
@@ -177,34 +202,53 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
     [topics],
   );
 
+  /**
+   * Sequence is resolved through `conceptOrder` (server-provided prerequisite
+   * order). `topicId` disambiguates concepts that appear in several topics;
+   * without it we fall back to the concept's first known topic.
+   */
   const getRelative = useCallback(
-    (id: string, offset: number) => {
+    (id: string, offset: number, topicId?: string) => {
       const concept = concepts.find((item) => item.id === id);
       if (!concept) return undefined;
-      const sequence = getTopicConceptIds(concept.topicId);
+      const contextTopic = topicId ?? concept.topicIds[0];
+      if (!contextTopic || !concept.topicIds.includes(contextTopic)) return undefined;
+      const sequence = getTopicConceptIds(contextTopic);
       const index = sequence.indexOf(id);
+      if (index < 0) return undefined;
       const nextId = sequence[index + offset];
       return nextId ? concepts.find((item) => item.id === nextId) : undefined;
     },
     [concepts, getTopicConceptIds],
   );
 
-  const getPreviousConcept = useCallback((id: string) => getRelative(id, -1), [getRelative]);
-  const getNextConcept = useCallback((id: string) => getRelative(id, 1), [getRelative]);
+  const getPreviousConcept = useCallback(
+    (id: string, topicId?: string) => getRelative(id, -1, topicId),
+    [getRelative],
+  );
+
+  const getNextConcept = useCallback(
+    (id: string, topicId?: string) => getRelative(id, 1, topicId),
+    [getRelative],
+  );
+
+  const metadataLoaded = useRef<Set<string>>(new Set());
 
   const loadConcept = useCallback(
     async (id: string): Promise<Concept | undefined> => {
       const existing = conceptsRef.current.find((concept) => concept.id === id);
-      if (existing && existing.content.length > 0) return existing;
+      if (metadataLoaded.current.has(id)) return existing;
       if (!isApiConfigured) return existing;
       try {
-        const detail = mapConceptDetail(await fetchConcept(id), existing?.topicId ?? '');
+        const detail = mapConceptDetail(await fetchConcept(id), existing?.topicIds ?? []);
         const merged = { ...(existing ?? detail), ...detail };
         const next = conceptsRef.current.map((concept) =>
           concept.id === id ? merged : concept,
         );
         if (!next.some((concept) => concept.id === id)) next.push(merged);
         setConcepts(next);
+        metadataLoaded.current.add(id);
+        // Metadata only — lesson sections belong to the offline lesson store.
         const snapshot: CatalogSnapshot = {
           lastSyncedAt: lastSyncedAt ?? new Date().toISOString(),
           subjects,

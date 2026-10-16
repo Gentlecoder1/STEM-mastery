@@ -150,14 +150,15 @@ export default function HomeDashboardScreen({ navigation }: RootScreenProps<'Hom
   const hero = useMemo(() => {
     if (lastConcept) {
       const subjectName = subjects.find(
-        (subject) => String(subject.id) === String(lastConcept.subjectId),
+        (subject) => lastConcept.subjectIds.includes(String(subject.id)),
       )?.name;
+      const subjectId = lastConcept.subjectIds[0] ?? '';
       return {
         pill: 'CONTINUE WHERE YOU LEFT OFF',
         subject: subjectName ? subjectName.toUpperCase() : '',
         title: 'Continue your lesson',
         lesson: lastConcept.title,
-        progress: getSubjectMastery(lastConcept.subjectId),
+        progress: getSubjectMastery(subjectId),
       };
     }
     return {

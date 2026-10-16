@@ -35,6 +35,7 @@ export default function TopicOverviewScreen({ navigation, route }: RootScreenPro
   const topicTitle = topic?.name ?? 'Topic';
   const subjectName = subjects.find((item) => String(item.id) === String(topic?.subjectId))?.name ?? 'Subject';
   const topicLessonIds = getTopicConceptIds(topicId);
+  const downloadedCount = topicLessonIds.filter((id) => downloadedLessons.includes(id)).length;
   const topicMastery = getTopicMastery(topicId);
   const latestAssessment = topicAssessments[topicId];
   const isDownloaded =
@@ -71,7 +72,7 @@ export default function TopicOverviewScreen({ navigation, route }: RootScreenPro
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 18 }]}>
         <View style={styles.hero}>
           <View style={styles.heroIcon}><GaugeIcon size={34} color={lightColors.surface} /></View>
-          <View style={styles.heroCopy}><Text style={styles.eyebrow}>{subjectName.toUpperCase()}</Text><Text style={styles.heroTitle}>{topicTitle}</Text><Text style={styles.meta}>{topicLessonIds.length} {topicLessonIds.length === 1 ? 'lesson' : 'lessons'}</Text></View>
+          <View style={styles.heroCopy}><Text style={styles.eyebrow}>{subjectName.toUpperCase()}</Text><Text style={styles.heroTitle}>{topicTitle}</Text><Text style={styles.meta}>{downloadedCount} of {topicLessonIds.length} downloaded</Text></View>
           <ProgressBar progress={topicMastery} track={colors.surface} fill={colors.blue} style={styles.heroBar} />
         </View>
         <View style={styles.sectionHeader}>

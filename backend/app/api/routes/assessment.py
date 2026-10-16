@@ -72,7 +72,11 @@ async def submit_quiz(
     summary = grading.summarise(results)
     passed = bool(summary["passed"])
     score_pct = int(summary["scorePct"])
-    topic_id = concept.get("topicId")
+    topic_ids = [value for value in (concept.get("topicIds") or []) if value]
+    if request.topicId in topic_ids:
+        topic_id = request.topicId
+    else:
+        topic_id = topic_ids[0] if topic_ids else None
 
     try:
         if passed:

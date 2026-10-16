@@ -10,6 +10,7 @@ import { colors, fonts, shadow } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
 import { useProgress } from '../progressContext';
 import { useCatalog } from '../catalogContext';
+import { useOffline } from '../offlineContext';
 import { CONTENT_LABELS } from '../types/catalog';
 import type { RootScreenProps } from '../navigation/types';
 
@@ -19,11 +20,14 @@ export default function ConceptDetailsScreen({ navigation, route }: RootScreenPr
   const styles = useThemedStyles(createStyles);
   const { isConceptOpen, isConceptCompleted } = useProgress();
   const { getConcept, getPreviousConcept, loadConcept } = useCatalog();
+  const offline = useOffline();
   const concept = getConcept(route.params.conceptId);
+  const lessonContent = offline.getLessonContent(route.params.conceptId) ?? [];
 
   useEffect(() => {
     void loadConcept(route.params.conceptId);
-  }, [loadConcept, route.params.conceptId]);
+    void offline.ensureLesson(route.params.conceptId);
+  }, [loadConcept, offline.ensureLesson, route.params.conceptId]);
 
   if (!concept) {
     return (
@@ -33,7 +37,7 @@ export default function ConceptDetailsScreen({ navigation, route }: RootScreenPr
     );
   }
 
-  const itemCount = concept.content.length;
+  const itemCount = lessonContent.length;
   const isOpen = isConceptOpen(concept.id) || isConceptCompleted(concept.id);
   const mastery = isConceptCompleted(concept.id) ? 100 : 0;
   const previous = getPreviousConcept(concept.id);
@@ -115,7 +119,7 @@ export default function ConceptDetailsScreen({ navigation, route }: RootScreenPr
           <Text style={styles.link}>{itemCount} items</Text>
         </View>
         <View style={styles.contentList}>
-          {concept.content.map((item) => (
+          {lessonContent.map((item) => (
             <View key={item.id} style={styles.contentRow}>
               <View style={styles.orderBadge}>
                 <Text style={styles.orderText}>{item.chapterOrder}</Text>

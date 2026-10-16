@@ -31,6 +31,10 @@ class QuizSubmitRequest(BaseModel):
     responses: list[QuizResponseItem] = Field(default_factory=list)
     mode: str = "lesson"
     targetConceptId: str | None = None
+    # Topic the quiz was taken from. A concept can belong to several topics, so
+    # the client supplies the context; the server validates it against the graph
+    # and falls back to the concept's own topics.
+    topicId: str | None = None
 
 
 class QuizSubmitResponse(BaseModel):

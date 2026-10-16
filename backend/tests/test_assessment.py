@@ -86,6 +86,24 @@ def test_submit_fail_does_not_complete_concept(
     assert learner_state.topic_assessments["topic-speed-velocity"]["passed"] is False
 
 
+def test_submit_topic_context_is_validated_against_the_graph(
+    client: TestClient,
+) -> None:
+    responses = [{"questionId": "q-velocity-1", "response": "b"}]
+
+    accepted = client.post(
+        "/api/v1/concepts/concept-velocity/quiz/submit",
+        json={"responses": responses, "topicId": "topic-speed-velocity"},
+    )
+    assert accepted.json()["topicId"] == "topic-speed-velocity"
+
+    rejected = client.post(
+        "/api/v1/concepts/concept-velocity/quiz/submit",
+        json={"responses": responses, "topicId": "topic-not-a-member"},
+    )
+    assert rejected.json()["topicId"] == "topic-speed-velocity"
+
+
 def test_submit_requires_auth() -> None:
     from fastapi.testclient import TestClient
 
