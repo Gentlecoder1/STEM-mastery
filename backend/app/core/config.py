@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -28,6 +30,15 @@ class Settings(BaseSettings):
     supabase_service_role_key: str = ""
     supabase_jwks_url: str = ""
 
+    # SciBERT (semantic entity extraction). The model is lazy-loaded on the
+    # first inference — never at startup, never on ordinary catalog requests.
+    # Leave the path blank to disable the semantic endpoints (they then return
+    # 503) while everything else keeps working. Resolved relative to the
+    # backend project root, e.g. "models/stem_scibert_final".
+    scibert_model_path: str = ""
+    scibert_min_confidence: float = 0.80
+    scibert_max_text_chars: int = 5000
+
     @property
     def resolved_jwks_url(self) -> str:
         if self.supabase_jwks_url:
@@ -47,6 +58,24 @@ class Settings(BaseSettings):
         if not self.supabase_url:
             return ""
         return f"{self.supabase_url.rstrip('/')}/rest/v1"
+
+    @property
+    def resolved_scibert_model_path(self) -> Path:
+        """Absolute SciBERT directory, relative to the backend project root.
+
+        Anchored to this file (``.../backend/app/core/config.py``), never to the
+        process working directory, so it also resolves under Vercel where the
+        entrypoint is ``api/index.py``.
+        """
+        if not self.scibert_model_path:
+            return Path()
+        backend_root = Path(__file__).resolve().parents[2]
+        return backend_root / self.scibert_model_path
+
+    @property
+    def scibert_model_name(self) -> str:
+        """Short model identifier (e.g. "stem_scibert_final") or "". """
+        return self.scibert_model_path.replace("\\", "/").strip("/").rstrip("/").split("/")[-1]
 
 
 settings = Settings()

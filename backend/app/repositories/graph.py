@@ -256,6 +256,48 @@ def _topological_order(
 
 
 
+def _normalize_match_text(value: Any) -> str:
+    """Lowercase + collapse whitespace for conservative entity matching."""
+    return " ".join(str(value or "").split()).strip().lower()
+
+
+# Exact normalized matches on identity fields only; alias matching is done in
+# Python afterwards so list/JSON-string alias properties never reach Cypher
+# string functions. LIMIT 2 is enough to distinguish a match from ambiguity.
+_MATCH_QUERIES = {
+    "SUBJECT": """
+        MATCH (n:Subject)
+        WHERE toLower(coalesce(n.name, n.prefLabel, '')) = $text
+           OR toLower(coalesce(n.id, '')) = $text
+        RETURN n.id AS id, coalesce(n.name, n.prefLabel, n.id) AS name
+        ORDER BY name
+        LIMIT 2
+    """,
+    "TOPIC": """
+        MATCH (n:Topic)
+        WHERE toLower(coalesce(n.name, n.prefLabel, '')) = $text
+           OR toLower(coalesce(n.id, '')) = $text
+        RETURN n.id AS id, coalesce(n.name, n.prefLabel, n.id) AS name
+        ORDER BY name
+        LIMIT 2
+    """,
+    "CONCEPT": """
+        MATCH (n:Concept)
+        WHERE toLower(coalesce(n.name, n.prefLabel, '')) = $text
+           OR toLower(coalesce(n.id, '')) = $text
+        RETURN n.id AS id, coalesce(n.name, n.prefLabel, n.id) AS name
+        ORDER BY name
+        LIMIT 2
+    """,
+}
+
+_ALIAS_QUERY = """
+MATCH (n:%s)
+WHERE n.aliases IS NOT NULL
+RETURN n.id AS id, coalesce(n.name, n.prefLabel, n.id) AS name, n.aliases AS aliases
+"""
+
+
 class GraphRepository:
     """Read-only access to the curriculum graph."""
 
@@ -408,3 +450,32 @@ class GraphRepository:
             }
             for row in rows
         ]
+
+    async def find_entity(self, entity_type: str, text: str) -> list[dict[str, Any]]:
+        """Conservatively resolve an extracted entity against graph nodes.
+
+        Read-only and parameterised; never creates nodes. Exact normalized
+        name/prefLabel/id match first; aliases are checked only when no direct
+        match exists and the label's graph data actually has aliases. Returns
+        zero, one, or (rarely) several candidates — more than one distinct node
+        is reported as ambiguous by the semantic service instead of guessed.
+        """
+        query = _MATCH_QUERIES.get(entity_type)
+        if query is None:
+            return []
+        normalized = _normalize_match_text(text)
+        if not normalized:
+            return []
+        rows = await self._read(query, text=normalized)
+        if rows:
+            return rows[:2]
+
+        # Second attempt, aliases only: prefix _ALIAS_QUERY with the label and
+        # coerce alias values with the same _as_list rules as catalog reads.
+        alias_rows = await self._read(_ALIAS_QUERY % entity_type.title())
+        matched = [
+            row
+            for row in alias_rows
+            if normalized in (_normalize_match_text(a) for a in _as_list(row.get("aliases")))
+        ]
+        return matched[:2]

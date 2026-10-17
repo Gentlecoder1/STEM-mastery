@@ -11,3 +11,12 @@ neo4j==6.4.0
 httpx==0.28.1
 pyjwt[crypto]==2.15.1
 cryptography==50.0.2
+
+# SciBERT inference (lazy: imported inside scibert_service._ensure_loaded, so
+# the app still runs, boots and serves every catalog route without them).
+# Local development: uv sync pulls these via pyproject. On Vercel the ML
+# runtime plus weights exceed serverless limits, so keep them commented in a
+# production requirements file until SciBERT moves to a dedicated service.
+# transformers>=4.46
+# torch>=2.4
+# safetensors>=0.4

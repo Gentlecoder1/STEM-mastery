@@ -17,6 +17,10 @@ from app.core.auth import CurrentUser, get_current_user
 from app.main import app
 
 
+def normalize_lookup_text(value: str) -> str:
+    return " ".join(value.split()).strip().lower()
+
+
 class FakeGraphRepository:
     def __init__(self) -> None:
         self._questions = {
@@ -206,6 +210,42 @@ class FakeGraphRepository:
             "relationshipTypes": ["HAS_TOPIC", "HAS_CONCEPT", "PREREQUISITE_OF"],
             "propertyKeys": ["id", "name"],
         }
+
+    async def find_entity(self, entity_type: str, text: str) -> list[dict]:
+        """Conservative lookup stand-in: exact normalized name/id/alias match."""
+        normalized = " ".join(text.split()).strip().lower()
+        nodes = {
+            "SUBJECT": [
+                {"id": "physics", "name": "Physics"},
+                {"id": "mathematics", "name": "Mathematics"},
+            ],
+            "TOPIC": [
+                {"id": "topic-speed-velocity", "name": "Speed and velocity"},
+            ],
+            "CONCEPT": [
+                {"id": "concept-velocity", "name": "Velocity", "aliases": ["speed"]},
+                {
+                    "id": "concept-displacement",
+                    "name": "Distance and displacement",
+                    "aliases": [],
+                },
+            ],
+        }.get(entity_type, [])
+        primary = [
+            row
+            for row in nodes
+            if row["name"].strip().lower() == normalized
+            or row["id"].lower() == normalized
+        ]
+        if primary:
+            return primary[:2]
+        alias_nodes = [
+            row
+            for row in nodes
+            for alias in (row.get("aliases") or [])
+            if normalize_lookup_text(alias) == normalized
+        ]
+        return alias_nodes[:2]
 
 
 class FakeLearnerState:

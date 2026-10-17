@@ -7,6 +7,11 @@ from app.core.config import settings
 from app.core.db import Neo4jDatabase, create_database
 from app.repositories.graph import GraphRepository
 from app.repositories.learner_state import LearnerStateRepository
+from app.services.scibert_service import LocalSciBERTExtractor
+from app.services.semantic_extractor import (
+    SemanticExtractor,
+    UnconfiguredSemanticExtractor,
+)
 
 logger = logging.getLogger("stem_mastery")
 
@@ -55,3 +60,33 @@ def get_learner_state(request: Request) -> LearnerStateRepository:
 
 RepositoryDep = Annotated[GraphRepository, Depends(get_repository)]
 LearnerStateDep = Annotated[LearnerStateRepository, Depends(get_learner_state)]
+
+
+def _build_semantic_extractor() -> SemanticExtractor:
+    """Local SciBERT today; the swap point for a future remote extractor.
+
+    Returning ``UnconfiguredSemanticExtractor`` when no model path is set keeps
+    the whole API bootable without any ML stack: only /semantic/* answers 503.
+    A later ``RemoteSciBERTExtractor`` would implement the same interface.
+    """
+    if not settings.scibert_model_path:
+        return UnconfiguredSemanticExtractor()
+    return LocalSciBERTExtractor()
+
+
+def get_semantic_extractor(request: Request) -> SemanticExtractor:
+    """Lazily built, cached per-app extractor.
+
+    Construction is cheap by design — the 418 MB model is NOT loaded here nor
+    at startup. Weights load inside the extractor on the first inference.
+    """
+    extractor: SemanticExtractor | None = getattr(
+        request.app.state, "semantic_extractor", None
+    )
+    if extractor is None:
+        extractor = _build_semantic_extractor()
+        request.app.state.semantic_extractor = extractor
+    return extractor
+
+
+SemanticExtractorDep = Annotated[SemanticExtractor, Depends(get_semantic_extractor)]

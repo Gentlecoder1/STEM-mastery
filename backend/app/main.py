@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from neo4j.exceptions import Neo4jError
 
-from app.api.routes import assessment, catalog, graph, health, placement, progress
+from app.api.routes import assessment, catalog, graph, health, placement, progress, semantic
 from app.core.config import settings
 from app.core.db import create_database
 from app.repositories.learner_state import LearnerStateRepository
@@ -74,6 +74,7 @@ app.include_router(assessment.router, prefix=settings.api_prefix)
 app.include_router(placement.router, prefix=settings.api_prefix)
 app.include_router(progress.router, prefix=settings.api_prefix)
 app.include_router(graph.router, prefix=settings.api_prefix)
+app.include_router(semantic.router, prefix=settings.api_prefix)
 
 
 @app.get("/", tags=["root"])

@@ -10,6 +10,12 @@ dependencies = [
     "neo4j>=5.20",
     "pydantic-settings>=2.6",
     "pyjwt[crypto]>=2.9",
+    # SciBERT inference (app/services/scibert_service.py). Imported lazily at
+    # runtime; tests never need them because the extractor is injected.
+    # <6 keeps compatibility with the fine-tuned v4-era SciBERT weights.
+    "transformers>=4.46,<6",
+    "torch>=2.4",
+    "safetensors>=0.4",
 ]
 
 [dependency-groups]
