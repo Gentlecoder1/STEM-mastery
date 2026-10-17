@@ -84,21 +84,19 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
   const fetchAll = useCallback(async (): Promise<CatalogSnapshot> => {
     const apiSubjects = await fetchSubjects();
     const catalogSubjects = apiSubjects.map(toCatalogSubject);
-    const allTopics: CatalogTopic[] = [];
     const conceptsById = new Map<string, Concept>();
     const order: Record<string, string[]> = {};
 
-    await Promise.all(
+    const topicsBySubject = await Promise.all(
       apiSubjects.map(async (subject) => {
         const subjectId = String(toCatalogSubject(subject).id);
         const apiTopics = await fetchTopics(subject.id);
-        await Promise.all(
+        const topicsWithConcepts = await Promise.all(
           apiTopics.map(async (topic) => {
             const summaries = await fetchConcepts(topic.id);
             const topicConcepts = summaries.map((summary) =>
               mapConceptSummary(summary, topic.id, subjectId),
             );
-            allTopics.push({ id: topic.id, name: topic.name, subjectId });
             order[topic.id] = topicConcepts.map((concept) => concept.id);
             for (const concept of topicConcepts) {
               const existing = conceptsById.get(concept.id);
@@ -115,10 +113,13 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
                   : concept,
               );
             }
+            return { topic: { id: topic.id, name: topic.name, subjectId }, topicConcepts };
           }),
         );
+        return topicsWithConcepts;
       }),
     );
+    const allTopics = topicsBySubject.flat().map(({ topic }) => topic);
 
     return {
       lastSyncedAt: new Date().toISOString(),
@@ -203,8 +204,8 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
   );
 
   /**
-   * Sequence is resolved through `conceptOrder` (server-provided prerequisite
-   * order). `topicId` disambiguates concepts that appear in several topics;
+   * Sequence is resolved through `conceptOrder` (server-provided curriculum
+   * order from HAS_CONCEPT.order). `topicId` disambiguates concepts that appear in several topics;
    * without it we fall back to the concept's first known topic.
    */
   const getRelative = useCallback(
