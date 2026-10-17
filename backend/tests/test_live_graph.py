@@ -4,18 +4,17 @@ Skipped unless ``STEM_NEO4J_URI`` is set. Run with:
     uv run pytest -m live
 """
 
-import os
-
 import pytest
 from fastapi.testclient import TestClient
 
+from app.core.config import settings
 from app.main import app
 
 pytestmark = pytest.mark.live
 
 requires_db = pytest.mark.skipif(
-    not os.getenv("STEM_NEO4J_URI"),
-    reason="Set STEM_NEO4J_URI (and credentials) to run live Neo4j tests.",
+    not settings.neo4j_uri,
+    reason="Set STEM_NEO4J_URI (and credentials) in backend/.env to run live Neo4j tests.",
 )
 
 

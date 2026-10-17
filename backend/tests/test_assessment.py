@@ -104,10 +104,14 @@ def test_submit_topic_context_is_validated_against_the_graph(
     assert rejected.json()["topicId"] == "topic-speed-velocity"
 
 
-def test_submit_requires_auth() -> None:
+def test_submit_requires_auth(monkeypatch) -> None:
     from fastapi.testclient import TestClient
 
     from app.main import app
+
+    # Force-unconfigured auth so the test is independent of backend/.env.
+    monkeypatch.setattr("app.core.config.settings.supabase_url", "")
+    monkeypatch.setattr("app.core.config.settings.supabase_jwks_url", "")
 
     with TestClient(app) as bare_client:
         response = bare_client.post(

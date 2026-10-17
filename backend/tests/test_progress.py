@@ -33,10 +33,14 @@ def test_quiz_pending_can_clear_with_newer_update(client: TestClient) -> None:
     assert body["serverState"][0]["quizPending"] is False
 
 
-def test_requires_auth() -> None:
+def test_requires_auth(monkeypatch) -> None:
     from fastapi.testclient import TestClient
 
     from app.main import app
+
+    # Force-unconfigured auth so the test is independent of backend/.env.
+    monkeypatch.setattr("app.core.config.settings.supabase_url", "")
+    monkeypatch.setattr("app.core.config.settings.supabase_jwks_url", "")
 
     with TestClient(app) as bare_client:
         response = bare_client.post("/api/v1/progress/sync", json={"items": []})

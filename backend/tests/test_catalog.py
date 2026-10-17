@@ -81,7 +81,11 @@ def test_graph_schema_dev_endpoint(client: TestClient) -> None:
     assert "Concept" in response.json()["labels"]
 
 
-def test_catalog_returns_503_without_database() -> None:
+def test_catalog_returns_503_without_database(monkeypatch) -> None:
+    # Force-unconfigured settings so the test is independent of backend/.env;
+    # a real Aura instance is exercised by tests/test_live_graph.py instead.
+    monkeypatch.setattr("app.core.config.settings.neo4j_uri", "")
+    app.state.db = None
     # No dependency override: with no Neo4j configured, the dependency yields 503.
     with TestClient(app) as bare_client:
         response = bare_client.get("/api/v1/subjects")
