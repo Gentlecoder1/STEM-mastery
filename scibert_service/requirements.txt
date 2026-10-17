@@ -1,0 +1,9 @@
+# SciBERT inference service - runtime dependencies (Cloud Run container).
+# Deliberately minimal: FastAPI + uvicorn + CPU PyTorch + Transformers.
+# CPU-only torch keeps CUDA/NVIDIA packages out of the image.
+fastapi>=0.115
+uvicorn>=0.30
+pydantic>=2.6
+torch>=2.4
+transformers>=4.46,<6
+safetensors>=0.4

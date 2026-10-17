@@ -10,12 +10,11 @@ dependencies = [
     "neo4j>=5.20",
     "pydantic-settings>=2.6",
     "pyjwt[crypto]>=2.9",
-    # SciBERT inference (app/services/scibert_service.py). Imported lazily at
-    # runtime; tests never need them because the extractor is injected.
-    # <6 keeps compatibility with the fine-tuned v4-era SciBERT weights.
-    "transformers>=4.46,<6",
-    "torch>=2.4",
-    "safetensors>=0.4",
+    # NOTE: SciBERT inference (torch/transformers) deliberately lives in the
+    # separate scibert_service/ container (Cloud Run), NOT here. Keeping the
+    # serverless bundle free of ML deps avoids the Vercel 250 MB / function
+    # size limit. In default "remote" mode the backend only calls the
+    # service over HTTP via RemoteSciBERTExtractor (httpx).
 ]
 
 [dependency-groups]

@@ -7,7 +7,6 @@ from app.core.config import settings
 from app.core.db import Neo4jDatabase, create_database
 from app.repositories.graph import GraphRepository
 from app.repositories.learner_state import LearnerStateRepository
-from app.services.scibert_service import LocalSciBERTExtractor
 from app.services.semantic_extractor import (
     SemanticExtractor,
     UnconfiguredSemanticExtractor,
@@ -63,14 +62,29 @@ LearnerStateDep = Annotated[LearnerStateRepository, Depends(get_learner_state)]
 
 
 def _build_semantic_extractor() -> SemanticExtractor:
-    """Local SciBERT today; the swap point for a future remote extractor.
+    """Mode-driven extractor factory.
 
-    Returning ``UnconfiguredSemanticExtractor`` when no model path is set keeps
-    the whole API bootable without any ML stack: only /semantic/* answers 503.
-    A later ``RemoteSciBERTExtractor`` would implement the same interface.
+    ``remote`` is the production mode: SciBERT runs in a dedicated Cloud Run
+    service (see ``scibert_service/``), so torch/transformers never ship in
+    the serverless bundle. ``local`` keeps the in-process lazy model for
+    offline development. Both implement the same ``SemanticExtractor``
+    interface — routes and the app contract are untouched.
+
+    Imports are deferred so a remote deployment never even imports the
+    ML-backed local module. Returning ``UnconfiguredSemanticExtractor`` when
+    the mode's URL/path is missing keeps the whole API bootable: only
+    /semantic/* answers 503.
     """
+    if settings.semantic_mode == "remote":
+        if not settings.scibert_remote_url:
+            return UnconfiguredSemanticExtractor()
+        from app.services.remote_scibert_service import RemoteSciBERTExtractor
+
+        return RemoteSciBERTExtractor()
     if not settings.scibert_model_path:
         return UnconfiguredSemanticExtractor()
+    from app.services.scibert_service import LocalSciBERTExtractor
+
     return LocalSciBERTExtractor()
 
 

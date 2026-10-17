@@ -1,0 +1,14 @@
+# Reinforces the build context; training scaffolding never ships in the image.
+__pycache__/
+**/__pycache__/
+*.py[cod]
+venv/
+.venv/
+.pytest_cache/
+.ruff_cache/
+tests/
+*.md
+.env
+.env.*
+Dockerfile
+.dockerignore

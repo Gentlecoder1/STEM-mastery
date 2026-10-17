@@ -52,3 +52,15 @@ backend/**/__pycache__/
 backend/.pytest_cache/
 backend/.ruff_cache/
 backend/.env
+# SciBERT weights + zip: large blobs never committed
+backend/model/
+backend/models/
+scibert_service/models/
+
+# scibert_service (standalone inference service)
+scibert_service/__pycache__/
+scibert_service/**/__pycache__/
+scibert_service/.pytest_cache/
+scibert_service/.ruff_cache/
+scibert_service/.venv/
+scibert_service/.env

@@ -1,0 +1,5 @@
+# Never ship the fine-tuned SciBERT weights (417 MB) to the serverless
+# bundle — inference runs in the separate scibert_service/ container.
+model/
+models/
+**/models/

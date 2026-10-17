@@ -422,6 +422,7 @@ def test_status_never_loads_the_model(client, override_extractor) -> None:
 def test_status_configured_before_model_load(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setattr("app.core.config.settings.semantic_mode", "local")
     monkeypatch.setattr(
         "app.core.config.settings.scibert_model_path", "models/stem_scibert_final"
     )

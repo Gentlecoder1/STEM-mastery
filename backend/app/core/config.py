@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -30,11 +31,20 @@ class Settings(BaseSettings):
     supabase_service_role_key: str = ""
     supabase_jwks_url: str = ""
 
-    # SciBERT (semantic entity extraction). The model is lazy-loaded on the
+    # SciBERT (semantic entity extraction) deployment mode:
+    # - "remote": dedicated inference service (scibert_service/, Cloud Run).
+    #   This is the production mode — torch/transformers never ship in the
+    #   serverless bundle and the 417 MB weights never redeploy on Vercel.
+    #   Requires STEM_SCIBERT_REMOTE_URL; blank URL disables /semantic/* (503).
+    # - "local": in-process lazy model loaded from scibert_model_path —
+    #   useful for offline development with the weights checked out locally.
+    semantic_mode: Literal["local", "remote"] = "remote"
+    scibert_remote_url: str = ""
+    scibert_remote_timeout_seconds: float = 10.0
+
+    # Local mode only. The path is resolved relative to the backend project
+    # root, e.g. "models/stem_scibert_final". The model is lazy-loaded on the
     # first inference — never at startup, never on ordinary catalog requests.
-    # Leave the path blank to disable the semantic endpoints (they then return
-    # 503) while everything else keeps working. Resolved relative to the
-    # backend project root, e.g. "models/stem_scibert_final".
     scibert_model_path: str = ""
     scibert_min_confidence: float = 0.80
     scibert_max_text_chars: int = 5000

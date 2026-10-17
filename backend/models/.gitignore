@@ -1,7 +1,0 @@
-# SciBERT weights live here locally (backend/models/stem_scibert_final) but are
-# ~418 MB and are NOT committed. Copy the trained model folder into
-# stem_scibert_final/ (config.json, model.safetensors, tokenizer.json,
-# tokenizer_config.json, training_args.bin). STEM_SCIBERT_MODEL_PATH points at
-# this directory relative to the backend project root.
-*
-!.gitignore
