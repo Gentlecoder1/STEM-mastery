@@ -1,5 +1,4 @@
 from app.models.progress import LessonProgressItem
-from app.repositories.graph import _topological_order
 from app.services import grading
 from app.services.placement import select_placement_questions
 from app.services.progress import merge_lesson_progress
@@ -28,21 +27,6 @@ def test_summarise_excludes_theory_and_uses_pass_ratio() -> None:
     summary = grading.summarise([True, False, None])
     assert summary == {"correct": 1, "total": 2, "scorePct": 50, "passed": False}
     assert grading.summarise([True, True])["passed"] is True
-
-
-def test_topological_order_respects_prerequisites() -> None:
-    ids = ["c", "a", "b"]
-    names = {"a": "Alpha", "b": "Beta", "c": "Gamma"}
-    prerequisites = {"c": ["a", "b"], "b": ["a"], "a": []}
-    assert _topological_order(ids, prerequisites, names) == ["a", "b", "c"]
-
-
-def test_topological_order_handles_cycles_deterministically() -> None:
-    ids = ["y", "x"]
-    names = {"x": "X", "y": "Y"}
-    prerequisites = {"x": ["y"], "y": ["x"]}
-    # Cycle: falls back to name/id ordering for the leftover nodes.
-    assert _topological_order(ids, prerequisites, names) == ["x", "y"]
 
 
 def test_select_placement_questions_caps_per_concept() -> None:

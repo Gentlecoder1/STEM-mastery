@@ -40,16 +40,22 @@ ORDER BY name
 """
 
 _TOPICS = """
-MATCH (:Subject {id: $subject_id})-[:HAS_TOPIC]->(t:Topic)
-RETURN t.id AS id, coalesce(t.name, t.prefLabel, t.id) AS name, t.iri AS iri
-ORDER BY name
+MATCH (:Subject {id: $subject_id})-[r:HAS_TOPIC]->(t:Topic)
+RETURN t.id AS id, coalesce(t.name, t.prefLabel, t.id) AS name, t.iri AS iri,
+       r.order AS order
+ORDER BY r.order ASC
 """
 
 _CONCEPTS = """
-MATCH (:Topic {id: $topic_id})-[:HAS_CONCEPT]->(c:Concept)
-RETURN c.id AS id, coalesce(c.name, c.prefLabel) AS name,
-       c.prefLabel AS prefLabel, c.iri AS iri
-ORDER BY name
+MATCH (:Topic {id: $topic_id})-[r:HAS_CONCEPT]->(c:Concept)
+OPTIONAL MATCH (p:Concept)-[:PREREQUISITE_OF]->(c)
+RETURN c.id AS id, coalesce(c.name, c.prefLabel, c.id) AS name,
+       c.prefLabel AS prefLabel, c.iri AS iri, r.order AS order,
+       collect(DISTINCT CASE
+           WHEN p IS NOT NULL
+           THEN {id: p.id, name: coalesce(p.name, p.prefLabel, p.id)}
+       END) AS prerequisites
+ORDER BY r.order ASC
 """
 
 _CONCEPT = """
@@ -68,8 +74,8 @@ RETURN count(*) > 0 AS hasLesson
 """
 
 _PREREQUISITES = """
-MATCH (c:Concept {id: $concept_id})-[:PREREQUISITE_OF]->(p:Concept)
-RETURN DISTINCT p.id AS id, coalesce(p.name, p.prefLabel) AS name
+MATCH (p:Concept)-[:PREREQUISITE_OF]->(c:Concept {id: $concept_id})
+RETURN DISTINCT p.id AS id, coalesce(p.name, p.prefLabel, p.id) AS name
 ORDER BY name
 """
 
@@ -127,15 +133,16 @@ LIMIT 1
 """
 
 _CONCEPT_EDGES = """
-MATCH (c:Concept)-[:PREREQUISITE_OF]->(p:Concept)
+MATCH (p:Concept)-[:PREREQUISITE_OF]->(c:Concept)
 WHERE c.id IN $ids AND p.id IN $ids
 RETURN c.id AS conceptId, p.id AS prerequisiteId
 """
 
 _SUBJECT_CONCEPTS = """
-MATCH (:Subject {id: $subject_id})-[:HAS_TOPIC]->(:Topic)-[:HAS_CONCEPT]->(c:Concept)
-RETURN DISTINCT c.id AS id, coalesce(c.name, c.prefLabel, c.id) AS name,
+MATCH (:Subject {id: $subject_id})-[tr:HAS_TOPIC]->(:Topic)-[cr:HAS_CONCEPT]->(c:Concept)
+RETURN c.id AS id, coalesce(c.name, c.prefLabel, c.id) AS name,
        c.prefLabel AS prefLabel, c.iri AS iri
+ORDER BY tr.order ASC, cr.order ASC
 """
 
 _PLACEMENT_CANDIDATES = """
@@ -209,51 +216,6 @@ def _question_answer(row: dict[str, Any]) -> dict[str, Any]:
         "conceptId": row.get("conceptId"),
         "subjectId": row.get("subjectId"),
     }
-
-
-def _topological_order(
-    ids: list[str], prerequisites: dict[str, list[str]], names: dict[str, Any]
-) -> list[str]:
-    """Kahn's algorithm with a deterministic (name, id) tie-break.
-
-    ``prerequisites[c]`` are concepts that must appear *before* ``c``. Nodes left
-    over after the queue drains (cycles/disconnected) are appended in the same
-    deterministic order.
-    """
-
-    def sort_key(node_id: str) -> tuple[str, str]:
-        return (str(names.get(node_id) or ""), str(node_id))
-
-    indegree = {cid: 0 for cid in ids}
-    dependents: dict[str, list[str]] = {cid: [] for cid in ids}
-    for cid in ids:
-        for prereq in prerequisites.get(cid, []):
-            if prereq in indegree:
-                indegree[cid] += 1
-                dependents[prereq].append(cid)
-
-    ready = sorted((cid for cid in ids if indegree[cid] == 0), key=sort_key)
-    ordered: list[str] = []
-    seen: set[str] = set()
-    while ready:
-        node = ready.pop(0)
-        if node in seen:
-            continue
-        seen.add(node)
-        ordered.append(node)
-        newly_ready = []
-        for dependent in dependents[node]:
-            indegree[dependent] -= 1
-            if indegree[dependent] == 0:
-                newly_ready.append(dependent)
-        if newly_ready:
-            ready = sorted([*ready, *newly_ready], key=sort_key)
-
-    for cid in sorted(ids, key=sort_key):
-        if cid not in seen:
-            ordered.append(cid)
-    return ordered
-
 
 
 def _normalize_match_text(value: Any) -> str:
@@ -331,55 +293,30 @@ class GraphRepository:
         return await self._read(_TOPICS, subject_id=subject_id)
 
     async def list_concepts(self, topic_id: str) -> list[dict[str, Any]]:
-        """Return a topic's concepts in prerequisite (topological) order.
-
-        Prerequisites come from ``(concept)-[:PREREQUISITE_OF]->(prerequisite)``.
-        Cycles or disconnected nodes fall back to a deterministic name/id order.
-        Each concept carries lightweight ``{id, name}`` prerequisites.
-        """
+        """Return a topic's concepts in authoritative curriculum teaching order."""
         rows = await self._read(_CONCEPTS, topic_id=topic_id)
-        names = {row["id"]: row.get("name") for row in rows}
-        ids = [row["id"] for row in rows]
-        edges = await self._read(_CONCEPT_EDGES, ids=ids) if len(ids) > 1 else []
-
-        prerequisites: dict[str, list[str]] = {cid: [] for cid in ids}
-        for edge in edges:
-            dependent = edge["conceptId"]
-            prereq = edge["prerequisiteId"]
-            if dependent in prerequisites and prereq not in prerequisites[dependent]:
-                prerequisites[dependent].append(prereq)
-
-        ordered_ids = _topological_order(ids, prerequisites, names)
-        by_id = {row["id"]: row for row in rows}
-        return [
-            {
-                **by_id[cid],
-                "prerequisites": [
-                    {"id": pid, "name": names.get(pid)} for pid in sorted(prerequisites[cid])
-                ],
-            }
-            for cid in ordered_ids
-        ]
+        for row in rows:
+            row["prerequisites"] = [
+                prerequisite
+                for prerequisite in (row.get("prerequisites") or [])
+                if prerequisite is not None
+            ]
+        return rows
 
     async def ordered_concept_ids(self, topic_id: str) -> list[str]:
         concepts = await self.list_concepts(topic_id)
         return [concept["id"] for concept in concepts]
 
     async def ordered_subject_concepts(self, subject_id: str) -> list[dict[str, Any]]:
-        """All concepts in a subject in a prerequisite-respecting order."""
+        """Return distinct concepts in topic and concept curriculum order."""
         rows = await self._read(_SUBJECT_CONCEPTS, subject_id=subject_id)
-        names = {row["id"]: row.get("name") for row in rows}
-        ids = [row["id"] for row in rows]
-        edges = await self._read(_CONCEPT_EDGES, ids=ids) if len(ids) > 1 else []
-        prerequisites: dict[str, list[str]] = {cid: [] for cid in ids}
-        for edge in edges:
-            dependent = edge["conceptId"]
-            prereq = edge["prerequisiteId"]
-            if dependent in prerequisites and prereq not in prerequisites[dependent]:
-                prerequisites[dependent].append(prereq)
-        ordered_ids = _topological_order(ids, prerequisites, names)
-        by_id = {row["id"]: row for row in rows}
-        return [by_id[cid] for cid in ordered_ids]
+        concepts: list[dict[str, Any]] = []
+        seen_ids: set[str] = set()
+        for row in rows:
+            if row["id"] not in seen_ids:
+                concepts.append(row)
+                seen_ids.add(row["id"])
+        return concepts
 
     async def list_question_answers(self, concept_id: str) -> dict[str, dict[str, Any]]:
         """Questions with answer keys for server-side grading (never returned)."""
