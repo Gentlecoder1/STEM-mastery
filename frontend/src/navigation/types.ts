@@ -14,13 +14,9 @@ export type RootStackParamList = {
   TopicOverview: { topicId?: string } | undefined;
   ConceptDetails: { conceptId: string };
   ConceptLearning: { conceptId: string; startAt?: number };
-  ConceptQuiz: {
-    conceptId: string;
-    mode?: 'lesson' | 'key';
-    targetConceptId?: string;
-  };
+  TopicQuiz: { topicId: string; topicTitle: string };
   Progress: undefined;
-  ConceptProgress: undefined;
+  TopicProgress: undefined;
   Challenge: undefined;
   ChallengeQuiz: { topicId: string; topicTitle: string };
   Search: undefined;

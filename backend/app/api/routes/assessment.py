@@ -1,8 +1,8 @@
 """Server-side quiz checking and submission.
 
 The client never receives answer keys; it submits a response and the backend
-grades it (``/check``) and, on completion, grades the whole attempt and persists
-the resulting mastery state to Supabase (``/submit``).
+grades it (``/check``) and, on completion, grades the full topic quiz and
+persists the topic result to Supabase.
 """
 
 from __future__ import annotations
@@ -17,8 +17,8 @@ from app.core.auth import CurrentUserDep
 from app.models.assessment import (
     CheckRequest,
     CheckResponse,
-    QuizSubmitRequest,
-    QuizSubmitResponse,
+    TopicQuizSubmitRequest,
+    TopicQuizSubmitResponse,
 )
 from app.repositories.learner_state import SupabaseNotConfiguredError
 from app.services import grading
@@ -49,68 +49,56 @@ async def check_question(
     )
 
 
-@router.post("/concepts/{concept_id}/quiz/submit", response_model=QuizSubmitResponse)
-async def submit_quiz(
-    concept_id: str,
-    request: QuizSubmitRequest,
+@router.post("/topics/{topic_id}/quiz/submit", response_model=TopicQuizSubmitResponse)
+async def submit_topic_quiz(
+    topic_id: str,
+    request: TopicQuizSubmitRequest,
     repo: RepositoryDep,
     learner_state: LearnerStateDep,
     user: CurrentUserDep,
-) -> QuizSubmitResponse:
-    concept = await repo.get_concept(concept_id)
-    if concept is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Concept not found.")
+) -> TopicQuizSubmitResponse:
+    concept_ids = await repo.ordered_concept_ids(topic_id)
+    if not concept_ids:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Topic not found.")
 
-    answers = await repo.list_question_answers(concept_id)
-    results: list[bool | None] = []
-    for item in request.responses:
-        question = answers.get(item.questionId)
-        if question is None:
-            continue
-        results.append(grading.grade_response(question, item.response))
+    answers: dict[str, dict] = {}
+    for concept_id in concept_ids:
+        answers.update(await repo.list_question_answers(concept_id))
+    if not answers:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No quiz questions are available for this topic.",
+        )
 
+    responses = {item.questionId: item.response for item in request.responses}
+    results = [
+        grading.grade_response(question, responses.get(question_id))
+        for question_id, question in answers.items()
+    ]
     summary = grading.summarise(results)
-    passed = bool(summary["passed"])
-    score_pct = int(summary["scorePct"])
-    topic_ids = [value for value in (concept.get("topicIds") or []) if value]
-    if request.topicId in topic_ids:
-        topic_id = request.topicId
-    else:
-        topic_id = topic_ids[0] if topic_ids else None
+    total = int(summary["total"])
+    score_pct = int(summary["scorePct"]) if total else 0
+    correct = int(summary["correct"])
+    passed = total > 0 and correct / total >= grading.QUIZ_PASS_RATIO
 
     try:
-        if passed:
-            await learner_state.mark_concepts_completed(user.user_id, [concept_id])
-        if topic_id:
-            await learner_state.upsert_topic_assessment(
-                user.user_id, topic_id, score_pct, passed
-            )
+        await learner_state.upsert_topic_assessment(user.user_id, topic_id, score_pct, passed)
     except SupabaseNotConfiguredError as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Progress store is not configured.",
         ) from exc
     except httpx.HTTPError as exc:
-        logger.exception("Failed to persist quiz result for user %s", user.user_id)
+        logger.exception("Failed to persist topic quiz result for user %s", user.user_id)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Could not persist progress.",
         ) from exc
 
-    next_concept_id: str | None = None
-    if topic_id:
-        ordered = await repo.ordered_concept_ids(topic_id)
-        if concept_id in ordered:
-            index = ordered.index(concept_id)
-            if index + 1 < len(ordered):
-                next_concept_id = ordered[index + 1]
-
-    return QuizSubmitResponse(
-        conceptId=concept_id,
+    return TopicQuizSubmitResponse(
         topicId=topic_id,
-        correct=int(summary["correct"]),
-        total=int(summary["total"]),
+        correct=correct,
+        total=total,
         scorePct=score_pct,
         passed=passed,
-        nextConceptId=next_concept_id,
     )

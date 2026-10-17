@@ -137,13 +137,13 @@ export default function ProgressScreen({ navigation }: RootScreenProps<'Progress
           ))}
         </View>
 
-        <SectionHeading title="Subject mastery" action="Details" onAction={() => navigation.navigate('ConceptProgress')} />
+        <SectionHeading title="Subject mastery" action="Details" onAction={() => navigation.navigate('TopicProgress')} />
         <View style={styles.masteryList}>
           {MASTERY_REAL.map(({ name: mname, Icon, tint, delta, percent }) => (
             <Pressable
               key={mname}
               style={styles.masteryRow}
-              onPress={() => navigation.navigate('ConceptProgress')}
+              onPress={() => navigation.navigate('TopicProgress')}
               accessibilityRole="button"
             >
               <View style={styles.masteryIcon}>

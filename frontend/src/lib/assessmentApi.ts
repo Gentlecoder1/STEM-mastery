@@ -8,14 +8,12 @@ export type CheckResult = {
   explanation: string | null;
 };
 
-export type QuizSubmitResult = {
-  conceptId: string;
-  topicId: string | null;
+export type TopicQuizSubmitResult = {
+  topicId: string;
   correct: number;
   total: number;
   scorePct: number;
   passed: boolean;
-  nextConceptId: string | null;
 };
 
 export type PlacementQuestion = {
@@ -76,17 +74,18 @@ export function checkAnswer(
   });
 }
 
-export function submitQuiz(
-  conceptId: string,
+export function submitTopicQuiz(
+  topicId: string,
   responses: { questionId: string; response: string | null }[],
-  mode: 'lesson' | 'key' = 'lesson',
-  targetConceptId?: string,
-): Promise<QuizSubmitResult> {
-  return apiFetch<QuizSubmitResult>(`/api/v1/concepts/${encodeURIComponent(conceptId)}/quiz/submit`, {
-    method: 'POST',
-    auth: true,
-    body: { responses, mode, targetConceptId: targetConceptId ?? null },
-  });
+): Promise<TopicQuizSubmitResult> {
+  return apiFetch<TopicQuizSubmitResult>(
+    `/api/v1/topics/${encodeURIComponent(topicId)}/quiz/submit`,
+    {
+      method: 'POST',
+      auth: true,
+      body: { responses },
+    },
+  );
 }
 
 export function fetchPlacementQuestions(

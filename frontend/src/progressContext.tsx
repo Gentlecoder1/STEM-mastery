@@ -58,8 +58,6 @@ const EMPTY_PLACEMENT: PlacementState = {
   recommendedStartConceptId: null,
 };
 
-export type ConceptStatus = 'done' | 'current' | 'open';
-
 export type ProgressContextValue = {
   completedConcepts: readonly string[];
   placement: PlacementState;
@@ -73,11 +71,9 @@ export type ProgressContextValue = {
   getTopicMastery: (topicId: string) => number;
   getSubjectMastery: (subjectId: string) => number;
   isConceptCompleted: (conceptId: string) => boolean;
-  isConceptOpen: (conceptId: string) => boolean;
-  getConceptStatus: (conceptId: string) => ConceptStatus;
   getRecommendedConceptId: (subjectId?: SubjectId) => string | undefined;
   completeConcept: (conceptId: string) => void;
-  recordTopicAssessment: (topicId: string, scorePct: number) => void;
+  recordTopicAssessment: (topicId: string, scorePct: number, passed: boolean) => void;
   refresh: () => Promise<void>;
   resetProgress: () => void;
 };
@@ -94,8 +90,6 @@ const ProgressContext = createContext<ProgressContextValue>({
   getTopicMastery: () => 0,
   getSubjectMastery: () => 0,
   isConceptCompleted: () => false,
-  isConceptOpen: () => false,
-  getConceptStatus: () => 'open',
   getRecommendedConceptId: () => undefined,
   completeConcept: () => {},
   recordTopicAssessment: () => {},
@@ -117,7 +111,7 @@ function normalizePlacement(raw: unknown): PlacementState {
 export function ProgressProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const { refreshProfile } = useProfile();
-  const { concepts, getConcept, getTopicConceptIds } = useCatalog();
+  const { concepts, getConcept } = useCatalog();
   const [completedConcepts, setCompletedConcepts] = useState<string[]>([]);
   const [placement, setPlacement] = useState<PlacementState>(EMPTY_PLACEMENT);
   const [topicAssessments, setTopicAssessments] = useState<Record<string, TopicAssessment>>({});
@@ -204,10 +198,10 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     [placement, persist],
   );
 
-  const recordTopicAssessment = useCallback((topicId: string, scorePct: number) => {
+  const recordTopicAssessment = useCallback((topicId: string, scorePct: number, passed: boolean) => {
     setTopicAssessments((current) => ({
       ...current,
-      [topicId]: { topicId, scorePct, passed: scorePct >= 60 },
+      [topicId]: { topicId, scorePct, passed },
     }));
   }, []);
 
@@ -223,35 +217,14 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     [completedConcepts],
   );
 
-  const getConceptSequences = useCallback(
-    (concept: Concept) =>
-      concept.topicIds
-        .map((topicId) => getTopicConceptIds(topicId))
-        .filter((sequence) => sequence.includes(concept.id)),
-    [getTopicConceptIds],
-  );
-
   const isTopicMastered = useCallback(
-    (topicId: string) => {
-      const conceptIds = getTopicConceptIds(topicId);
-      return (
-        conceptIds.length > 0 &&
-        conceptIds.every((id) => completedConcepts.includes(id)) &&
-        topicAssessments[topicId]?.passed === true
-      );
-    },
-    [completedConcepts, getTopicConceptIds, topicAssessments],
+    (topicId: string) => topicAssessments[topicId]?.passed === true,
+    [topicAssessments],
   );
 
   const getTopicMastery = useCallback(
-    (topicId: string) => {
-      const conceptIds = getTopicConceptIds(topicId);
-      if (conceptIds.length === 0 || topicAssessments[topicId]?.passed !== true) return 0;
-      return Math.round(
-        (conceptIds.filter((id) => completedConcepts.includes(id)).length / conceptIds.length) * 100,
-      );
-    },
-    [completedConcepts, getTopicConceptIds, topicAssessments],
+    (topicId: string) => topicAssessments[topicId]?.scorePct ?? 0,
+    [topicAssessments],
   );
 
   const getSubjectMastery = useCallback(
@@ -267,39 +240,6 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       return Math.round((topicIds.filter(isTopicMastered).length / topicIds.length) * 100);
     },
     [concepts, isTopicMastered],
-  );
-
-  const isConceptOpen = useCallback(
-    (conceptId: string) => {
-      const concept = getConcept(conceptId);
-      if (!concept) return false;
-      const sequences = getConceptSequences(concept);
-      return (
-        sequences.length === 0 ||
-        sequences.some((sequence) => {
-          const index = sequence.indexOf(conceptId);
-          return index <= 0 || completedConcepts.includes(sequence[index - 1]);
-        })
-      );
-    },
-    [completedConcepts, getConcept, getConceptSequences],
-  );
-
-  const getConceptStatus = useCallback(
-    (conceptId: string): ConceptStatus => {
-      if (completedConcepts.includes(conceptId)) return 'done';
-      const concept = getConcept(conceptId);
-      if (!concept) return 'open';
-      const sequences = getConceptSequences(concept);
-      const hasAvailablePath =
-        sequences.length === 0 ||
-        sequences.some((sequence) => {
-          const index = sequence.indexOf(conceptId);
-          return !sequence.slice(0, index).some((id) => !completedConcepts.includes(id));
-        });
-      return hasAvailablePath && isConceptOpen(conceptId) ? 'current' : 'open';
-    },
-    [completedConcepts, getConcept, getConceptSequences, isConceptOpen],
   );
 
   const getRecommendedConceptId = useCallback(
@@ -344,8 +284,6 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       recordTopicAssessment,
       placementTaken: Object.keys(placement.subjects).length > 0,
       isConceptCompleted,
-      isConceptOpen,
-      getConceptStatus,
       getRecommendedConceptId,
       completeConcept,
       refresh,
@@ -363,8 +301,6 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       getSubjectMastery,
       recordTopicAssessment,
       isConceptCompleted,
-      isConceptOpen,
-      getConceptStatus,
       getRecommendedConceptId,
       completeConcept,
       refresh,

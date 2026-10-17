@@ -171,7 +171,11 @@ class FakeGraphRepository:
         ]
 
     async def list_question_answers(self, concept_id: str) -> dict[str, dict]:
-        return {qid: dict(question) for qid, question in self._questions.items()}
+        return {
+            qid: dict(question)
+            for qid, question in self._questions.items()
+            if question["conceptId"] == concept_id
+        }
 
     async def get_question_answer(self, question_id: str) -> dict | None:
         question = self._questions.get(question_id)

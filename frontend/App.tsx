@@ -34,9 +34,9 @@ import SubjectDashboardScreen from './src/screens/SubjectDashboardScreen';
 import TopicOverviewScreen from './src/screens/TopicOverviewScreen';
 import ConceptDetailsScreen from './src/screens/ConceptDetailsScreen';
 import ConceptLearningScreen from './src/screens/ConceptLearningScreen';
-import ConceptQuizScreen from './src/screens/ConceptQuizScreen';
+import TopicQuizScreen from './src/screens/TopicQuizScreen';
 import ProgressScreen from './src/screens/ProgressScreen';
-import ConceptProgressScreen from './src/screens/ConceptProgressScreen';
+import TopicProgressScreen from './src/screens/TopicProgressScreen';
 import ChallengeScreen from './src/screens/ChallengeScreen';
 import ChallengeQuizScreen from './src/screens/ChallengeQuizScreen';
 import SearchScreen from './src/screens/SearchScreen';
@@ -121,9 +121,9 @@ function AppShell() {
               <Stack.Screen name="TopicOverview" component={TopicOverviewScreen} />
               <Stack.Screen name="ConceptDetails" component={ConceptDetailsScreen} />
               <Stack.Screen name="ConceptLearning" component={ConceptLearningScreen} />
-              <Stack.Screen name="ConceptQuiz" component={ConceptQuizScreen} />
+              <Stack.Screen name="TopicQuiz" component={TopicQuizScreen} />
               <Stack.Screen name="Progress" component={ProgressScreen} />
-              <Stack.Screen name="ConceptProgress" component={ConceptProgressScreen} />
+              <Stack.Screen name="TopicProgress" component={TopicProgressScreen} />
               <Stack.Screen name="Challenge" component={ChallengeScreen} />
               <Stack.Screen name="ChallengeQuiz" component={ChallengeQuizScreen} />
               <Stack.Screen name="Search" component={SearchScreen} />

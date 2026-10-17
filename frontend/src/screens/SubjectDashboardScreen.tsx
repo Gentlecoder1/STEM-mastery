@@ -14,6 +14,7 @@ import { useProgress } from '../progressContext';
 import { usePreferences } from '../preferencesContext';
 import { useCatalog } from '../catalogContext';
 import { subjectTheme, type CatalogTopic } from '../types/catalog';
+import type { TopicAssessment } from '../lib/progress';
 import type { SubjectId } from '../theme';
 
 const SUBJECT_NAMES: Record<SubjectId, { name: string; focus: string }> = {
@@ -24,22 +25,23 @@ const SUBJECT_NAMES: Record<SubjectId, { name: string; focus: string }> = {
 
 function TopicRow({
   topic,
-  mastery,
+  assessment,
   onPress,
 }: {
   topic: CatalogTopic;
-  mastery: number;
+  assessment: TopicAssessment | undefined;
   onPress: () => void;
 }) {
   const styles = useThemedStyles(createStyles);
   const theme = subjectTheme(String(topic.subjectId));
-  const subtitle =
-    mastery >= 100 ? 'Mastered' : mastery > 0 ? `${mastery}% complete` : 'Not started';
+  const subtitle = assessment
+    ? `Quiz score ${assessment.scorePct}% · ${assessment.passed ? 'Passed' : 'Not passed'}`
+    : 'Topic quiz not taken';
 
   return (
     <Pressable style={styles.topicRow} onPress={onPress} accessibilityRole="button">
       <View style={[styles.topicIcon, { backgroundColor: colors[theme.soft] }]}>
-        {mastery >= 100 ? (
+        {assessment?.passed ? (
           <CheckCircleIcon size={22} color={colors[theme.tint]} />
         ) : (
           <GaugeIcon size={22} color={colors[theme.tint]} />
@@ -49,7 +51,7 @@ function TopicRow({
         <Text style={styles.topicTitle}>{topic.name}</Text>
         <Text style={styles.topicSubtitle}>{subtitle}</Text>
       </View>
-      {mastery >= 100 ? (
+      {assessment?.passed ? (
         <CheckCircleIcon size={23} color={colors.green} />
       ) : (
         <ChevronRightIcon size={22} color={colors[theme.tint]} />
@@ -80,7 +82,7 @@ export default function SubjectDashboardScreen({ navigation, route }: RootScreen
     : 0;
 
   const continueTopic =
-    topics.find((topic) => getTopicMastery(topic.id) < 100) ?? topics[0];
+    topics.find((topic) => !topicAssessments[topic.id]?.passed) ?? topics[0];
 
   return (
     <View style={styles.root}>
@@ -122,7 +124,9 @@ export default function SubjectDashboardScreen({ navigation, route }: RootScreen
               <View style={styles.topicCopy}>
                 <Text style={styles.topicTitle}>{continueTopic.name}</Text>
                 <Text style={styles.topicSubtitle}>
-                  {getTopicMastery(continueTopic.id) > 0 ? 'Continue where you left off' : 'Ready to begin'}
+                  {topicAssessments[continueTopic.id]
+                    ? `Latest quiz score: ${getTopicMastery(continueTopic.id)}%`
+                    : 'Ready to begin'}
                 </Text>
               </View>
               <View style={styles.resumePill}><Text style={styles.resumeLabel}>START</Text></View>
@@ -136,7 +140,7 @@ export default function SubjectDashboardScreen({ navigation, route }: RootScreen
             <TopicRow
               key={topic.id}
               topic={topic}
-              mastery={getTopicMastery(topic.id)}
+              assessment={topicAssessments[topic.id]}
               onPress={() => navigation.navigate('TopicOverview', { topicId: topic.id })}
             />
           ))}

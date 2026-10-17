@@ -1,216 +1,220 @@
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import BottomNav from '../components/BottomNav';
 import { navigateToTab } from '../navigation/tabs';
-import { DownloadIcon, GaugeIcon } from '../components/glyphs';
+import { BookOpenIcon, DownloadIcon, GaugeIcon } from '../components/glyphs';
 import { ProgressBar } from '../components/PracticeUI';
-import { ArrowLeftIcon, ChevronRightIcon, LockIcon } from '../components/icons';
-import { colors, fonts, lightColors, shadow, type ColorToken } from '../theme';
+import { ArrowLeftIcon, ArrowRightIcon } from '../components/icons';
+import { colors, fonts, lightColors, shadow } from '../theme';
 import { useThemedStyles, useTheme } from '../themeContext';
-import { useProgress, type ConceptStatus } from '../progressContext';
+import { useProgress } from '../progressContext';
 import { useCatalog } from '../catalogContext';
 import type { RootScreenProps } from '../navigation/types';
 import { usePreferences } from '../preferencesContext';
-
-type PathConcept = {
-  id: string;
-  title: string;
-  status: ConceptStatus;
-  tint: ColorToken;
-  soft: ColorToken;
-};
 
 export default function TopicOverviewScreen({ navigation, route }: RootScreenProps<'TopicOverview'>) {
   const insets = useSafeAreaInsets();
   const { statusBarStyle } = useTheme();
   const styles = useThemedStyles(createStyles);
   const { downloadedLessons, downloadsEnabled, toggleTopicDownload } = usePreferences();
-  const { getConceptStatus, getTopicMastery, topicAssessments } = useProgress();
+  const { topicAssessments } = useProgress();
   const { topics, subjects, getConcept, getTopicConceptIds } = useCatalog();
   const requestedTopicId = route.params?.topicId;
-  const topic = (requestedTopicId ? topics.find((item) => item.id === requestedTopicId) : undefined) ?? topics[0];
+  const topic =
+    (requestedTopicId ? topics.find((item) => item.id === requestedTopicId) : undefined) ??
+    topics[0];
   const topicId = topic?.id ?? '';
   const topicTitle = topic?.name ?? 'Topic';
-  const subjectName = subjects.find((item) => String(item.id) === String(topic?.subjectId))?.name ?? 'Subject';
-  const topicLessonIds = getTopicConceptIds(topicId);
-  const downloadedCount = topicLessonIds.filter((id) => downloadedLessons.includes(id)).length;
-  const topicMastery = getTopicMastery(topicId);
-  const latestAssessment = topicAssessments[topicId];
+  const subjectName =
+    subjects.find((item) => String(item.id) === String(topic?.subjectId))?.name ?? 'Subject';
+  const conceptIds = getTopicConceptIds(topicId);
+  const assessment = topicAssessments[topicId];
+  const quizScore = assessment?.scorePct ?? 0;
   const isDownloaded =
-    topicLessonIds.length > 0 && topicLessonIds.every((id) => downloadedLessons.includes(id));
+    conceptIds.length > 0 && conceptIds.every((id) => downloadedLessons.includes(id));
 
-  const concepts: PathConcept[] = topicLessonIds
+  const concepts = conceptIds
     .map((id) => getConcept(id))
-    .filter((concept): concept is NonNullable<typeof concept> => Boolean(concept))
-    .map((concept) => ({
-      id: concept.id,
-      title: concept.title,
-      status: getConceptStatus(concept.id),
-      tint: concept.tint,
-      soft: concept.soft,
-    }));
+    .filter((concept): concept is NonNullable<typeof concept> => Boolean(concept));
 
   return (
     <View style={styles.root}>
       <StatusBar style={statusBarStyle} />
       <View style={[styles.header, { paddingTop: insets.top + 4 }]}>
-          <Pressable style={styles.iconButton} onPress={() => navigation.goBack()} accessibilityLabel="Go back"><ArrowLeftIcon size={23} color={colors.ink} /></Pressable>
-          <View style={styles.headerCopy}><Text style={styles.title}>{topicTitle}</Text><Text style={styles.subtitle}>{subjectName}</Text></View>
-          {downloadsEnabled ? (
-            <Pressable
-              style={[styles.iconButton, isDownloaded && styles.downloadedButton]}
-              onPress={() => toggleTopicDownload(topicId)}
-              accessibilityRole="button"
-              accessibilityLabel={isDownloaded ? 'Remove download' : 'Download topic'}
-            >
-              <DownloadIcon size={21} color={isDownloaded ? colors.onPrimary : colors.primary} />
-            </Pressable>
-          ) : <View style={styles.iconButtonPlaceholder} />}
+        <Pressable
+          style={styles.iconButton}
+          onPress={() => navigation.goBack()}
+          accessibilityLabel="Go back"
+        >
+          <ArrowLeftIcon size={23} color={colors.ink} />
+        </Pressable>
+        <Text style={styles.headerTitle}>{subjectName}</Text>
+        {downloadsEnabled ? (
+          <Pressable
+            style={[styles.iconButton, isDownloaded && styles.downloadedButton]}
+            onPress={() => toggleTopicDownload(topicId)}
+            accessibilityRole="button"
+            accessibilityLabel={isDownloaded ? 'Remove download' : 'Download topic'}
+          >
+            <DownloadIcon size={21} color={isDownloaded ? colors.onPrimary : colors.primary} />
+          </Pressable>
+        ) : (
+          <View style={styles.iconButtonPlaceholder} />
+        )}
       </View>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 18 }]}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 18 }]}
+      >
         <View style={styles.hero}>
-          <View style={styles.heroIcon}><GaugeIcon size={34} color={lightColors.surface} /></View>
-          <View style={styles.heroCopy}><Text style={styles.eyebrow}>{subjectName.toUpperCase()}</Text><Text style={styles.heroTitle}>{topicTitle}</Text><Text style={styles.meta}>{downloadedCount} of {topicLessonIds.length} downloaded</Text></View>
-          <ProgressBar progress={topicMastery} track={colors.surface} fill={colors.blue} style={styles.heroBar} />
-        </View>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Your concept path</Text>
-          <Text style={styles.link}>Open map</Text>
+          <View style={styles.heroIcon}>
+            <GaugeIcon size={34} color={lightColors.surface} />
+          </View>
+          <View style={styles.heroCopy}>
+            <Text style={styles.eyebrow}>{subjectName.toUpperCase()}</Text>
+            <Text style={styles.heroTitle}>{topicTitle}</Text>
+            <Text style={styles.meta}>
+              {assessment ? `${quizScore}% topic quiz score` : 'Topic quiz not taken'}
+            </Text>
+          </View>
+          <ProgressBar progress={quizScore} track={colors.surface} fill={colors.blue} style={styles.heroBar} />
         </View>
 
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Concepts</Text>
+        </View>
         <View style={styles.conceptList}>
-          {concepts.map((concept) => (
-            <ConceptRow
+          {concepts.map((concept, index) => (
+            <Pressable
               key={concept.id}
-              concept={concept}
-              onPress={() => {
-                if (concept.status === 'open') {
-                  Alert.alert('Concept locked', 'Complete and pass the previous concept quiz with at least 60% to unlock this concept.');
-                  return;
-                }
-                navigation.navigate('ConceptDetails', { conceptId: concept.id });
-              }}
-            />
+              style={styles.conceptRow}
+              onPress={() => navigation.navigate('ConceptDetails', { conceptId: concept.id })}
+              accessibilityRole="button"
+            >
+              <View style={[styles.orderBadge, { backgroundColor: colors[concept.soft] }]}>
+                <Text style={[styles.orderText, { color: colors[concept.tint] }]}>{index + 1}</Text>
+              </View>
+              <View style={styles.conceptCopy}>
+                <Text style={styles.conceptTitle}>{concept.title}</Text>
+                <Text style={styles.conceptSubtitle}>Open concept</Text>
+              </View>
+              <ArrowRightIcon size={18} color={colors.primary} />
+            </Pressable>
           ))}
         </View>
-        {latestAssessment && !latestAssessment.passed ? (
-          <View style={styles.retakeCard}>
-            <Text style={styles.retakeTitle}>Keep building this topic</Text>
-            <Text style={styles.retakeText}>
-              Your latest test score was {latestAssessment.scorePct}%. Score at least 60% to record topic mastery.
-            </Text>
-            <Pressable
-              style={styles.retakeButton}
-              onPress={() => navigation.navigate('ConceptQuiz', { conceptId: topicLessonIds[topicLessonIds.length - 1] })}
-            >
-              <Text style={styles.retakeButtonText}>Retake questions</Text>
-            </Pressable>
-          </View>
-        ) : null}
 
+        <Pressable
+          style={styles.quizRow}
+          onPress={() => navigation.navigate('TopicQuiz', { topicId, topicTitle })}
+          accessibilityRole="button"
+        >
+          <View style={styles.quizIcon}>
+            <BookOpenIcon size={22} color={colors.primary} />
+          </View>
+          <View style={styles.conceptCopy}>
+            <Text style={styles.conceptTitle}>Topic quiz</Text>
+            <Text style={styles.conceptSubtitle}>
+              {assessment
+                ? `Latest result: ${quizScore}% · ${assessment.passed ? 'Passed' : 'Try again'}`
+                : 'Answer all questions from this topic'}
+            </Text>
+          </View>
+          <ArrowRightIcon size={18} color={colors.primary} />
+        </Pressable>
       </ScrollView>
       <BottomNav active="Subjects" onSelect={navigateToTab(navigation, 'Subjects')} />
     </View>
   );
 }
 
-function ConceptRow({ concept, onPress }: { concept: PathConcept; onPress: () => void }) {
-  const styles = useThemedStyles(createStyles);
-  const isCurrent = concept.status === 'current';
-  const isDone = concept.status === 'done';
-
-  const isLocked = !isDone && !isCurrent;
-  const subtitle = isDone
-    ? 'Mastered • prerequisite'
-    : isCurrent
-      ? 'Current concept'
-      : 'Locked • pass the previous quiz to unlock';
-
-  const trailing = isDone ? 'MASTERED' : isCurrent ? 'START' : 'LOCKED';
-
-  return (
-    <Pressable onPress={onPress} style={[styles.conceptRow, isCurrent && styles.conceptCurrent]}>
-      <View style={styles.conceptCopy}>
-        <Text style={styles.conceptTitle}>{concept.title}</Text>
-        <Text style={styles.conceptSubtitle}>{subtitle}</Text>
-      </View>
-      <View
-        style={[
-          styles.trailing,
-          isCurrent && styles.continuePill,
-          isDone && styles.masteryPill,
-          isLocked && styles.keyPill,
-        ]}
-      >
-        <Text
-          style={[
-            styles.trailingText,
-            !isDone && !isCurrent && styles.nextText,
-            isLocked && styles.keyText,
-          ]}
-        >
-          {trailing}
-        </Text>
-      </View>
-      {isCurrent ? <ChevronRightIcon size={20} color={colors.blue} /> : isLocked ? <LockIcon size={18} color={colors.slate} /> : null}
-    </Pressable>
-  );
-}
-
-const createStyles = () => StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.canvas },
-  content: { paddingHorizontal: 18, gap: 14 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    paddingHorizontal: 18,
-    paddingBottom: 14,
-  },
-  iconButton: { width: 42, height: 42, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-  downloadedButton: { backgroundColor: colors.primary, borderColor: colors.primary },
-  iconButtonPlaceholder: { width: 42, height: 42 },
-  headerCopy: { flex: 1, gap: 2 },
-  title: { fontFamily: fonts.regular, fontSize: 22, lineHeight: 25, color: colors.ink },
-  subtitle: { fontFamily: fonts.medium, fontSize: 12, lineHeight: 16, color: colors.slate },
-  hero: { minHeight: 154, padding: 17, borderRadius: 18, borderWidth: 1, borderColor: colors.blueBorder, backgroundColor: colors.blueSoft, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 14, ...shadow.frame },
-  heroIcon: { width: 54, height: 54, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.blue },
-  heroCopy: { flex: 1, gap: 6 },
-  eyebrow: { fontFamily: fonts.bold, fontSize: 12, color: colors.blue },
-  heroTitle: { fontFamily: fonts.extrabold, fontSize: 17, lineHeight: 21, color: colors.ink },
-  meta: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 15, color: colors.slate },
-  dot: { fontFamily: fonts.bold, color: colors.slate },
-  heroBar: { width: '100%', height: 12 },
-  sectionTitle: { fontFamily: fonts.regular, fontSize: 17, lineHeight: 21, color: colors.ink },
-  masterCard: { padding: 16, borderRadius: 22, backgroundColor: colors.surface, gap: 12, ...shadow.frame },
-  masterRow: { flexDirection: 'row', alignItems: 'center', gap: 11 },
-  check: { width: 29, height: 29, borderRadius: 999, backgroundColor: colors.greenSoft, alignItems: 'center', justifyContent: 'center' },
-  masterText: { flex: 1, fontFamily: fonts.regular, fontSize: 15, lineHeight: 19, color: colors.ink },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  link: { fontFamily: fonts.bold, fontSize: 14, color: colors.primary },
-  conceptList: { gap: 9 },
-  retakeCard: { padding: 16, gap: 8, borderRadius: 18, backgroundColor: colors.orangeSoft, borderWidth: 1, borderColor: colors.orange },
-  retakeTitle: { fontFamily: fonts.bold, fontSize: 15, color: colors.ink },
-  retakeText: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 17, color: colors.slate },
-  retakeButton: { alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, backgroundColor: colors.orange },
-  retakeButtonText: { fontFamily: fonts.bold, fontSize: 12, color: lightColors.surface },
-  conceptRow: { minHeight: 76, padding: 11, borderRadius: 17, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', gap: 13 },
-  conceptCurrent: { borderColor: colors.border, borderWidth: 1, backgroundColor: colors.surface },
-  conceptIcon: { width: 50, height: 50, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  conceptCopy: { flex: 1, gap: 3 },
-  conceptTitle: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 16, color: colors.ink },
-  conceptSubtitle: { fontFamily: fonts.medium, fontSize: 10, lineHeight: 13, color: colors.slate },
-  play: { fontFamily: fonts.regular, fontSize: 27, color: colors.blue },
-  trailing: { minWidth: 48, height: 30, paddingHorizontal: 11, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
-  masteryPill: { backgroundColor: colors.greenSoft },
-  continuePill: { backgroundColor: colors.surface },
-  keyPill: { backgroundColor: colors.primarySoft },
-  trailingText: { fontFamily: fonts.medium, fontSize: 12, color: colors.green },
-  nextText: { color: colors.orange, fontSize: 25, lineHeight: 25 },
-  keyText: { color: colors.primary, fontSize: 10, letterSpacing: 0.4 },
-  primaryButton: { height: 68, borderRadius: 16, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 12, ...shadow.card },
-  primaryArrow: { fontFamily: fonts.regular, fontSize: 25, color: colors.onPrimary },
-  primaryText: { fontFamily: fonts.regular, fontSize: 19, color: colors.onPrimary },
-});
+const createStyles = () =>
+  StyleSheet.create({
+    root: { flex: 1, backgroundColor: colors.canvas },
+    content: { paddingHorizontal: 18, gap: 14 },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+      paddingHorizontal: 18,
+      paddingBottom: 14,
+    },
+    iconButton: {
+      width: 42,
+      height: 42,
+      borderRadius: 12,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    downloadedButton: { backgroundColor: colors.primary, borderColor: colors.primary },
+    iconButtonPlaceholder: { width: 42, height: 42 },
+    headerTitle: { flex: 1, fontFamily: fonts.regular, fontSize: 18, color: colors.ink },
+    hero: {
+      minHeight: 154,
+      padding: 17,
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor: colors.blueBorder,
+      backgroundColor: colors.blueSoft,
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      gap: 14,
+      ...shadow.frame,
+    },
+    heroIcon: {
+      width: 54,
+      height: 54,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.blue,
+    },
+    heroCopy: { flex: 1, gap: 6 },
+    eyebrow: { fontFamily: fonts.bold, fontSize: 12, color: colors.blue },
+    heroTitle: { fontFamily: fonts.extrabold, fontSize: 17, lineHeight: 21, color: colors.ink },
+    meta: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 15, color: colors.slate },
+    heroBar: { width: '100%', height: 12 },
+    sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    sectionTitle: { fontFamily: fonts.regular, fontSize: 17, lineHeight: 21, color: colors.ink },
+    conceptList: { gap: 9 },
+    conceptRow: {
+      minHeight: 70,
+      padding: 11,
+      borderRadius: 17,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 13,
+    },
+    orderBadge: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+    orderText: { fontFamily: fonts.bold, fontSize: 14 },
+    conceptCopy: { flex: 1, gap: 3 },
+    conceptTitle: { fontFamily: fonts.medium, fontSize: 14, lineHeight: 18, color: colors.ink },
+    conceptSubtitle: { fontFamily: fonts.regular, fontSize: 11, lineHeight: 15, color: colors.slate },
+    quizRow: {
+      minHeight: 76,
+      padding: 13,
+      borderRadius: 17,
+      borderWidth: 1,
+      borderColor: colors.primary,
+      backgroundColor: colors.primarySoft,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 13,
+    },
+    quizIcon: {
+      width: 42,
+      height: 42,
+      borderRadius: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.surface,
+    },
+  });

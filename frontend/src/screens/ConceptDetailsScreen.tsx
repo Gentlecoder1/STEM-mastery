@@ -3,12 +3,10 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import MasteryRing from '../components/MasteryRing';
-import { ArrowLeftIcon, ArrowRightIcon, CheckCircleIcon, SparklesIcon } from '../components/icons';
+import { ArrowLeftIcon, ArrowRightIcon, CheckCircleIcon } from '../components/icons';
 import { BookOpenIcon } from '../components/glyphs';
 import { colors, fonts, shadow } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
-import { useProgress } from '../progressContext';
 import { useCatalog } from '../catalogContext';
 import { useOffline } from '../offlineContext';
 import { CONTENT_LABELS } from '../types/catalog';
@@ -18,8 +16,7 @@ export default function ConceptDetailsScreen({ navigation, route }: RootScreenPr
   const insets = useSafeAreaInsets();
   const { statusBarStyle } = useTheme();
   const styles = useThemedStyles(createStyles);
-  const { isConceptOpen, isConceptCompleted } = useProgress();
-  const { getConcept, getPreviousConcept, loadConcept } = useCatalog();
+  const { getConcept, loadConcept } = useCatalog();
   const offline = useOffline();
   const concept = getConcept(route.params.conceptId);
   const lessonContent = offline.getLessonContent(route.params.conceptId) ?? [];
@@ -38,9 +35,6 @@ export default function ConceptDetailsScreen({ navigation, route }: RootScreenPr
   }
 
   const itemCount = lessonContent.length;
-  const isOpen = isConceptOpen(concept.id) || isConceptCompleted(concept.id);
-  const mastery = isConceptCompleted(concept.id) ? 100 : 0;
-  const previous = getPreviousConcept(concept.id);
 
   return (
     <View style={styles.root}>
@@ -63,21 +57,15 @@ export default function ConceptDetailsScreen({ navigation, route }: RootScreenPr
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
           styles.content,
-          { paddingBottom: insets.bottom + (!isOpen && previous ? 210 : 96) },
+          { paddingBottom: insets.bottom + 96 },
         ]}
       >
         <View style={styles.hero}>
-          <View style={styles.heroRing}>
-            <MasteryRing percent={mastery} color={colors[concept.tint]} size={76} />
+          <View style={[styles.heroIcon, { backgroundColor: colors[concept.soft] }]}>
+            <BookOpenIcon size={28} color={colors[concept.tint]} />
           </View>
           <View style={styles.heroCopy}>
-            <Text style={[styles.heroStatus, { color: colors[concept.tint] }]}>
-              {mastery === 0
-                ? 'NOT STARTED'
-                : mastery >= 80
-                  ? 'STRONG'
-                  : 'IN PROGRESS'}
-            </Text>
+            <Text style={[styles.heroStatus, { color: colors[concept.tint] }]}>CONCEPT</Text>
             <Text style={styles.heroTitle}>{concept.title}</Text>
             <Text style={styles.heroMeta}>
               {itemCount} {itemCount === 1 ? 'item' : 'items'} of content
@@ -136,30 +124,9 @@ export default function ConceptDetailsScreen({ navigation, route }: RootScreenPr
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 14 }]}>
-        {!isOpen && previous ? (
-          <View style={styles.keyBanner}>
-            <View style={styles.keyBannerHead}>
-              <SparklesIcon size={16} color={colors.primary} />
-              <Text style={styles.keyBannerTitle}>Jump ahead to this lesson?</Text>
-            </View>
-            <Text style={styles.keyBannerText}>
-              You're skipping past {previous.title}. Pass its key test to open this lesson — just
-              like finishing the lesson normally would.
-            </Text>
-          </View>
-        ) : null}
-
         <Pressable
           style={styles.primaryButton}
           onPress={() => {
-            if (!isOpen && previous) {
-              navigation.navigate('ConceptQuiz', {
-                conceptId: previous.id,
-                mode: 'key',
-                targetConceptId: concept.id,
-              });
-              return;
-            }
             navigation.navigate('ConceptLearning', {
               conceptId: concept.id,
               startAt: 0,
@@ -167,14 +134,8 @@ export default function ConceptDetailsScreen({ navigation, route }: RootScreenPr
           }}
           accessibilityRole="button"
         >
-          {!isOpen && previous ? (
-            <SparklesIcon size={18} color={colors.onPrimary} />
-          ) : (
-            <BookOpenIcon size={18} color={colors.onPrimary} />
-          )}
-          <Text style={styles.primaryText}>
-            {!isOpen && previous ? 'Take key test to unlock' : 'Start Learning'}
-          </Text>
+          <BookOpenIcon size={18} color={colors.onPrimary} />
+          <Text style={styles.primaryText}>Start Learning</Text>
           <ArrowRightIcon size={18} color={colors.onPrimary} />
         </Pressable>
       </View>
@@ -214,7 +175,13 @@ const createStyles = () => StyleSheet.create({
     backgroundColor: colors.surface,
     ...shadow.frame,
   },
-  heroRing: { width: 76, height: 76, alignItems: 'center', justifyContent: 'center' },
+  heroIcon: {
+    width: 58,
+    height: 58,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   heroCopy: { flex: 1, gap: 4 },
   heroStatus: { fontFamily: fonts.bold, fontSize: 10, lineHeight: 12 },
   heroTitle: { fontFamily: fonts.extrabold, fontSize: 17, lineHeight: 21, color: colors.ink },
@@ -292,17 +259,6 @@ const createStyles = () => StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
-  keyBanner: {
-    padding: 13,
-    borderRadius: 14,
-    backgroundColor: colors.primarySoft,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    gap: 5,
-  },
-  keyBannerHead: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  keyBannerTitle: { fontFamily: fonts.bold, fontSize: 13, color: colors.primary },
-  keyBannerText: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 17, color: colors.ink },
   primaryButton: {
     height: 52,
     paddingHorizontal: 22,

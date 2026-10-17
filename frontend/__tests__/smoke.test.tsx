@@ -7,9 +7,9 @@ import SubjectDashboardScreen from '../src/screens/SubjectDashboardScreen';
 import TopicOverviewScreen from '../src/screens/TopicOverviewScreen';
 import ConceptDetailsScreen from '../src/screens/ConceptDetailsScreen';
 import ConceptLearningScreen from '../src/screens/ConceptLearningScreen';
-import ConceptQuizScreen from '../src/screens/ConceptQuizScreen';
+import TopicQuizScreen from '../src/screens/TopicQuizScreen';
 import ProgressScreen from '../src/screens/ProgressScreen';
-import ConceptProgressScreen from '../src/screens/ConceptProgressScreen';
+import TopicProgressScreen from '../src/screens/TopicProgressScreen';
 import ChallengeScreen from '../src/screens/ChallengeScreen';
 import SearchScreen from '../src/screens/SearchScreen';
 import ProfileScreen from '../src/screens/ProfileScreen';
@@ -69,14 +69,14 @@ const CASES = [
   screenCase('TopicOverview', TopicOverviewScreen),
   screenCase('ConceptDetails', ConceptDetailsScreen, { conceptId: 'concept-velocity' }),
   screenCase('ConceptLearning', ConceptLearningScreen, { conceptId: 'concept-velocity' }),
-  screenCase('ConceptQuiz', ConceptQuizScreen, { conceptId: 'concept-velocity' }),
+  screenCase('TopicQuiz', TopicQuizScreen, { topicId: 'topic-speed-velocity', topicTitle: 'Speed and velocity' }),
   screenCase('Splash', SplashScreen),
   screenCase('SignUp', SignUpScreen),
   screenCase('Login', LoginScreen),
   screenCase('VerifyEmail', VerifyEmailScreen, { email: 'a@b.com' }),
   screenCase('Onboarding', OnboardingFlow),
   screenCase('Progress', ProgressScreen),
-  screenCase('ConceptProgress', ConceptProgressScreen),
+  screenCase('TopicProgress', TopicProgressScreen),
   screenCase('Challenge', ChallengeScreen),
   screenCase('Search', SearchScreen),
   screenCase('Profile', ProfileScreen),
@@ -85,12 +85,13 @@ const CASES = [
 
 function renderAndCollect(element: React.JSX.Element): string[] {
   const errors: string[] = [];
+  let renderer: ReturnType<typeof TestRenderer.create> | undefined;
   const spy = jest.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
     errors.push(args.map(String).join(' '));
   });
   try {
     TestRenderer.act(() => {
-      TestRenderer.create(
+      renderer = TestRenderer.create(
         <CatalogProvider>
           <OfflineProvider>{element}</OfflineProvider>
         </CatalogProvider>,
@@ -100,6 +101,7 @@ function renderAndCollect(element: React.JSX.Element): string[] {
     const err = e as { stack?: string } | undefined;
     errors.push('THREW: ' + (err?.stack ?? String(e)));
   } finally {
+    if (renderer) TestRenderer.act(() => renderer?.unmount());
     spy.mockRestore();
   }
   return errors;

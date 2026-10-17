@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ArrowLeftIcon, ArrowRightIcon } from '../components/icons';
-import { ProgressBar } from '../components/PracticeUI';
 import { colors, fonts, shadow } from '../theme';
 import type { ColorToken } from '../theme';
 import { CONTENT_LABELS, type ContentType, type LearningContent } from '../types/catalog';
@@ -13,7 +12,6 @@ import { useThemedStyles, useTheme } from '../themeContext';
 import { useProgress } from '../progressContext';
 import { useCatalog } from '../catalogContext';
 import { useOffline } from '../offlineContext';
-import { fetchConceptQuestions } from '../lib/assessmentApi';
 
 const TYPE_TINT: Record<ContentType, ColorToken> = {
   DEFINITION: 'blue',
@@ -88,14 +86,12 @@ export default function ConceptLearningScreen({
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
   const { statusBarStyle } = useTheme();
-  const { isConceptCompleted, recordLastConcept } = useProgress();
+  const { recordLastConcept } = useProgress();
   const { getConcept, loadConcept } = useCatalog();
   const offline = useOffline();
   const { conceptId } = route.params;
   const concept = getConcept(conceptId);
   const cachedContent = offline.getLessonContent(conceptId);
-  const [quizCount, setQuizCount] = useState(0);
-
   useEffect(() => {
     void loadConcept(conceptId);
     void offline.ensureLesson(conceptId);
@@ -103,27 +99,11 @@ export default function ConceptLearningScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conceptId]);
 
-  useEffect(() => {
-    let mounted = true;
-    fetchConceptQuestions(conceptId)
-      .then((questions) => {
-        if (mounted) setQuizCount(questions.length);
-      })
-      .catch(() => {
-        if (mounted) setQuizCount(0);
-      });
-    return () => {
-      mounted = false;
-    };
-  }, [conceptId]);
-
   const lessonItems = useMemo(
     () =>
       (cachedContent ?? []).filter((item) => item.contentType !== 'QUESTION'),
     [cachedContent],
   );
-  const mastery = isConceptCompleted(conceptId) ? 100 : 0;
-
   if (!concept && !cachedContent) {
     return (
       <View style={[styles.root, styles.missing]}>
@@ -163,8 +143,6 @@ export default function ConceptLearningScreen({
           <Text style={styles.headerCounter}>{lessonItems.length} lessons</Text>
       </View>
 
-      <ProgressBar progress={mastery} style={styles.headerProgress} />
-
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
@@ -178,27 +156,20 @@ export default function ConceptLearningScreen({
       <View style={[styles.footer, { paddingBottom: insets.bottom + 14 }]}>
         <Pressable
           style={styles.secondaryButton}
+          onPress={() => navigation.goBack()}
+          accessibilityRole="button"
+        >
+          <Text style={styles.secondaryText}>Exit lesson</Text>
+        </Pressable>
+        <Pressable
+          style={styles.primaryButton}
           onPress={() => {
             offline.markLessonComplete(conceptId);
             navigation.goBack();
           }}
           accessibilityRole="button"
         >
-          <Text style={styles.secondaryText}>Back</Text>
-        </Pressable>
-        <Pressable
-          style={styles.primaryButton}
-          onPress={() => {
-            offline.markLessonComplete(conceptId);
-            if (quizCount > 0) {
-              navigation.navigate('ConceptQuiz', { conceptId, mode: 'lesson' });
-            } else {
-              navigation.navigate('ConceptDetails', { conceptId });
-            }
-          }}
-          accessibilityRole="button"
-        >
-          <Text style={styles.primaryText}>{quizCount > 0 ? 'Take quick check' : 'Back to concept'}</Text>
+          <Text style={styles.primaryText}>Finish lesson</Text>
           <ArrowRightIcon size={18} color={colors.onPrimary} />
         </Pressable>
       </View>
@@ -232,8 +203,6 @@ const createStyles = () => StyleSheet.create({
   headerTitle: { fontFamily: fonts.regular, fontSize: 20, lineHeight: 24, color: colors.ink },
   headerSubtitle: { fontFamily: fonts.medium, fontSize: 12, lineHeight: 15, color: colors.slate },
   headerCounter: { fontFamily: fonts.medium, fontSize: 10, lineHeight: 12, color: colors.slate },
-
-  headerProgress: { marginHorizontal: 18 },
 
   scroll: { paddingHorizontal: 18, paddingTop: 22 },
 

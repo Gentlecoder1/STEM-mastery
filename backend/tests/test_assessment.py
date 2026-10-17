@@ -41,67 +41,67 @@ def test_check_unknown_question(client: TestClient) -> None:
     assert response.status_code == 404
 
 
-def test_submit_pass_persists_mastery(
+def test_submit_topic_quiz_grades_questions_across_topic_and_persists_only_topic(
     client: TestClient, learner_state: FakeLearnerState
 ) -> None:
     response = client.post(
-        "/api/v1/concepts/concept-velocity/quiz/submit",
+        "/api/v1/topics/topic-speed-velocity/quiz/submit",
         json={
             "responses": [
                 {"questionId": "q-velocity-1", "response": "b"},
                 {"questionId": "q-velocity-2", "response": "a"},
-                {"questionId": "q-velocity-3", "response": "vectors have direction"},
+                {"questionId": "q-velocity-3", "response": "A vector"},
+                {"questionId": "q-displacement-1", "response": "b"},
             ]
         },
     )
+
     assert response.status_code == 200
-    body = response.json()
-    assert body["correct"] == 2
-    assert body["total"] == 2  # theory excluded
-    assert body["scorePct"] == 100
-    assert body["passed"] is True
-    assert body["topicId"] == "topic-speed-velocity"
-    assert body["nextConceptId"] is None
-    assert "concept-velocity" in learner_state.completed
+    assert response.json() == {
+        "topicId": "topic-speed-velocity",
+        "correct": 3,
+        "total": 3,
+        "scorePct": 100,
+        "passed": True,
+    }
+    assert learner_state.completed == []
     assert learner_state.topic_assessments["topic-speed-velocity"]["passed"] is True
 
 
-def test_submit_fail_does_not_complete_concept(
+def test_topic_quiz_requires_sixty_percent_for_the_whole_topic(
     client: TestClient, learner_state: FakeLearnerState
 ) -> None:
     response = client.post(
-        "/api/v1/concepts/concept-velocity/quiz/submit",
+        "/api/v1/topics/topic-speed-velocity/quiz/submit",
+        json={
+            "responses": [
+                {"questionId": "q-velocity-1", "response": "b"},
+                {"questionId": "q-velocity-2", "response": "a"},
+                {"questionId": "q-displacement-1", "response": "a"},
+            ]
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["scorePct"] == 67
+    assert response.json()["passed"] is True
+    assert learner_state.completed == []
+
+    failed = client.post(
+        "/api/v1/topics/topic-speed-velocity/quiz/submit",
         json={
             "responses": [
                 {"questionId": "q-velocity-1", "response": "a"},
                 {"questionId": "q-velocity-2", "response": "a"},
+                {"questionId": "q-displacement-1", "response": "a"},
             ]
         },
     )
-    assert response.status_code == 200
-    body = response.json()
-    assert body["scorePct"] == 50
-    assert body["passed"] is False
+    assert failed.status_code == 200
+    assert failed.json()["scorePct"] == 33
+    assert failed.json()["passed"] is False
     assert learner_state.completed == []
     assert learner_state.topic_assessments["topic-speed-velocity"]["passed"] is False
-
-
-def test_submit_topic_context_is_validated_against_the_graph(
-    client: TestClient,
-) -> None:
-    responses = [{"questionId": "q-velocity-1", "response": "b"}]
-
-    accepted = client.post(
-        "/api/v1/concepts/concept-velocity/quiz/submit",
-        json={"responses": responses, "topicId": "topic-speed-velocity"},
-    )
-    assert accepted.json()["topicId"] == "topic-speed-velocity"
-
-    rejected = client.post(
-        "/api/v1/concepts/concept-velocity/quiz/submit",
-        json={"responses": responses, "topicId": "topic-not-a-member"},
-    )
-    assert rejected.json()["topicId"] == "topic-speed-velocity"
 
 
 def test_submit_requires_auth(monkeypatch) -> None:
@@ -115,7 +115,7 @@ def test_submit_requires_auth(monkeypatch) -> None:
 
     with TestClient(app) as bare_client:
         response = bare_client.post(
-            "/api/v1/concepts/concept-velocity/quiz/submit", json={"responses": []}
+            "/api/v1/topics/topic-speed-velocity/quiz/submit", json={"responses": []}
         )
     # Auth is not configured in tests, so the dependency reports 503.
     assert response.status_code == 503
