@@ -1,5 +1,6 @@
-# Never ship the fine-tuned SciBERT weights (417 MB) to the serverless
-# bundle — inference runs in the separate scibert_service/ container.
-model/
-models/
-**/models/
+# Exclude only the SciBERT weight blobs at the BACKEND ROOT (anchored).
+# The Python package app/models/ (pydantic schemas) must be included!
+# Anchored with a leading slash, or git-style matching would also strip
+# app/models/ and break the deployment.
+/model/stem_scibert_final.zip
+/models/
