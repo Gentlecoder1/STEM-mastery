@@ -1,8 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import type { LearningContent } from '../types/catalog';
+import type { LearningContent, QuizQuestion } from '../types/catalog';
 
 const LESSON_PREFIX = 'stem-mastery.lesson.v1.';
+const QUESTIONS_PREFIX = 'stem-mastery.questions.v1.';
 export const DOWNLOADS_STORAGE_KEY = 'stem-mastery.downloads.v2';
 export const READING_STORAGE_KEY = 'stem-mastery.reading.v1';
 export const PENDING_STORAGE_KEY = 'stem-mastery.pending.v1';
@@ -68,8 +69,28 @@ export function saveLesson(conceptId: string, content: LearningContent[]): Promi
   });
 }
 
+const questionsKey = (conceptId: string) => `${QUESTIONS_PREFIX}${conceptId}`;
+
+export type QuestionCache = { conceptId: string; questions: QuizQuestion[]; savedAt: string };
+
+export function loadQuestions(conceptId: string): Promise<QuestionCache | null> {
+  return readJson<QuestionCache>(questionsKey(conceptId));
+}
+
+export function saveQuestions(conceptId: string, questions: QuizQuestion[]): Promise<void> {
+  return writeJson(questionsKey(conceptId), {
+    conceptId,
+    questions,
+    savedAt: new Date().toISOString(),
+  });
+}
+
 export function removeLesson(conceptId: string): Promise<void> {
   return AsyncStorage.removeItem(lessonKey(conceptId)).catch(() => {});
+}
+
+export function removeQuestions(conceptId: string): Promise<void> {
+  return AsyncStorage.removeItem(questionsKey(conceptId)).catch(() => {});
 }
 
 export function loadDownloads(): Promise<string[] | null> {

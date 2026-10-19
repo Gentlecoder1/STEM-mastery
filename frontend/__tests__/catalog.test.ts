@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { loadLesson } from '../src/lib/offlineStore';
+import { loadLesson, loadQuestions, saveQuestions } from '../src/lib/offlineStore';
 import { CATALOG_STORAGE_KEY, loadCatalogSnapshot } from '../src/lib/catalogCache';
 import { mapConceptSummary, mapLesson } from '../src/types/catalog';
 
@@ -54,6 +54,24 @@ it('maps lesson sections independently and sorts them by chapter order', () => {
   expect(lesson.map((section) => section.id)).toEqual(['section-1', 'section-2']);
   expect(lesson[1].contentType).toBe('WORKED_EXAMPLE');
   expect(lesson[1].title).toBe('Worked example');
+});
+
+it('persists client-safe quiz questions for offline use', async () => {
+  const questions = [
+    {
+      id: 'question-1',
+      type: 'mcq' as const,
+      prompt: 'Which quantity has direction?',
+      options: [{ id: 'a', label: 'A', text: 'Speed' }],
+    },
+  ];
+
+  await saveQuestions('concept-velocity', questions);
+
+  expect(await loadQuestions('concept-velocity')).toMatchObject({
+    conceptId: 'concept-velocity',
+    questions,
+  });
 });
 
 it('migrates embedded lesson sections from old catalog snapshots to the lesson store', async () => {

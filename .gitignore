@@ -37,6 +37,8 @@ frontend/.env
 # opencode config (contains Figma API token)
 opencode.json
 
+/seed_first4/
+
 # typescript
 *.tsbuildinfo
 

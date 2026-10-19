@@ -16,13 +16,13 @@ import { ProgressBar } from '../components/PracticeUI';
 import { colors, fonts } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
 import { useCatalog } from '../catalogContext';
+import { useOffline } from '../offlineContext';
 import { useProgress } from '../progressContext';
 import {
-  fetchConceptQuestions,
   submitTopicQuiz,
   type TopicQuizSubmitResult,
 } from '../lib/assessmentApi';
-import { mapQuestions, QUIZ_PASS_RATIO, type QuizQuestion } from '../types/catalog';
+import { QUIZ_PASS_RATIO, type QuizQuestion } from '../types/catalog';
 import type { RootScreenProps } from '../navigation/types';
 
 export default function TopicQuizScreen({ navigation, route }: RootScreenProps<'TopicQuiz'>) {
@@ -30,6 +30,7 @@ export default function TopicQuizScreen({ navigation, route }: RootScreenProps<'
   const styles = useThemedStyles(createStyles);
   const { statusBarStyle } = useTheme();
   const { getTopicConceptIds } = useCatalog();
+  const offline = useOffline();
   const { recordTopicAssessment, refresh } = useProgress();
   const { topicId, topicTitle } = route.params;
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
@@ -53,11 +54,11 @@ export default function TopicQuizScreen({ navigation, route }: RootScreenProps<'
         mounted = false;
       };
     }
-    void Promise.all(conceptIds.map((conceptId) => fetchConceptQuestions(conceptId)))
+    void Promise.all(conceptIds.map((conceptId) => offline.ensureQuestions(conceptId)))
       .then((groups) => {
         if (!mounted) return;
         const uniqueQuestions = new Map<string, QuizQuestion>();
-        groups.flatMap(mapQuestions).forEach((question) => {
+        groups.flatMap((group) => group ?? []).forEach((question) => {
           if (!uniqueQuestions.has(question.id)) uniqueQuestions.set(question.id, question);
         });
         setQuestions(Array.from(uniqueQuestions.values()));
@@ -71,7 +72,7 @@ export default function TopicQuizScreen({ navigation, route }: RootScreenProps<'
     return () => {
       mounted = false;
     };
-  }, [getTopicConceptIds, loadAttempt, topicId]);
+  }, [getTopicConceptIds, loadAttempt, offline.ensureQuestions, topicId]);
 
   const question = questions[index];
   const response = question ? responses[question.id] ?? '' : '';

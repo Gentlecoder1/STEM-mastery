@@ -7,8 +7,9 @@ import { ProgressBar } from '../components/PracticeUI';
 import { colors, fonts } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
 import { useCatalog } from '../catalogContext';
-import { checkAnswer, fetchConceptQuestions } from '../lib/assessmentApi';
-import { mapQuestions, type QuizQuestion } from '../types/catalog';
+import { useOffline } from '../offlineContext';
+import { checkAnswer } from '../lib/assessmentApi';
+import type { QuizQuestion } from '../types/catalog';
 import type { RootScreenProps } from '../navigation/types';
 
 type ChallengeQuestion = QuizQuestion & { conceptId: string };
@@ -30,6 +31,7 @@ export default function ChallengeQuizScreen({ navigation, route }: RootScreenPro
   const styles = useThemedStyles(createStyles);
   const { statusBarStyle } = useTheme();
   const { getTopicConceptIds } = useCatalog();
+  const offline = useOffline();
   const { topicId, topicTitle } = route.params;
 
   const [questions, setQuestions] = useState<ChallengeQuestion[]>([]);
@@ -47,8 +49,8 @@ export default function ChallengeQuizScreen({ navigation, route }: RootScreenPro
     Promise.all(
       conceptIds.map(async (conceptId) => {
         try {
-          const data = await fetchConceptQuestions(conceptId);
-          return mapQuestions(data)
+          const data = await offline.ensureQuestions(conceptId);
+          return (data ?? [])
             .filter((question) => question.type === 'mcq' && (question.options?.length ?? 0) > 0)
             .map((question) => ({ ...question, conceptId }));
         } catch {
@@ -64,7 +66,7 @@ export default function ChallengeQuizScreen({ navigation, route }: RootScreenPro
     return () => {
       mounted = false;
     };
-  }, [getTopicConceptIds, topicId]);
+  }, [getTopicConceptIds, offline.ensureQuestions, topicId]);
 
   const question = questions[index];
 

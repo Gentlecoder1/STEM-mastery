@@ -11,21 +11,24 @@ import {
 
 import { isApiConfigured } from './lib/api';
 import { fetchLesson } from './lib/catalogApi';
-import { mapLesson, type LearningContent } from './types/catalog';
+import { mapLesson, mapQuestions, type LearningContent, type QuizQuestion } from './types/catalog';
 import {
   emptyReading,
   loadAllReading,
   loadDownloads,
   loadLesson,
   loadPending,
+  loadQuestions,
   removeLesson,
+  removeQuestions,
   saveAllReading,
   saveDownloads,
   saveLesson,
   savePending,
+  saveQuestions,
   type ReadingProgress,
 } from './lib/offlineStore';
-import { syncProgress, type LessonProgressItem } from './lib/assessmentApi';
+import { fetchConceptQuestions, syncProgress, type LessonProgressItem } from './lib/assessmentApi';
 import { useConnectivity } from './connectivityContext';
 import { useCatalog } from './catalogContext';
 
@@ -39,6 +42,8 @@ type OfflineContextValue = {
   removeTopicDownload: (topicId: string) => void;
   getLessonContent: (conceptId: string) => LearningContent[] | null;
   ensureLesson: (conceptId: string) => Promise<LearningContent[] | null>;
+  getQuestions: (conceptId: string) => QuizQuestion[] | null;
+  ensureQuestions: (conceptId: string) => Promise<QuizQuestion[] | null>;
   getReading: (conceptId: string) => ReadingProgress;
   updateReading: (conceptId: string, patch: Partial<ReadingProgress>) => void;
   markLessonComplete: (conceptId: string) => void;
@@ -74,6 +79,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
 
   const [downloads, setDownloads] = useState<string[]>([]);
   const [lessons, setLessons] = useState<Record<string, LearningContent[]>>({});
+  const [questions, setQuestions] = useState<Record<string, QuizQuestion[]>>({});
   const [reading, setReading] = useState<Record<string, ReadingProgress>>({});
   const [pending, setPending] = useState<Record<string, ReadingProgress>>({});
   const [isSyncing, setIsSyncing] = useState(false);
@@ -83,6 +89,8 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   downloadsRef.current = downloads;
   const lessonsRef = useRef(lessons);
   lessonsRef.current = lessons;
+  const questionsRef = useRef(questions);
+  questionsRef.current = questions;
   const readingRef = useRef(reading);
   readingRef.current = reading;
   const pendingRef = useRef(pending);
@@ -134,18 +142,25 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     [getTopicConceptIds],
   );
 
-  const cacheConcept = useCallback(async (conceptId: string): Promise<LearningContent[]> => {
+  const cacheLesson = useCallback(async (conceptId: string): Promise<LearningContent[]> => {
     const content = mapLesson(await fetchLesson(conceptId), conceptId);
     await saveLesson(conceptId, content);
     setLessons((current) => ({ ...current, [conceptId]: content }));
     return content;
   }, []);
 
+  const cacheQuestions = useCallback(async (conceptId: string): Promise<QuizQuestion[]> => {
+    const conceptQuestions = mapQuestions(await fetchConceptQuestions(conceptId));
+    await saveQuestions(conceptId, conceptQuestions);
+    setQuestions((current) => ({ ...current, [conceptId]: conceptQuestions }));
+    return conceptQuestions;
+  }, []);
+
   const downloadConcept = useCallback(
     async (conceptId: string) => {
       if (!isApiConfigured || !isOnline) return false;
       try {
-        await cacheConcept(conceptId);
+        await Promise.all([cacheLesson(conceptId), cacheQuestions(conceptId)]);
       } catch {
         return false;
       }
@@ -157,15 +172,23 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       });
       return true;
     },
-    [cacheConcept, isOnline, persistDownloads],
+    [cacheLesson, cacheQuestions, isOnline, persistDownloads],
   );
 
   const downloadTopic = useCallback(
     async (topicId: string) => {
-      const ids = getTopicConceptIds(topicId).filter((id) => !downloadsRef.current.includes(id));
+      const ids = getTopicConceptIds(topicId);
       let completed = 0;
-      for (const id of ids) {
-        if (await downloadConcept(id)) completed += 1;
+      for (let index = 0; index < ids.length; index += 4) {
+        const batch = ids.slice(index, index + 4);
+        const results = await Promise.all(batch.map(async (id) => {
+          if (downloadsRef.current.includes(id)) {
+            const [lesson, cachedQuestions] = await Promise.all([loadLesson(id), loadQuestions(id)]);
+            if (lesson && cachedQuestions) return false;
+          }
+          return downloadConcept(id);
+        }));
+        completed += results.filter(Boolean).length;
       }
       return completed;
     },
@@ -186,7 +209,13 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
         delete next[conceptId];
         return next;
       });
-      void removeLesson(conceptId);
+      setQuestions((current) => {
+        if (!(conceptId in current)) return current;
+        const next = { ...current };
+        delete next[conceptId];
+        return next;
+      });
+      void Promise.all([removeLesson(conceptId), removeQuestions(conceptId)]);
     },
     [persistDownloads],
   );
@@ -209,17 +238,41 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       }
       if (!isApiConfigured || !isOnline) return null;
       try {
-        return await cacheConcept(conceptId);
+        return await cacheLesson(conceptId);
       } catch {
         return null;
       }
     },
-    [cacheConcept, isOnline],
+    [cacheLesson, isOnline],
+  );
+
+  const ensureQuestions = useCallback(
+    async (conceptId: string): Promise<QuizQuestion[] | null> => {
+      const inMemory = questionsRef.current[conceptId];
+      if (inMemory) return inMemory;
+      const cached = await loadQuestions(conceptId);
+      if (cached) {
+        setQuestions((current) => ({ ...current, [conceptId]: cached.questions }));
+        return cached.questions;
+      }
+      if (!isApiConfigured || !isOnline) return null;
+      try {
+        return await cacheQuestions(conceptId);
+      } catch {
+        return null;
+      }
+    },
+    [cacheQuestions, isOnline],
   );
 
   const getLessonContent = useCallback(
     (conceptId: string): LearningContent[] | null => lessons[conceptId] ?? null,
     [lessons],
+  );
+
+  const getQuestions = useCallback(
+    (conceptId: string): QuizQuestion[] | null => questions[conceptId] ?? null,
+    [questions],
   );
 
   const getReading = useCallback(
@@ -332,6 +385,8 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       removeTopicDownload,
       getLessonContent,
       ensureLesson,
+      getQuestions,
+      ensureQuestions,
       getReading,
       updateReading,
       markLessonComplete,
@@ -351,6 +406,9 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       removeTopicDownload,
       getLessonContent,
       ensureLesson,
+      getQuestions,
+      ensureQuestions,
+      questions,
       getReading,
       updateReading,
       markLessonComplete,

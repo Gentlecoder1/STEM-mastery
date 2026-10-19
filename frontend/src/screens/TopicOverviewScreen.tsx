@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,6 +12,7 @@ import { colors, fonts, lightColors, shadow } from '../theme';
 import { useThemedStyles, useTheme } from '../themeContext';
 import { useProgress } from '../progressContext';
 import { useCatalog } from '../catalogContext';
+import { useOffline } from '../offlineContext';
 import type { RootScreenProps } from '../navigation/types';
 import { usePreferences } from '../preferencesContext';
 
@@ -21,6 +23,7 @@ export default function TopicOverviewScreen({ navigation, route }: RootScreenPro
   const { downloadedLessons, downloadsEnabled, toggleTopicDownload } = usePreferences();
   const { topicAssessments } = useProgress();
   const { topics, subjects, getConcept, getTopicConceptIds } = useCatalog();
+  const { downloadTopic } = useOffline();
   const requestedTopicId = route.params?.topicId;
   const topic =
     (requestedTopicId ? topics.find((item) => item.id === requestedTopicId) : undefined) ??
@@ -34,6 +37,10 @@ export default function TopicOverviewScreen({ navigation, route }: RootScreenPro
   const quizScore = assessment?.scorePct ?? 0;
   const isDownloaded =
     conceptIds.length > 0 && conceptIds.every((id) => downloadedLessons.includes(id));
+
+  useEffect(() => {
+    if (topicId) void downloadTopic(topicId);
+  }, [downloadTopic, topicId]);
 
   const concepts = conceptIds
     .map((id) => getConcept(id))
