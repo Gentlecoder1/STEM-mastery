@@ -5,6 +5,7 @@ from app.repositories.graph import (
     _CONCEPT_EDGES,
     _CONCEPTS,
     _PREREQUISITES,
+    _SEARCH_CONCEPTS,
     _SUBJECT_CONCEPTS,
     _TOPICS,
     GraphRepository,
@@ -15,9 +16,11 @@ class StaticGraphRepository(GraphRepository):
     def __init__(self, responses: dict[str, list[dict[str, Any]]]) -> None:
         self.responses = responses
         self.queries: list[str] = []
+        self.params: list[dict[str, Any]] = []
 
     async def _read(self, query: str, **params: Any) -> list[dict[str, Any]]:
         self.queries.append(query)
+        self.params.append(params)
         return self.responses[query]
 
 
@@ -71,3 +74,26 @@ def test_ordered_subject_concepts_deduplicates_without_reordering() -> None:
         "concept-acceleration",
     ]
     assert repository.queries == [_SUBJECT_CONCEPTS]
+
+
+def test_search_concepts_uses_distinct_search_parameter_and_filters_empty_contexts() -> None:
+    rows = [
+        {
+            "id": "concept-exponent",
+            "name": "Exponent",
+            "shortDescription": "An exponent indicates a power.",
+            "contexts": [
+                {"subjectId": "mathematics", "topicId": "topic-indices"},
+                None,
+            ],
+        }
+    ]
+    repository = StaticGraphRepository({_SEARCH_CONCEPTS: rows})
+
+    results = asyncio.run(repository.search_concepts("  ExPonent  "))
+
+    assert results[0]["contexts"] == [
+        {"subjectId": "mathematics", "topicId": "topic-indices"}
+    ]
+    assert repository.queries == [_SEARCH_CONCEPTS]
+    assert repository.params == [{"search_term": "exponent", "limit": 20}]

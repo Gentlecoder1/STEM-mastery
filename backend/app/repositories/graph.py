@@ -147,9 +147,9 @@ ORDER BY tr.order ASC, cr.order ASC
 
 _SEARCH_CONCEPTS = """
 MATCH (c:Concept)
-WHERE toLower(coalesce(c.name, '')) CONTAINS $query
-   OR toLower(coalesce(c.prefLabel, '')) CONTAINS $query
-   OR toLower(coalesce(c.id, '')) CONTAINS $query
+WHERE toLower(coalesce(c.name, '')) CONTAINS $search_term
+   OR toLower(coalesce(c.prefLabel, '')) CONTAINS $search_term
+   OR toLower(coalesce(c.id, '')) CONTAINS $search_term
 OPTIONAL MATCH (s:Subject)-[:HAS_TOPIC]->(t:Topic)-[:HAS_CONCEPT]->(c)
 WITH c, collect(DISTINCT CASE WHEN s IS NULL OR t IS NULL THEN null ELSE {
     subjectId: s.id,
@@ -337,7 +337,11 @@ class GraphRepository:
         return concepts
 
     async def search_concepts(self, query: str, limit: int = 20) -> list[dict[str, Any]]:
-        rows = await self._read(_SEARCH_CONCEPTS, query=query.strip().lower(), limit=limit)
+        rows = await self._read(
+            _SEARCH_CONCEPTS,
+            search_term=query.strip().lower(),
+            limit=limit,
+        )
         for row in rows:
             row["contexts"] = [context for context in (row.get("contexts") or []) if context]
         return rows

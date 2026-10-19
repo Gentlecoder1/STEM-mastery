@@ -69,7 +69,11 @@ export default function SearchScreen({ navigation, route }: RootScreenProps<'Sea
             setError(cached.length > 0 ? null : 'Connect to search the live curriculum.');
           } else {
             setResults([]);
-            setError('Concept search is unavailable. Try again shortly.');
+            setError(
+              cause instanceof ApiError
+                ? `Concept search is unavailable (${cause.status}). Try again shortly.`
+                : 'Concept search is unavailable. Try again shortly.',
+            );
           }
         })
         .finally(() => {
@@ -120,7 +124,11 @@ export default function SearchScreen({ navigation, route }: RootScreenProps<'Sea
       >
         <View style={styles.resultsHeader}>
           <Text style={styles.resultsCount}>
-            {query.trim().length < 2 ? 'Enter at least 2 characters' : `${results.length} concepts`}
+            {query.trim().length < 2
+              ? 'Enter at least 2 characters'
+              : error
+                ? 'Search unavailable'
+                : `${results.length} concepts`}
           </Text>
           {loading ? <ActivityIndicator color={colors.primary} /> : null}
         </View>
