@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -9,14 +9,16 @@ import { colors, fonts, shadow } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
 import { useCatalog } from '../catalogContext';
 import { useOffline } from '../offlineContext';
-import { CONTENT_LABELS } from '../types/catalog';
+import { CONTENT_LABELS, QUIZ_PASS_RATIO } from '../types/catalog';
 import type { RootScreenProps } from '../navigation/types';
+import { useProgress } from '../progressContext';
 
 export default function ConceptDetailsScreen({ navigation, route }: RootScreenProps<'ConceptDetails'>) {
   const insets = useSafeAreaInsets();
   const { statusBarStyle } = useTheme();
   const styles = useThemedStyles(createStyles);
-  const { getConcept, loadConcept } = useCatalog();
+  const { getConcept, loadConcept, topics, subjects } = useCatalog();
+  const { isConceptCompleted, placement } = useProgress();
   const offline = useOffline();
   const concept = getConcept(route.params.conceptId);
   const lessonContent = offline.getLessonContent(route.params.conceptId) ?? [];
@@ -35,6 +37,38 @@ export default function ConceptDetailsScreen({ navigation, route }: RootScreenPr
   }
 
   const itemCount = lessonContent.length;
+  const beginLesson = (conceptId: string, returnToConceptId?: string) => {
+    navigation.navigate('ConceptLearning', { conceptId, returnToConceptId });
+  };
+  const startLearning = () => {
+    const prerequisiteIndex = concept.prerequisiteIds.findIndex((id) =>
+      !isConceptCompleted(id) && (placement.conceptMastery[id] ?? 0) < QUIZ_PASS_RATIO,
+    );
+    if (prerequisiteIndex < 0) {
+      beginLesson(concept.id, route.params.returnToConceptId);
+      return;
+    }
+    const prerequisiteId = concept.prerequisiteIds[prerequisiteIndex];
+    const prerequisiteName = concept.prerequisites[prerequisiteIndex] ?? prerequisiteId;
+    Alert.alert(
+      `Before learning ${concept.title}`,
+      `We recommend reviewing ${prerequisiteName} first.`,
+      [
+        {
+          text: 'Learn prerequisite first',
+          onPress: () => navigation.push('ConceptDetails', {
+            conceptId: prerequisiteId,
+            contextTopicId: route.params.contextTopicId,
+            returnToConceptId: concept.id,
+          }),
+        },
+        {
+          text: 'Continue anyway',
+          onPress: () => beginLesson(concept.id, route.params.returnToConceptId),
+        },
+      ],
+    );
+  };
 
   return (
     <View style={styles.root}>
@@ -52,6 +86,7 @@ export default function ConceptDetailsScreen({ navigation, route }: RootScreenPr
           <Text style={styles.headerEyebrow}>CONCEPT</Text>
           <Text style={styles.headerTitle}>{concept.title}</Text>
         </View>
+
       </View>
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -73,6 +108,19 @@ export default function ConceptDetailsScreen({ navigation, route }: RootScreenPr
           </View>
         </View>
 
+        <View style={styles.contextList}>
+          {concept.topicIds.map((topicId) => {
+            const topic = topics.find((item) => item.id === topicId);
+            if (!topic) return null;
+            const subject = subjects.find((item) => String(item.id) === String(topic.subjectId));
+            return (
+              <Text key={topic.id} style={styles.contextLine}>
+                {subject?.name ?? String(topic.subjectId)} · {topic.name}
+              </Text>
+            );
+          })}
+        </View>
+
         <Text style={styles.sectionTitle}>Short definition</Text>
         <View style={[styles.card, { borderLeftColor: colors[concept.tint] }]}>
           <Text style={styles.cardBody}>{concept.definition}</Text>
@@ -85,20 +133,20 @@ export default function ConceptDetailsScreen({ navigation, route }: RootScreenPr
 
         <Text style={styles.sectionTitle}>Prerequisites</Text>
         <View style={styles.chipRow}>
-          {concept.prerequisites.map((item) => (
-            <View key={item} style={styles.chip}>
+          {concept.prerequisiteIds.map((id, index) => (
+            <Pressable key={id} style={styles.chip} onPress={() => navigation.push('ConceptDetails', { conceptId: id })}>
               <CheckCircleIcon size={14} color={colors.slate} />
-              <Text style={styles.chipText}>{item}</Text>
-            </View>
+              <Text style={styles.chipText}>{concept.prerequisites[index] ?? id}</Text>
+            </Pressable>
           ))}
         </View>
 
         <Text style={styles.sectionTitle}>Related concepts</Text>
         <View style={styles.chipRow}>
-          {concept.related.map((item) => (
-            <View key={item} style={[styles.chip, styles.chipRelated]}>
-              <Text style={[styles.chipText, styles.chipTextRelated]}>{item}</Text>
-            </View>
+          {concept.relatedConceptIds.map((id, index) => (
+            <Pressable key={id} style={[styles.chip, styles.chipRelated]} onPress={() => navigation.push('ConceptDetails', { conceptId: id })}>
+              <Text style={[styles.chipText, styles.chipTextRelated]}>{concept.related[index] ?? id}</Text>
+            </Pressable>
           ))}
         </View>
 
@@ -126,12 +174,7 @@ export default function ConceptDetailsScreen({ navigation, route }: RootScreenPr
       <View style={[styles.footer, { paddingBottom: insets.bottom + 14 }]}>
         <Pressable
           style={styles.primaryButton}
-          onPress={() => {
-            navigation.navigate('ConceptLearning', {
-              conceptId: concept.id,
-              startAt: 0,
-            });
-          }}
+          onPress={startLearning}
           accessibilityRole="button"
         >
           <BookOpenIcon size={18} color={colors.onPrimary} />
@@ -186,6 +229,8 @@ const createStyles = () => StyleSheet.create({
   heroStatus: { fontFamily: fonts.bold, fontSize: 10, lineHeight: 12 },
   heroTitle: { fontFamily: fonts.extrabold, fontSize: 17, lineHeight: 21, color: colors.ink },
   heroMeta: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 15, color: colors.slate },
+  contextList: { gap: 3 },
+  contextLine: { fontFamily: fonts.medium, fontSize: 12, lineHeight: 16, color: colors.slate },
 
   sectionTitle: { fontFamily: fonts.regular, fontSize: 17, lineHeight: 21, color: colors.ink },
   sectionHeader: {

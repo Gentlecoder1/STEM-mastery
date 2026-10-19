@@ -3,9 +3,22 @@ import type { ApiQuestion } from '../types/catalog';
 
 export type CheckResult = {
   questionId: string;
+  conceptId: string;
   correct: boolean | null;
   correctOptionId: string | null;
   explanation: string | null;
+  prerequisites: { id: string; name: string | null }[];
+  relatedConcepts: { id: string; name: string | null }[];
+};
+
+export type ConceptQuizSubmitResult = {
+  conceptId: string;
+  correct: number;
+  total: number;
+  scorePct: number;
+  passed: boolean;
+  prerequisites: { id: string; name: string | null }[];
+  relatedConcepts: { id: string; name: string | null }[];
 };
 
 export type TopicQuizSubmitResult = {
@@ -70,8 +83,18 @@ export function checkAnswer(
   return apiFetch<CheckResult>(`/api/v1/concepts/${encodeURIComponent(conceptId)}/quiz/check`, {
     method: 'POST',
     auth: true,
-    body: { questionId, response },
+    body: { questionId, selectedOption: response },
   });
+}
+
+export function submitConceptQuiz(
+  conceptId: string,
+  responses: { questionId: string; response: string | null }[],
+): Promise<ConceptQuizSubmitResult> {
+  return apiFetch<ConceptQuizSubmitResult>(
+    `/api/v1/concepts/${encodeURIComponent(conceptId)}/quiz/submit`,
+    { method: 'POST', auth: true, body: { responses } },
+  );
 }
 
 export function submitTopicQuiz(

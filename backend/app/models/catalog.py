@@ -39,6 +39,20 @@ class ConceptSummary(BaseModel):
     prerequisites: list[ConceptRef] = Field(default_factory=list)
 
 
+class ConceptContext(BaseModel):
+    subjectId: str | None = None
+    subjectName: str | None = None
+    topicId: str | None = None
+    topicName: str | None = None
+
+
+class ConceptSearchResult(BaseModel):
+    id: str
+    name: str
+    shortDescription: str | None = None
+    contexts: list[ConceptContext] = Field(default_factory=list)
+
+
 class LearningContent(BaseModel):
     id: str
     conceptId: str

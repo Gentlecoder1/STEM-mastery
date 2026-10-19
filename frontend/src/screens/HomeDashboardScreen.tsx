@@ -1,7 +1,7 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
 import BottomNav from '../components/BottomNav';
 import { ProgressBar } from '../components/PracticeUI';
@@ -16,6 +16,7 @@ import {
   AtomIcon,
   SigmaIcon,
   FlaskIcon,
+  SearchIcon,
 } from '../components/glyphs';
 import { colors, fonts, lightColors, shadow, type ColorToken, type SubjectId } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
@@ -139,6 +140,7 @@ export default function HomeDashboardScreen({ navigation }: RootScreenProps<'Hom
   const displayName = useDisplayName();
   const { getSubjectMastery, lastConcept } = useProgress();
   const { subjects } = useCatalog();
+  const [searchQuery, setSearchQuery] = useState('');
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -192,6 +194,21 @@ export default function HomeDashboardScreen({ navigation }: RootScreenProps<'Hom
               <FlameIcon size={18} color="#FF9F1C" />
               <Text style={styles.streakValue}>{profile?.streak ?? 0} days</Text>
             </View>
+          </View>
+
+          <Text style={styles.discoveryTitle}>What do you want to learn today?</Text>
+          <View style={styles.searchPrompt}>
+            <SearchIcon size={19} color={colors.slate} />
+            <TextInput
+              style={styles.searchPromptInput}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search concepts in your curriculum"
+              placeholderTextColor={colors.slate}
+              returnKeyType="search"
+              accessibilityLabel="What do you want to learn today? Search concepts"
+              onSubmitEditing={() => navigation.navigate('Search', { query: searchQuery.trim() })}
+            />
           </View>
 
           <View style={styles.hero}>
@@ -278,6 +295,19 @@ const createStyles = () => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  discoveryTitle: { fontFamily: fonts.extrabold, fontSize: 19, lineHeight: 24, color: colors.ink },
+  searchPrompt: {
+    minHeight: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  searchPromptInput: { flex: 1, fontFamily: fonts.regular, fontSize: 14, color: colors.ink, paddingVertical: 0 },
   greetingCopy: {
     gap: 2,
   },

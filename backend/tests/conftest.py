@@ -92,6 +92,31 @@ class FakeGraphRepository:
             return []
         return [{"id": "topic-speed-velocity", "name": "Speed and velocity", "iri": None}]
 
+    async def search_concepts(self, query: str, limit: int = 20) -> list[dict]:
+        if "vector" not in query.lower():
+            return []
+        return [
+            {
+                "id": "concept-vector",
+                "name": "Vector",
+                "shortDescription": "A quantity with magnitude and direction.",
+                "contexts": [
+                    {
+                        "subjectId": "mathematics",
+                        "subjectName": "Mathematics",
+                        "topicId": "topic-vectors-math",
+                        "topicName": "Vectors",
+                    },
+                    {
+                        "subjectId": "physics",
+                        "subjectName": "Physics",
+                        "topicId": "topic-scalars-vectors",
+                        "topicName": "Scalars and vectors",
+                    },
+                ],
+            }
+        ][:limit]
+
     async def list_concepts(self, topic_id: str) -> list[dict]:
         if topic_id != "topic-speed-velocity":
             return []
@@ -256,6 +281,7 @@ class FakeLearnerState:
     def __init__(self) -> None:
         self.completed: list[str] = []
         self.topic_assessments: dict[str, dict] = {}
+        self.concept_assessments: list[dict] = []
         self.placement: dict | None = None
         self.lesson_progress: dict[str, dict] = {}
         self.calls: list[tuple[str, Any]] = []
@@ -269,6 +295,22 @@ class FakeLearnerState:
         for concept_id in concept_ids:
             if concept_id not in self.completed:
                 self.completed.append(concept_id)
+
+    async def record_concept_assessment(
+        self,
+        user_id: str,
+        concept_id: str,
+        score_pct: int,
+        passed: bool,
+        question_results: list[dict],
+    ) -> None:
+        self.calls.append(("record_concept_assessment", concept_id))
+        self.concept_assessments.append({
+            "conceptId": concept_id,
+            "scorePct": score_pct,
+            "passed": passed,
+            "questionResults": question_results,
+        })
 
     async def upsert_topic_assessment(
         self, user_id: str, topic_id: str, score_pct: int, passed: bool

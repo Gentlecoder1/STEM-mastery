@@ -1,6 +1,7 @@
 import { apiFetch } from './api';
 import type {
   ApiConcept,
+  ApiConceptSearchResult,
   ApiConceptSummary,
   ApiLearningContent,
   ApiSubject,
@@ -17,6 +18,12 @@ export function fetchTopics(subjectId: string): Promise<ApiTopic[]> {
 
 export function fetchConcepts(topicId: string): Promise<ApiConceptSummary[]> {
   return apiFetch<ApiConceptSummary[]>(`/api/v1/topics/${encodeURIComponent(topicId)}/concepts`);
+}
+
+export function searchConcepts(query: string): Promise<ApiConceptSearchResult[]> {
+  return apiFetch<ApiConceptSearchResult[]>(
+    `/api/v1/concepts/search?q=${encodeURIComponent(query)}&limit=20`,
+  );
 }
 
 /** Concept metadata only — never carries lesson sections. */

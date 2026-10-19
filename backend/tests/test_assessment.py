@@ -6,11 +6,12 @@ from tests.conftest import FakeLearnerState
 def test_check_correct(client: TestClient) -> None:
     response = client.post(
         "/api/v1/concepts/concept-velocity/quiz/check",
-        json={"questionId": "q-velocity-1", "response": "b"},
+        json={"questionId": "q-velocity-1", "selectedOption": "b"},
     )
     assert response.status_code == 200
     body = response.json()
     assert body["correct"] is True
+    assert body["conceptId"] == "concept-velocity"
     assert body["correctOptionId"] == "b"
     assert "correctOption" not in body
 
@@ -18,10 +19,58 @@ def test_check_correct(client: TestClient) -> None:
 def test_check_incorrect(client: TestClient) -> None:
     response = client.post(
         "/api/v1/concepts/concept-velocity/quiz/check",
-        json={"questionId": "q-velocity-1", "response": "a"},
+        json={"questionId": "q-velocity-1", "selectedOption": "a"},
     )
     assert response.status_code == 200
-    assert response.json()["correct"] is False
+    body = response.json()
+    assert body["correct"] is False
+    assert body["correctOptionId"] == "b"
+    assert body["prerequisites"] == [
+        {"id": "concept-displacement", "name": "Distance and displacement"}
+    ]
+
+
+def test_concept_quiz_pass_persists_mastery(client: TestClient, learner_state: FakeLearnerState) -> None:
+    response = client.post(
+        "/api/v1/concepts/concept-velocity/quiz/submit",
+        json={
+            "responses": [
+                {"questionId": "q-velocity-1", "response": "b"},
+                {"questionId": "q-velocity-2", "response": "a"},
+            ]
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["passed"] is True
+    assert response.json()["scorePct"] == 100
+    assert learner_state.completed == ["concept-velocity"]
+    assert learner_state.concept_assessments[0]["questionResults"] == [
+        {"questionId": "q-velocity-1", "conceptId": "concept-velocity", "correct": True},
+        {"questionId": "q-velocity-2", "conceptId": "concept-velocity", "correct": True},
+    ]
+
+
+def test_concept_quiz_failure_returns_graph_remediation(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/concepts/concept-velocity/quiz/submit",
+        json={
+            "responses": [
+                {"questionId": "q-velocity-1", "response": "a"},
+                {"questionId": "q-velocity-2", "response": "b"},
+            ]
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["passed"] is False
+    assert body["prerequisites"] == [
+        {"id": "concept-displacement", "name": "Distance and displacement"}
+    ]
+    assert body["relatedConcepts"] == [
+        {"id": "concept-acceleration", "name": "Acceleration"}
+    ]
 
 
 def test_check_theory_is_ungraded(client: TestClient) -> None:

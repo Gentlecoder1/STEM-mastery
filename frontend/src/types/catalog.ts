@@ -63,6 +63,8 @@ export type Concept = {
   whyItMatters: string;
   prerequisites: readonly string[];
   related: readonly string[];
+  prerequisiteIds: readonly string[];
+  relatedConceptIds: readonly string[];
   /** Whether the graph holds lesson sections — the payload lives in the lesson cache. */
   hasLesson: boolean;
   tint: ColorToken;
@@ -92,6 +94,18 @@ export type ApiConceptSummary = {
   prefLabel: string | null;
   iri: string | null;
   prerequisites: { id: string; name: string | null }[];
+};
+export type ApiConceptContext = {
+  subjectId: string | null;
+  subjectName: string | null;
+  topicId: string | null;
+  topicName: string | null;
+};
+export type ApiConceptSearchResult = {
+  id: string;
+  name: string;
+  shortDescription: string | null;
+  contexts: ApiConceptContext[];
 };
 export type ApiLearningContent = {
   id: string;
@@ -228,6 +242,8 @@ export function mapConceptSummary(
     whyItMatters: '',
     prerequisites: api.prerequisites.map((item) => item.name ?? item.id),
     related: [],
+    prerequisiteIds: api.prerequisites.map((item) => item.id),
+    relatedConceptIds: [],
     hasLesson: false,
     tint: theme.tint,
     soft: theme.soft,
@@ -249,6 +265,8 @@ export function mapConceptDetail(
     whyItMatters: '',
     prerequisites: api.prerequisites.map((item) => item.name ?? item.id),
     related: api.related.map((item) => item.name ?? item.id),
+    prerequisiteIds: api.prerequisiteIds.filter(Boolean),
+    relatedConceptIds: api.relatedConceptIds.filter(Boolean),
     hasLesson: api.hasLesson,
     tint: theme.tint,
     soft: theme.soft,

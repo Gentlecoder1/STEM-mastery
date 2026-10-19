@@ -24,6 +24,8 @@ it('maps concept summaries to topic and subject membership arrays', () => {
   expect(concept.topicIds).toEqual(['topic-motion']);
   expect(concept.subjectIds).toEqual(['physics']);
   expect(concept.hasLesson).toBe(false);
+  expect(concept.prerequisiteIds).toEqual([]);
+  expect(concept.relatedConceptIds).toEqual([]);
 });
 
 it('maps lesson sections independently and sorts them by chapter order', () => {

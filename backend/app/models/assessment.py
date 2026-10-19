@@ -9,17 +9,23 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
+from app.models.catalog import ConceptRef
+
 
 class CheckRequest(BaseModel):
     questionId: str
+    selectedOption: str | None = None
     response: str | None = None
 
 
 class CheckResponse(BaseModel):
     questionId: str
+    conceptId: str
     correct: bool | None = None
     correctOptionId: str | None = None
     explanation: str | None = None
+    prerequisites: list[ConceptRef] = Field(default_factory=list)
+    relatedConcepts: list[ConceptRef] = Field(default_factory=list)
 
 
 class QuizResponseItem(BaseModel):
@@ -37,3 +43,24 @@ class TopicQuizSubmitResponse(BaseModel):
     total: int
     scorePct: int
     passed: bool
+
+
+class ConceptQuizSubmitRequest(BaseModel):
+    responses: list[QuizResponseItem] = Field(default_factory=list)
+
+
+class ConceptQuestionResult(BaseModel):
+    questionId: str
+    conceptId: str
+    correct: bool
+
+
+class ConceptQuizSubmitResponse(BaseModel):
+    conceptId: str
+    correct: int
+    total: int
+    scorePct: int
+    passed: bool
+    questionResults: list[ConceptQuestionResult] = Field(default_factory=list)
+    prerequisites: list[ConceptRef] = Field(default_factory=list)
+    relatedConcepts: list[ConceptRef] = Field(default_factory=list)

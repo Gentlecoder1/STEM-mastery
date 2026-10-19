@@ -1,95 +1,99 @@
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useState } from 'react';
 
 import BottomNav from '../components/BottomNav';
-import { CheckCircleIcon, SparklesIcon } from '../components/icons';
-import {
-  BookOpenIcon,
-  BrainIcon,
-  CloseIcon,
-  GaugeIcon,
-  LineChartIcon,
-  PlayIcon,
-  SearchIcon,
-  VideoIcon,
-} from '../components/glyphs';
-import { Pill } from '../components/PracticeUI';
-import { colors, fonts, shadow, type ColorToken } from '../theme';
+import { CloseIcon, SearchIcon } from '../components/glyphs';
+import { colors, fonts } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
 import { navigateToTab } from '../navigation/tabs';
+import { ApiError } from '../lib/api';
+import { searchConcepts } from '../lib/catalogApi';
+import { useCatalog } from '../catalogContext';
+import type { ApiConceptSearchResult } from '../types/catalog';
 import type { RootScreenProps } from '../navigation/types';
 
-const FILTERS = [
-  { label: 'ALL', count: 8 },
-  { label: 'LESSONS', count: 3 },
-  { label: 'CONCEPTS', count: 4 },
-  { label: 'PRACTISE', count: 1 },
-] as const;
 
-const RESULTS = [
-  {
-    title: 'Speed vs velocity',
-    subtitle: 'Concept • Physics • 0% mastery',
-    Icon: GaugeIcon,
-    tint: 'blue' as ColorToken,
-    soft: 'blueSoft' as ColorToken,
-    kind: 'pill',
-  },
-  {
-    title: 'Understanding velocity',
-    subtitle: 'Lesson • 7 min • completed',
-    Icon: BookOpenIcon,
-    tint: 'success' as ColorToken,
-    soft: 'greenSoft' as ColorToken,
-    kind: 'check',
-  },
-  {
-    title: 'Velocity-time graphs',
-    subtitle: 'Concept • Physics • not started',
-    Icon: LineChartIcon,
-    tint: 'orange' as ColorToken,
-    soft: 'orangeSoft' as ColorToken,
-    kind: 'start',
-  },
-  {
-    title: 'Velocity quick practice',
-    subtitle: 'Challenge • 10 questions',
-    Icon: BrainIcon,
-    tint: 'primary' as ColorToken,
-    soft: 'primarySoft' as ColorToken,
-    kind: 'start',
-  },
-  {
-    title: 'Velocity in everyday motion',
-    subtitle: 'Video • 4:12 • Physics',
-    Icon: VideoIcon,
-    tint: 'violet' as ColorToken,
-    soft: 'violetSoft' as ColorToken,
-    kind: 'play',
-  },
-];
-
-export default function SearchScreen({ navigation }: RootScreenProps<'Search'>) {
+export default function SearchScreen({ navigation, route }: RootScreenProps<'Search'>) {
   const insets = useSafeAreaInsets();
   const { statusBarStyle } = useTheme();
   const styles = useThemedStyles(createStyles);
-  const [query, setQuery] = useState('velocity');
-  const [activeFilter, setActiveFilter] = useState('ALL');
+  const [query, setQuery] = useState(route.params?.query ?? '');
+  const [results, setResults] = useState<ApiConceptSearchResult[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { concepts, topics, subjects } = useCatalog();
+
+  useEffect(() => {
+    const normalized = query.trim();
+    if (normalized.length < 2) {
+      setResults([]);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+    let active = true;
+    setLoading(true);
+    setError(null);
+    const timer = setTimeout(() => {
+      void searchConcepts(normalized)
+        .then((items) => {
+          if (active) setResults(items);
+        })
+        .catch((cause: unknown) => {
+          if (!active) return;
+          if (cause instanceof ApiError && (cause.status === 0 || cause.status === 503)) {
+            const needle = normalized.toLowerCase();
+            const cached = concepts
+              .filter((concept) =>
+                `${concept.title} ${concept.id} ${concept.definition}`.toLowerCase().includes(needle),
+              )
+              .map((concept) => ({
+                id: concept.id,
+                name: concept.title,
+                shortDescription: concept.definition || null,
+                contexts: concept.topicIds.flatMap((topicId) => {
+                  const topic = topics.find((item) => item.id === topicId);
+                  if (!topic) return [];
+                  const subject = subjects.find((item) => String(item.id) === String(topic.subjectId));
+                  return [{
+                    subjectId: String(topic.subjectId),
+                    subjectName: subject?.name ?? String(topic.subjectId),
+                    topicId: topic.id,
+                    topicName: topic.name,
+                  }];
+                }),
+              }));
+            setResults(cached);
+            setError(cached.length > 0 ? null : 'Connect to search the live curriculum.');
+          } else {
+            setResults([]);
+            setError('Concept search is unavailable. Try again shortly.');
+          }
+        })
+        .finally(() => {
+          if (active) setLoading(false);
+        });
+    }, 250);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [concepts, query, subjects, topics]);
 
   return (
     <View style={styles.root}>
       <StatusBar style={statusBarStyle} />
       <View style={[styles.searchHeader, { paddingTop: insets.top + 8 }]}>
-        <Text style={styles.title}>Search learning</Text>
+          <Text style={styles.title}>Search concepts</Text>
         <View style={styles.field}>
           <SearchIcon size={19} color={colors.slate} />
           <TextInput
             style={styles.input}
             value={query}
             onChangeText={setQuery}
-            placeholder="Search lessons, concepts, videos…"
+            placeholder="Vector, Velocity, Logarithm…"
             placeholderTextColor={colors.slate}
             returnKeyType="search"
             accessibilityLabel="Search learning"
@@ -114,60 +118,54 @@ export default function SearchScreen({ navigation }: RootScreenProps<'Search'>) 
           { paddingBottom: insets.bottom + 14 },
         ]}
       >
-        <View style={styles.filterRow}>
-          {FILTERS.map(({ label, count }) => {
-            const on = label === activeFilter;
-            return (
-              <Pressable key={label} onPress={() => setActiveFilter(label)} accessibilityRole="button">
-                <Pill bg={on ? colors.primary : colors.surface} tint={on ? colors.onPrimary : colors.slate}>
-                  {label} {count}
-                </Pill>
-              </Pressable>
-            );
-          })}
-        </View>
-
         <View style={styles.resultsHeader}>
-          <Text style={styles.resultsCount}>8 results</Text>
-          <Text style={styles.resultsSort}>Most relevant</Text>
-        </View>
-
-        <View style={styles.resultList}>
-          {RESULTS.map(({ title, subtitle, Icon, tint, soft, kind }) => (
-            <Pressable
-              key={title}
-              style={styles.resultRow}
-              onPress={() => navigation.navigate('Challenge')}
-              accessibilityRole="button"
-            >
-              <View style={[styles.resultIcon, { backgroundColor: colors[soft] }]}>
-                <Icon size={19} color={colors[tint]} />
-              </View>
-              <View style={styles.resultCopy}>
-                <Text style={styles.resultTitle}>{title}</Text>
-                <Text style={styles.resultSubtitle}>{subtitle}</Text>
-              </View>
-              {kind === 'pill' ? (
-                <Pill bg={colors.blueSoft} tint={colors.blue}>CONCEPT</Pill>
-              ) : kind === 'check' ? (
-                <CheckCircleIcon size={19} color={colors.success} />
-              ) : kind === 'start' ? (
-                <Pill bg={colors.primarySoft} tint={colors.primary}>START</Pill>
-              ) : (
-                <PlayIcon size={18} color={colors.primary} />
-              )}
-            </Pressable>
-          ))}
-        </View>
-
-        <View style={styles.tipCard}>
-          <View style={styles.tipIcon}>
-            <SparklesIcon size={18} color={colors.orange} />
-          </View>
-          <Text style={styles.tipText}>
-            Try “acceleration graph” for a more specific result.
+          <Text style={styles.resultsCount}>
+            {query.trim().length < 2 ? 'Enter at least 2 characters' : `${results.length} concepts`}
           </Text>
+          {loading ? <ActivityIndicator color={colors.primary} /> : null}
         </View>
+        {error ? <Text style={styles.message}>{error}</Text> : null}
+        {results.map((result) => (
+          <View key={result.id} style={styles.resultCard}>
+            <Text style={styles.resultTitle}>{result.name}</Text>
+            {result.shortDescription ? (
+              <Text style={styles.resultDescription}>{result.shortDescription}</Text>
+            ) : null}
+            {result.contexts.length > 1 ? (
+              <Text style={styles.contextPrompt}>Choose a learning context</Text>
+            ) : null}
+            {result.contexts.map((context) => (
+              <Pressable
+                key={`${context.subjectId}:${context.topicId}`}
+                style={styles.contextRow}
+                onPress={() => navigation.navigate('ConceptDetails', {
+                  conceptId: result.id,
+                  contextTopicId: context.topicId ?? undefined,
+                })}
+                accessibilityRole="button"
+              >
+                <View style={styles.resultCopy}>
+                  <Text style={styles.resultSubtitle}>{context.subjectName ?? context.subjectId ?? 'Curriculum'}</Text>
+                  {context.topicName ? <Text style={styles.contextTopic}>{context.topicName}</Text> : null}
+                </View>
+                <Text style={styles.openAction}>Open</Text>
+              </Pressable>
+            ))}
+            {result.contexts.length === 0 ? (
+              <Pressable
+                style={styles.contextRow}
+                onPress={() => navigation.navigate('ConceptDetails', { conceptId: result.id })}
+                accessibilityRole="button"
+              >
+                <Text style={styles.contextTopic}>Open concept</Text>
+                <Text style={styles.openAction}>Open</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ))}
+        {!loading && query.trim().length >= 2 && !error && results.length === 0 ? (
+          <Text style={styles.message}>No matching concepts were found in the curriculum.</Text>
+        ) : null}
       </ScrollView>
 
       <BottomNav active="Subjects" onSelect={navigateToTab(navigation, 'Subjects')} />
@@ -210,45 +208,25 @@ const createStyles = () => StyleSheet.create({
     justifyContent: 'center',
   },
 
-  filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-
   resultsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   resultsCount: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 15, color: colors.slate },
-  resultsSort: { fontFamily: fonts.bold, fontSize: 12, lineHeight: 15, color: colors.primary },
-
-  resultList: { gap: 8 },
-  resultRow: {
-    minHeight: 62,
-    paddingVertical: 9,
-    paddingHorizontal: 10,
-    borderRadius: 12,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  resultIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  resultCopy: { flex: 1, gap: 2 },
-  resultTitle: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 16, color: colors.ink },
+  resultCard: { padding: 14, borderWidth: 1, borderColor: colors.border, borderRadius: 12, backgroundColor: colors.surface, gap: 10 },
+  resultCopy: { flex: 1, gap: 3 },
+  resultTitle: { fontFamily: fonts.bold, fontSize: 16, lineHeight: 20, color: colors.ink },
+  resultDescription: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 18, color: colors.slate },
   resultSubtitle: { fontFamily: fonts.medium, fontSize: 10, lineHeight: 13, color: colors.slate },
-
-  tipCard: {
+  contextPrompt: { fontFamily: fonts.bold, fontSize: 12, color: colors.ink, marginTop: 4 },
+  contextRow: {
+    minHeight: 52,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    padding: 13,
-    borderRadius: 18,
-    backgroundColor: colors.yellowSoft,
-    ...shadow.frame,
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingHorizontal: 10,
+    borderTopWidth: 1,
+    borderColor: colors.border,
   },
-  tipIcon: { width: 22, height: 22, alignItems: 'center', justifyContent: 'center' },
-  tipText: { flex: 1, fontFamily: fonts.regular, fontSize: 12, lineHeight: 16, color: colors.ink },
+  contextTopic: { fontFamily: fonts.medium, fontSize: 13, color: colors.ink },
+  openAction: { fontFamily: fonts.bold, fontSize: 12, color: colors.primary },
+  message: { paddingVertical: 12, fontFamily: fonts.regular, fontSize: 13, lineHeight: 19, color: colors.slate },
 });

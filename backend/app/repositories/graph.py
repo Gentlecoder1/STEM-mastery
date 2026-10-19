@@ -145,6 +145,24 @@ RETURN c.id AS id, coalesce(c.name, c.prefLabel, c.id) AS name,
 ORDER BY tr.order ASC, cr.order ASC
 """
 
+_SEARCH_CONCEPTS = """
+MATCH (c:Concept)
+WHERE toLower(coalesce(c.name, '')) CONTAINS $query
+   OR toLower(coalesce(c.prefLabel, '')) CONTAINS $query
+   OR toLower(coalesce(c.id, '')) CONTAINS $query
+OPTIONAL MATCH (s:Subject)-[:HAS_TOPIC]->(t:Topic)-[:HAS_CONCEPT]->(c)
+WITH c, collect(DISTINCT CASE WHEN s IS NULL OR t IS NULL THEN null ELSE {
+    subjectId: s.id,
+    subjectName: coalesce(s.name, s.prefLabel, s.id),
+    topicId: t.id,
+    topicName: coalesce(t.name, t.prefLabel, t.id)
+} END) AS contexts
+RETURN c.id AS id, coalesce(c.name, c.prefLabel, c.id) AS name,
+       c.prefLabel AS shortDescription, contexts
+ORDER BY name, id
+LIMIT $limit
+"""
+
 _PLACEMENT_CANDIDATES = """
 MATCH (:Subject {id: $subject_id})-[:HAS_TOPIC]->(:Topic)-[:HAS_CONCEPT]->(c:Concept)
 MATCH (q:Question)-[:ASSESSES_CONCEPT]->(c)
@@ -317,6 +335,12 @@ class GraphRepository:
                 concepts.append(row)
                 seen_ids.add(row["id"])
         return concepts
+
+    async def search_concepts(self, query: str, limit: int = 20) -> list[dict[str, Any]]:
+        rows = await self._read(_SEARCH_CONCEPTS, query=query.strip().lower(), limit=limit)
+        for row in rows:
+            row["contexts"] = [context for context in (row.get("contexts") or []) if context]
+        return rows
 
     async def list_question_answers(self, concept_id: str) -> dict[str, dict[str, Any]]:
         """Questions with answer keys for server-side grading (never returned)."""

@@ -1,8 +1,9 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
 
 from app.api.deps import RepositoryDep
 from app.models.catalog import (
     Concept,
+    ConceptSearchResult,
     ConceptRef,
     ConceptSummary,
     LearningContent,
@@ -29,6 +30,15 @@ async def list_subjects(repo: RepositoryDep) -> list[Subject]:
 @router.get("/subjects/{subject_id}/topics", response_model=list[Topic])
 async def list_topics(subject_id: str, repo: RepositoryDep) -> list[Topic]:
     return [Topic(**row) for row in await repo.list_topics(subject_id)]
+
+
+@router.get("/concepts/search", response_model=list[ConceptSearchResult])
+async def search_concepts(
+    repo: RepositoryDep,
+    q: str = Query(min_length=2, max_length=80),
+    limit: int = Query(default=20, ge=1, le=50),
+) -> list[ConceptSearchResult]:
+    return [ConceptSearchResult(**row) for row in await repo.search_concepts(q, limit)]
 
 
 @router.get("/topics/{topic_id}/concepts", response_model=list[ConceptSummary])

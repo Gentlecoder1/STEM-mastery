@@ -86,6 +86,29 @@ class LearnerStateRepository:
             prefer="resolution=ignore-duplicates,return=minimal",
         )
 
+    async def record_concept_assessment(
+        self,
+        user_id: str,
+        concept_id: str,
+        score_pct: int,
+        passed: bool,
+        question_results: list[dict[str, Any]],
+    ) -> None:
+        await self._request(
+            "POST",
+            "concept_assessment_attempts",
+            json=[
+                {
+                    "user_id": user_id,
+                    "concept_id": concept_id,
+                    "score_pct": score_pct,
+                    "passed": passed,
+                    "question_results": question_results,
+                }
+            ],
+            prefer="return=minimal",
+        )
+
     # -- topic assessments ---------------------------------------------------
     async def upsert_topic_assessment(
         self, user_id: str, topic_id: str, score_pct: int, passed: bool

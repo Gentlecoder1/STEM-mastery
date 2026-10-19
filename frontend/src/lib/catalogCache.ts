@@ -66,6 +66,8 @@ export async function loadCatalogSnapshot(): Promise<CatalogSnapshot | null> {
         whyItMatters: item.whyItMatters ?? '',
         prerequisites: Array.isArray(item.prerequisites) ? item.prerequisites : [],
         related: Array.isArray(item.related) ? item.related : [],
+        prerequisiteIds: Array.isArray(item.prerequisiteIds) ? item.prerequisiteIds : [],
+        relatedConceptIds: Array.isArray(item.relatedConceptIds) ? item.relatedConceptIds : [],
         hasLesson: item.hasLesson ?? (Array.isArray(item.content) && item.content.length > 0),
         tint: item.tint ?? 'blue',
         soft: item.soft ?? 'blueSoft',

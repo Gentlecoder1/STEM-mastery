@@ -34,6 +34,7 @@ import SubjectDashboardScreen from './src/screens/SubjectDashboardScreen';
 import TopicOverviewScreen from './src/screens/TopicOverviewScreen';
 import ConceptDetailsScreen from './src/screens/ConceptDetailsScreen';
 import ConceptLearningScreen from './src/screens/ConceptLearningScreen';
+import ConceptQuizScreen from './src/screens/ConceptQuizScreen';
 import TopicQuizScreen from './src/screens/TopicQuizScreen';
 import ProgressScreen from './src/screens/ProgressScreen';
 import TopicProgressScreen from './src/screens/TopicProgressScreen';
@@ -121,6 +122,7 @@ function AppShell() {
               <Stack.Screen name="TopicOverview" component={TopicOverviewScreen} />
               <Stack.Screen name="ConceptDetails" component={ConceptDetailsScreen} />
               <Stack.Screen name="ConceptLearning" component={ConceptLearningScreen} />
+              <Stack.Screen name="ConceptQuiz" component={ConceptQuizScreen} />
               <Stack.Screen name="TopicQuiz" component={TopicQuizScreen} />
               <Stack.Screen name="Progress" component={ProgressScreen} />
               <Stack.Screen name="TopicProgress" component={TopicProgressScreen} />

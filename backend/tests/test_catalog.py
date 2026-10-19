@@ -9,6 +9,38 @@ def test_list_subjects(client: TestClient) -> None:
     assert response.json()[0]["id"] == "physics"
 
 
+def test_search_concepts_preserves_all_graph_contexts(client: TestClient) -> None:
+    response = client.get("/api/v1/concepts/search", params={"q": "Vector"})
+
+    assert response.status_code == 200
+    assert response.json() == [
+        {
+            "id": "concept-vector",
+            "name": "Vector",
+            "shortDescription": "A quantity with magnitude and direction.",
+            "contexts": [
+                {
+                    "subjectId": "mathematics",
+                    "subjectName": "Mathematics",
+                    "topicId": "topic-vectors-math",
+                    "topicName": "Vectors",
+                },
+                {
+                    "subjectId": "physics",
+                    "subjectName": "Physics",
+                    "topicId": "topic-scalars-vectors",
+                    "topicName": "Scalars and vectors",
+                },
+            ],
+        }
+    ]
+
+
+def test_search_concepts_requires_two_characters(client: TestClient) -> None:
+    response = client.get("/api/v1/concepts/search", params={"q": "V"})
+    assert response.status_code == 422
+
+
 def test_list_topics(client: TestClient) -> None:
     response = client.get("/api/v1/subjects/physics/topics")
     assert response.status_code == 200

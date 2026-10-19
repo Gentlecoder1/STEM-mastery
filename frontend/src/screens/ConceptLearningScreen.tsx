@@ -32,16 +32,16 @@ function FormulaBlock({ text }: { text: string }) {
   );
 }
 
-function ContentCard({ item }: { item: LearningContent }) {
+function ContentCard({ item, conceptTitle }: { item: LearningContent; conceptTitle: string }) {
   const styles = useThemedStyles(createStyles);
   const tint = colors[TYPE_TINT[item.contentType]];
   const label = CONTENT_LABELS[item.contentType];
   const repeatedTitle = item.title.toLowerCase().startsWith(label.toLowerCase());
   const title = repeatedTitle
     ? item.contentType === 'DEFINITION'
-      ? 'Velocity'
+      ? conceptTitle
       : item.contentType === 'FORMULA'
-        ? 'Velocity formula'
+        ? `${conceptTitle} formula`
         : null
     : item.title;
 
@@ -89,7 +89,7 @@ export default function ConceptLearningScreen({
   const { recordLastConcept } = useProgress();
   const { getConcept, loadConcept } = useCatalog();
   const offline = useOffline();
-  const { conceptId } = route.params;
+  const { conceptId, returnToConceptId } = route.params;
   const concept = getConcept(conceptId);
   const cachedContent = offline.getLessonContent(conceptId);
   useEffect(() => {
@@ -150,7 +150,9 @@ export default function ConceptLearningScreen({
           { paddingBottom: insets.bottom + 104 },
         ]}
       >
-          {lessonItems.map((item) => <ContentCard key={item.id} item={item} />)}
+          {lessonItems.map((item) => (
+            <ContentCard key={item.id} item={item} conceptTitle={concept?.title ?? 'Concept'} />
+          ))}
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 14 }]}>
@@ -165,7 +167,7 @@ export default function ConceptLearningScreen({
           style={styles.primaryButton}
           onPress={() => {
             offline.markLessonComplete(conceptId);
-            navigation.goBack();
+            navigation.navigate('ConceptQuiz', { conceptId, returnToConceptId });
           }}
           accessibilityRole="button"
         >

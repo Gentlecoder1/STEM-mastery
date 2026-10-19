@@ -12,14 +12,15 @@ export type RootStackParamList = {
   Subjects: undefined;
   SubjectDashboard: { subjectId: SubjectId };
   TopicOverview: { topicId?: string } | undefined;
-  ConceptDetails: { conceptId: string };
-  ConceptLearning: { conceptId: string; startAt?: number };
+  ConceptDetails: { conceptId: string; contextTopicId?: string; returnToConceptId?: string };
+  ConceptLearning: { conceptId: string; startAt?: number; returnToConceptId?: string };
+  ConceptQuiz: { conceptId: string; returnToConceptId?: string };
   TopicQuiz: { topicId: string; topicTitle: string };
   Progress: undefined;
   TopicProgress: undefined;
   Challenge: undefined;
   ChallengeQuiz: { topicId: string; topicTitle: string };
-  Search: undefined;
+  Search: { query?: string } | undefined;
   Profile: undefined;
   Settings: undefined;
 };
