@@ -9,7 +9,7 @@ import { colors, fonts, shadow } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
 import { useCatalog } from '../catalogContext';
 import { useOffline } from '../offlineContext';
-import { CONTENT_LABELS, QUIZ_PASS_RATIO } from '../types/catalog';
+import { QUIZ_PASS_RATIO } from '../types/catalog';
 import type { RootScreenProps } from '../navigation/types';
 import { useProgress } from '../progressContext';
 
@@ -21,7 +21,7 @@ export default function ConceptDetailsScreen({ navigation, route }: RootScreenPr
   const { isConceptCompleted, placement } = useProgress();
   const offline = useOffline();
   const concept = getConcept(route.params.conceptId);
-  const lessonContent = offline.getLessonContent(route.params.conceptId) ?? [];
+  const lesson = offline.getLesson(route.params.conceptId);
 
   useEffect(() => {
     void loadConcept(route.params.conceptId);
@@ -36,11 +36,27 @@ export default function ConceptDetailsScreen({ navigation, route }: RootScreenPr
     );
   }
 
-  const itemCount = lessonContent.length;
+  const lessonSectionCount = lesson
+    ? [
+        lesson.learningObjectives.length,
+        lesson.definition ? 1 : 0,
+        lesson.explanation.length,
+        lesson.keyTerms.length,
+        lesson.illustrations.length,
+        lesson.workedExamples.length,
+        lesson.realWorldApplications.length,
+        lesson.commonMistakes.length,
+        lesson.summary.length,
+      ].filter((count) => count > 0).length
+    : 0;
   const beginLesson = (conceptId: string, returnToConceptId?: string) => {
     navigation.navigate('ConceptLearning', { conceptId, returnToConceptId });
   };
   const startLearning = () => {
+    if (!lesson && !concept.hasLesson) {
+      Alert.alert('Lesson not available yet', 'Structured lesson content has not been added for this concept.');
+      return;
+    }
     const prerequisiteIndex = concept.prerequisiteIds.findIndex((id) =>
       !isConceptCompleted(id) && (placement.conceptMastery[id] ?? 0) < QUIZ_PASS_RATIO,
     );
@@ -103,7 +119,11 @@ export default function ConceptDetailsScreen({ navigation, route }: RootScreenPr
             <Text style={[styles.heroStatus, { color: colors[concept.tint] }]}>CONCEPT</Text>
             <Text style={styles.heroTitle}>{concept.title}</Text>
             <Text style={styles.heroMeta}>
-              {itemCount} {itemCount === 1 ? 'item' : 'items'} of content
+              {lesson?.concept.estimatedMinutes
+                ? `${lesson.concept.estimatedMinutes} minute lesson`
+                : lessonSectionCount > 0
+                  ? `${lessonSectionCount} lesson sections`
+                  : 'Lesson'}
             </Text>
           </View>
         </View>
@@ -121,15 +141,14 @@ export default function ConceptDetailsScreen({ navigation, route }: RootScreenPr
           })}
         </View>
 
-        <Text style={styles.sectionTitle}>Short definition</Text>
-        <View style={[styles.card, { borderLeftColor: colors[concept.tint] }]}>
-          <Text style={styles.cardBody}>{concept.definition}</Text>
-        </View>
-
-        <Text style={styles.sectionTitle}>Why this matters</Text>
-        <View style={styles.card}>
-          <Text style={styles.cardBody}>{concept.whyItMatters}</Text>
-        </View>
+        {(lesson?.definition || concept.definition) ? (
+          <>
+            <Text style={styles.sectionTitle}>Definition</Text>
+            <View style={[styles.card, { borderLeftColor: colors[concept.tint] }]}>
+              <Text style={styles.cardBody}>{lesson?.definition ?? concept.definition}</Text>
+            </View>
+          </>
+        ) : null}
 
         <Text style={styles.sectionTitle}>Prerequisites</Text>
         <View style={styles.chipRow}>
@@ -150,25 +169,15 @@ export default function ConceptDetailsScreen({ navigation, route }: RootScreenPr
           ))}
         </View>
 
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Learning content</Text>
-          <Text style={styles.link}>{itemCount} items</Text>
-        </View>
-        <View style={styles.contentList}>
-          {lessonContent.map((item) => (
-            <View key={item.id} style={styles.contentRow}>
-              <View style={styles.orderBadge}>
-                <Text style={styles.orderText}>{item.chapterOrder}</Text>
-              </View>
-              <View style={styles.contentCopy}>
-                <Text style={styles.contentTitle}>{item.title}</Text>
-                <Text style={styles.contentType}>
-                  {CONTENT_LABELS[item.contentType]}
-                </Text>
-              </View>
-            </View>
-          ))}
-        </View>
+        {lesson?.practiceAvailable ? (
+          <Text style={styles.heroMeta}>
+            Practice available · {lesson.questionCount} {lesson.questionCount === 1 ? 'question' : 'questions'}
+          </Text>
+        ) : lesson ? (
+          <Text style={styles.heroMeta}>Lesson content is available; practice questions have not been added.</Text>
+        ) : (
+          <Text style={styles.heroMeta}>Structured lesson content is not available yet.</Text>
+        )}
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 14 }]}>
@@ -233,12 +242,6 @@ const createStyles = () => StyleSheet.create({
   contextLine: { fontFamily: fonts.medium, fontSize: 12, lineHeight: 16, color: colors.slate },
 
   sectionTitle: { fontFamily: fonts.regular, fontSize: 17, lineHeight: 21, color: colors.ink },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  link: { fontFamily: fonts.bold, fontSize: 12, lineHeight: 15, color: colors.primary },
 
   card: {
     padding: 16,
@@ -265,32 +268,6 @@ const createStyles = () => StyleSheet.create({
   chipRelated: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
   chipText: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 15, color: colors.slate },
   chipTextRelated: { color: colors.primary },
-
-  contentList: { gap: 8 },
-  contentRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    minHeight: 58,
-    paddingHorizontal: 10,
-    paddingVertical: 9,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  orderBadge: {
-    width: 30,
-    height: 30,
-    borderRadius: 999,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primarySoft,
-  },
-  orderText: { fontFamily: fonts.bold, fontSize: 12, lineHeight: 15, color: colors.primary },
-  contentCopy: { flex: 1, gap: 2 },
-  contentTitle: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 16, color: colors.ink },
-  contentType: { fontFamily: fonts.medium, fontSize: 10, lineHeight: 12, color: colors.slate },
 
   footer: {
     position: 'absolute',

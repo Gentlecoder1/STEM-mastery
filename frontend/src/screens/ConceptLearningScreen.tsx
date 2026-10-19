@@ -1,80 +1,91 @@
-import { useEffect, useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, type ReactNode } from 'react';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ArrowLeftIcon, ArrowRightIcon } from '../components/icons';
 import { colors, fonts, shadow } from '../theme';
-import type { ColorToken } from '../theme';
-import { CONTENT_LABELS, type ContentType, type LearningContent } from '../types/catalog';
+import type { LessonValue } from '../types/catalog';
 import type { RootScreenProps } from '../navigation/types';
 import { useThemedStyles, useTheme } from '../themeContext';
 import { useProgress } from '../progressContext';
 import { useCatalog } from '../catalogContext';
 import { useOffline } from '../offlineContext';
 
-const TYPE_TINT: Record<ContentType, ColorToken> = {
-  DEFINITION: 'blue',
-  EXPLANATION: 'primary',
-  FORMULA: 'ink',
-  WORKED_EXAMPLE: 'teal',
-  MEDIA: 'violet',
-  QUESTION: 'primary',
-};
-
-function FormulaBlock({ text }: { text: string }) {
+function Section({ title, children }: { title: string; children: ReactNode }) {
   const styles = useThemedStyles(createStyles);
-
   return (
-    <View style={styles.formula}>
-      <Text style={styles.formulaText}>{text}</Text>
+    <View style={styles.lessonSection}>
+      <Text style={styles.lessonLabel}>{title.toUpperCase()}</Text>
+      {children}
     </View>
   );
 }
 
-function ContentCard({ item, conceptTitle }: { item: LearningContent; conceptTitle: string }) {
+function formatLessonValue(value: LessonValue): string {
+  if (value === null) return '';
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+  if (Array.isArray(value)) return value.map(formatLessonValue).filter(Boolean).join(', ');
+  return Object.entries(value)
+    .filter(([key]) => !['image_prompt', 'imagePrompt'].includes(key))
+    .map(([key, child]) => `${key}: ${formatLessonValue(child)}`)
+    .filter((item) => !item.endsWith(': '))
+    .join('; ');
+}
+
+function LessonTextList({ items }: { items: string[] }) {
   const styles = useThemedStyles(createStyles);
-  const tint = colors[TYPE_TINT[item.contentType]];
-  const label = CONTENT_LABELS[item.contentType];
-  const repeatedTitle = item.title.toLowerCase().startsWith(label.toLowerCase());
-  const title = repeatedTitle
-    ? item.contentType === 'DEFINITION'
-      ? conceptTitle
-      : item.contentType === 'FORMULA'
-        ? `${conceptTitle} formula`
-        : null
-    : item.title;
+  return (
+    <View style={styles.lessonItems}>
+      {items.map((item, index) => (
+        <Text key={`${index}:${item}`} style={styles.lessonBody}>{item}</Text>
+      ))}
+    </View>
+  );
+}
+
+function LessonTable({ value }: { value: LessonValue }) {
+  const styles = useThemedStyles(createStyles);
+  if (!value || typeof value !== 'object') return null;
+
+  const tableObject = Array.isArray(value) ? null : value;
+  const rows = Array.isArray(value)
+    ? value
+    : tableObject?.rows ?? tableObject?.data;
+  if (!Array.isArray(rows) || rows.length === 0) return null;
+  const rawHeaders = tableObject?.headers ?? tableObject?.columns;
+  const headers = Array.isArray(rawHeaders)
+    ? rawHeaders
+    : rows[0] && typeof rows[0] === 'object' && !Array.isArray(rows[0])
+      ? Object.keys(rows[0])
+      : [];
+  if (headers.length === 0) return null;
 
   return (
-    <View style={styles.lessonSection}>
-      <Text style={[styles.lessonLabel, { color: tint }]}>
-        {label.toUpperCase()}
-      </Text>
-      {title ? <Text style={styles.lessonTitle}>{title}</Text> : null}
-
-      {item.contentType === 'FORMULA' ? (
-        <FormulaBlock text={item.contentText} />
-      ) : (
-        <Text style={styles.lessonBody}>{item.contentText}</Text>
-      )}
-
-      {item.contentType === 'WORKED_EXAMPLE' ? (
-        <View style={styles.exampleNote}>
-          <Text style={styles.exampleNoteTitle}>Worked example</Text>
-          <Text style={styles.exampleNoteText}>
-            Identify the known values, choose the relationship, then calculate.
+    <View style={styles.table}>
+      <View style={[styles.tableRow, styles.tableHeader]}>
+        {headers.map((cell, index) => (
+          <Text key={`${index}:${formatLessonValue(cell)}`} style={styles.tableHeaderText}>
+            {formatLessonValue(cell)}
           </Text>
+        ))}
+      </View>
+      {rows.map((row, rowIndex) => (
+        <View key={rowIndex} style={styles.tableRow}>
+          {(Array.isArray(row)
+            ? row
+            : row && typeof row === 'object'
+              ? headers.map((header) => row[formatLessonValue(header)])
+              : [row]
+          ).map((cell, cellIndex) => (
+            <Text key={`${rowIndex}:${cellIndex}`} style={styles.tableCell}>
+              {formatLessonValue(cell)}
+            </Text>
+          ))}
         </View>
-      ) : null}
-
-      {item.contentType === 'MEDIA' ? (
-        <View style={styles.mediaNote}>
-          <Text style={styles.mediaNoteTitle}>Look for the pattern</Text>
-          <Text style={styles.mediaNoteText}>
-            Use the graph to connect the written explanation to the motion.
-          </Text>
-        </View>
-      ) : null}
+      ))}
     </View>
   );
 }
@@ -91,7 +102,7 @@ export default function ConceptLearningScreen({
   const offline = useOffline();
   const { conceptId, returnToConceptId } = route.params;
   const concept = getConcept(conceptId);
-  const cachedContent = offline.getLessonContent(conceptId);
+  const lesson = offline.getLesson(conceptId);
   useEffect(() => {
     void loadConcept(conceptId);
     void offline.ensureLesson(conceptId);
@@ -99,12 +110,7 @@ export default function ConceptLearningScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conceptId]);
 
-  const lessonItems = useMemo(
-    () =>
-      (cachedContent ?? []).filter((item) => item.contentType !== 'QUESTION'),
-    [cachedContent],
-  );
-  if (!concept && !cachedContent) {
+  if (!concept && !lesson) {
     return (
       <View style={[styles.root, styles.missing]}>
         <Text style={styles.missingText}>Loading lesson…</Text>
@@ -112,7 +118,7 @@ export default function ConceptLearningScreen({
     );
   }
 
-  if (lessonItems.length === 0) {
+  if (!lesson) {
     return (
       <View style={[styles.root, styles.missing]}>
         <Text style={styles.missingText}>
@@ -140,7 +146,9 @@ export default function ConceptLearningScreen({
             {offline.isDownloaded(conceptId) ? 'Available offline' : 'Online lesson'}
           </Text>
         </View>
-          <Text style={styles.headerCounter}>{lessonItems.length} lessons</Text>
+        {lesson?.concept.estimatedMinutes ? (
+          <Text style={styles.headerCounter}>{lesson.concept.estimatedMinutes} min</Text>
+        ) : null}
       </View>
 
       <ScrollView
@@ -150,9 +158,82 @@ export default function ConceptLearningScreen({
           { paddingBottom: insets.bottom + 104 },
         ]}
       >
-          {lessonItems.map((item) => (
-            <ContentCard key={item.id} item={item} conceptTitle={concept?.title ?? 'Concept'} />
-          ))}
+        {lesson.prerequisiteNotes.length > 0 ? (
+          <Section title="Background knowledge">
+            <LessonTextList items={lesson.prerequisiteNotes} />
+          </Section>
+        ) : null}
+        {lesson.learningObjectives.length > 0 ? (
+          <Section title="What you will learn">
+            <LessonTextList items={lesson.learningObjectives} />
+          </Section>
+        ) : null}
+        {lesson.definition ? (
+          <Section title="Definition">
+            <Text style={styles.lessonBody}>{lesson.definition}</Text>
+          </Section>
+        ) : null}
+        {lesson.explanation.length > 0 ? (
+          <Section title="Explanation">
+            <LessonTextList items={lesson.explanation} />
+          </Section>
+        ) : null}
+        {lesson.keyTerms.length > 0 ? (
+          <Section title="Key terms">
+            {lesson.keyTerms.map(({ term, definition }) => (
+              <View key={term} style={styles.term}>
+                <Text style={styles.termTitle}>{term}</Text>
+                <Text style={styles.lessonBody}>{definition}</Text>
+              </View>
+            ))}
+          </Section>
+        ) : null}
+        {lesson.illustrations.length > 0 ? (
+          <Section title="Illustrations">
+            {lesson.illustrations.map((illustration, index) => (
+              <View key={`${illustration.caption ?? illustration.type ?? 'illustration'}:${index}`} style={styles.lessonItems}>
+                {illustration.caption ? <Text style={styles.termTitle}>{illustration.caption}</Text> : null}
+                {illustration.description ? <Text style={styles.lessonBody}>{illustration.description}</Text> : null}
+                {illustration.mediaURI ? (
+                  <Image source={{ uri: illustration.mediaURI }} style={styles.illustration} resizeMode="contain" />
+                ) : null}
+                {illustration.table !== null ? <LessonTable value={illustration.table} /> : null}
+              </View>
+            ))}
+          </Section>
+        ) : null}
+        {lesson.workedExamples.length > 0 ? (
+          <Section title="Worked examples">
+            {lesson.workedExamples.map((example, index) => (
+              <View key={`${example.problem}:${index}`} style={styles.example}>
+                <Text style={styles.termTitle}>{example.problem}</Text>
+                {example.steps.map((step, stepIndex) => (
+                  <Text key={`${stepIndex}:${step}`} style={styles.lessonBody}>
+                    {stepIndex + 1}. {step}
+                  </Text>
+                ))}
+                {example.answer ? (
+                  <Text style={styles.exampleAnswer}>Answer: {example.answer}</Text>
+                ) : null}
+              </View>
+            ))}
+          </Section>
+        ) : null}
+        {lesson.realWorldApplications.length > 0 ? (
+          <Section title="Real-world applications">
+            <LessonTextList items={lesson.realWorldApplications} />
+          </Section>
+        ) : null}
+        {lesson.commonMistakes.length > 0 ? (
+          <Section title="Common mistakes">
+            <LessonTextList items={lesson.commonMistakes} />
+          </Section>
+        ) : null}
+        {lesson.summary.length > 0 ? (
+          <Section title="Summary">
+            <LessonTextList items={lesson.summary} />
+          </Section>
+        ) : null}
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 14 }]}>
@@ -167,11 +248,17 @@ export default function ConceptLearningScreen({
           style={styles.primaryButton}
           onPress={() => {
             offline.markLessonComplete(conceptId);
-            navigation.navigate('ConceptQuiz', { conceptId, returnToConceptId });
+            if (lesson.practiceAvailable) {
+              navigation.navigate('ConceptQuiz', { conceptId, returnToConceptId });
+            } else {
+              navigation.goBack();
+            }
           }}
           accessibilityRole="button"
         >
-          <Text style={styles.primaryText}>Finish lesson</Text>
+          <Text style={styles.primaryText}>
+            {lesson.practiceAvailable ? `Practice (${lesson.questionCount})` : 'Finish lesson'}
+          </Text>
           <ArrowRightIcon size={18} color={colors.onPrimary} />
         </Pressable>
       </View>
@@ -210,25 +297,18 @@ const createStyles = () => StyleSheet.create({
 
   lessonSection: { paddingBottom: 22, marginBottom: 22, gap: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
   lessonLabel: { fontFamily: fonts.bold, fontSize: 11, lineHeight: 14, letterSpacing: 0.4 },
-  lessonTitle: { fontFamily: fonts.extrabold, fontSize: 25, lineHeight: 30, color: colors.ink },
   lessonBody: { fontFamily: fonts.regular, fontSize: 16, lineHeight: 25, color: colors.ink },
-
-  formula: {
-    paddingVertical: 24,
-    paddingHorizontal: 18,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.blueBorder,
-    backgroundColor: colors.blueSoft,
-    alignItems: 'center',
-  },
-  formulaText: { fontFamily: fonts.semibold, fontSize: 21, lineHeight: 29, color: colors.ink },
-  exampleNote: { padding: 14, borderRadius: 12, backgroundColor: colors.greenSoft, gap: 4 },
-  exampleNoteTitle: { fontFamily: fonts.bold, fontSize: 12, lineHeight: 15, color: colors.teal },
-  exampleNoteText: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 19, color: colors.ink },
-  mediaNote: { padding: 14, borderRadius: 12, backgroundColor: colors.violetSoft, gap: 4 },
-  mediaNoteTitle: { fontFamily: fonts.bold, fontSize: 12, lineHeight: 15, color: colors.violet },
-  mediaNoteText: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 19, color: colors.ink },
+  lessonItems: { gap: 12 },
+  term: { gap: 4 },
+  termTitle: { fontFamily: fonts.semibold, fontSize: 16, lineHeight: 21, color: colors.ink },
+  example: { padding: 14, borderRadius: 12, backgroundColor: colors.greenSoft, gap: 10 },
+  exampleAnswer: { fontFamily: fonts.bold, fontSize: 15, lineHeight: 21, color: colors.teal },
+  illustration: { width: '100%', height: 220 },
+  table: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, overflow: 'hidden' },
+  tableRow: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border },
+  tableHeader: { backgroundColor: colors.blueSoft },
+  tableHeaderText: { flex: 1, padding: 10, fontFamily: fonts.bold, fontSize: 13, color: colors.ink },
+  tableCell: { flex: 1, padding: 10, fontFamily: fonts.regular, fontSize: 13, lineHeight: 18, color: colors.ink },
 
   footer: {
     position: 'absolute',

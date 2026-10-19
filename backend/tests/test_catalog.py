@@ -94,7 +94,45 @@ def test_get_concept_not_found(client: TestClient) -> None:
 def test_lesson_endpoint(client: TestClient) -> None:
     response = client.get("/api/v1/concepts/concept-velocity/lesson")
     assert response.status_code == 200
-    assert response.json()[0]["id"] == "c-velocity-def"
+    assert response.json() == {
+        "concept": {
+            "id": "concept-velocity",
+            "title": "Velocity",
+            "subjectId": "physics",
+            "topicId": "topic-speed-velocity",
+            "order": 2,
+            "estimatedMinutes": 30,
+        },
+        "learningObjectives": [],
+        "definition": None,
+        "explanation": [],
+        "keyTerms": [],
+        "illustrations": [],
+        "workedExamples": [],
+        "realWorldApplications": [],
+        "commonMistakes": [],
+        "summary": [],
+        "prerequisiteNotes": [],
+        "prerequisites": [{"id": "concept-displacement", "name": "Distance and displacement"}],
+        "relatedConcepts": [{"id": "concept-acceleration", "name": "Acceleration"}],
+        "practiceAvailable": True,
+        "questionCount": 3,
+    }
+    for internal_field in (
+        "image_prompt",
+        "sourceFile",
+        "structureVersion",
+        "exercises",
+        "answer",
+        "correctOption",
+        "correctAnswer",
+    ):
+        assert internal_field not in response.json()
+
+
+def test_lesson_not_found(client: TestClient) -> None:
+    response = client.get("/api/v1/concepts/missing/lesson")
+    assert response.status_code == 404
 
 
 def test_questions_withhold_answers(client: TestClient) -> None:

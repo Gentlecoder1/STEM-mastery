@@ -1,8 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { loadLesson, loadQuestions, saveQuestions } from '../src/lib/offlineStore';
+import { loadLesson, loadQuestions, saveLesson, saveQuestions } from '../src/lib/offlineStore';
 import { CATALOG_STORAGE_KEY, loadCatalogSnapshot } from '../src/lib/catalogCache';
-import { mapConceptSummary, mapLesson } from '../src/types/catalog';
+import { mapConceptSummary } from '../src/types/catalog';
 
 afterEach(async () => {
   await AsyncStorage.clear();
@@ -28,36 +28,6 @@ it('maps concept summaries to topic and subject membership arrays', () => {
   expect(concept.relatedConceptIds).toEqual([]);
 });
 
-it('maps lesson sections independently and sorts them by chapter order', () => {
-  const lesson = mapLesson(
-    [
-      {
-        id: 'section-2',
-        conceptId: 'concept-velocity',
-        title: null,
-        contentText: 'Example',
-        contentType: 'worked_example',
-        chapterOrder: 2,
-        mediaURI: null,
-      },
-      {
-        id: 'section-1',
-        conceptId: 'concept-velocity',
-        title: 'Definition',
-        contentText: 'Change in position over time.',
-        contentType: 'definition',
-        chapterOrder: 1,
-        mediaURI: null,
-      },
-    ],
-    'concept-velocity',
-  );
-
-  expect(lesson.map((section) => section.id)).toEqual(['section-1', 'section-2']);
-  expect(lesson[1].contentType).toBe('WORKED_EXAMPLE');
-  expect(lesson[1].title).toBe('Worked example');
-});
-
 it('persists client-safe quiz questions for offline use', async () => {
   const questions = [
     {
@@ -76,16 +46,33 @@ it('persists client-safe quiz questions for offline use', async () => {
   });
 });
 
-it('migrates embedded lesson sections from old catalog snapshots to the lesson store', async () => {
-  const section = {
-    id: 'section-1',
-    conceptId: 'concept-velocity',
-    title: 'Definition',
-    contentText: 'Change in position over time.',
-    contentType: 'DEFINITION',
-    chapterOrder: 1,
-    mediaURI: null,
+it('persists structured lessons separately from legacy catalog snapshots', async () => {
+  const lesson = {
+    concept: {
+      id: 'concept-velocity',
+      title: 'Velocity',
+      subjectId: 'physics',
+      topicId: 'topic-motion',
+      order: 1,
+      estimatedMinutes: 30,
+    },
+    learningObjectives: ['Distinguish speed and velocity.'],
+    definition: 'Velocity is speed in a direction.',
+    explanation: ['Velocity includes direction.'],
+    keyTerms: [{ term: 'Vector', definition: 'A quantity with magnitude and direction.' }],
+    illustrations: [],
+    workedExamples: [],
+    realWorldApplications: [],
+    commonMistakes: [],
+    summary: [],
+    prerequisiteNotes: [],
+    prerequisites: [],
+    relatedConcepts: [],
+    practiceAvailable: true,
+    questionCount: 2,
   };
+  await saveLesson('concept-velocity', lesson);
+
   await AsyncStorage.setItem(
     CATALOG_STORAGE_KEY,
     JSON.stringify({
@@ -105,20 +92,20 @@ it('migrates embedded lesson sections from old catalog snapshots to the lesson s
           related: [],
           tint: 'blue',
           soft: 'blueSoft',
-          content: [section],
+          content: [{ id: 'legacy-section' }],
         },
       ],
     }),
   );
 
   const snapshot = await loadCatalogSnapshot();
-  const lesson = await loadLesson('concept-velocity');
+  const cachedLesson = await loadLesson('concept-velocity');
 
   expect(snapshot?.concepts[0]).toMatchObject({
     topicIds: ['topic-motion'],
     subjectIds: ['physics'],
-    hasLesson: true,
+    hasLesson: false,
   });
   expect(snapshot?.concepts[0]).not.toHaveProperty('content');
-  expect(lesson?.content).toEqual([section]);
+  expect(cachedLesson?.lesson).toEqual(lesson);
 });

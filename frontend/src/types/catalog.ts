@@ -3,35 +3,13 @@ import { colors } from '../theme';
 
 export const QUIZ_PASS_RATIO = 0.6;
 
-export const CONTENT_TYPES = [
-  'DEFINITION',
-  'EXPLANATION',
-  'FORMULA',
-  'WORKED_EXAMPLE',
-  'MEDIA',
-  'QUESTION',
-] as const;
-
-export type ContentType = (typeof CONTENT_TYPES)[number];
-
-export const CONTENT_LABELS: Record<ContentType, string> = {
-  DEFINITION: 'Definition',
-  EXPLANATION: 'Explanation',
-  FORMULA: 'Formula',
-  WORKED_EXAMPLE: 'Worked example',
-  MEDIA: 'Media',
-  QUESTION: 'Quick check',
-};
-
-export type LearningContent = {
-  id: string;
-  conceptId: string;
-  title: string;
-  contentText: string;
-  contentType: ContentType;
-  chapterOrder: number;
-  mediaURI: string | null;
-};
+export type LessonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | LessonValue[]
+  | { [key: string]: LessonValue };
 
 export type QuizOption = {
   id: string;
@@ -60,7 +38,6 @@ export type Concept = {
   subjectIds: string[];
   title: string;
   definition: string;
-  whyItMatters: string;
   prerequisites: readonly string[];
   related: readonly string[];
   prerequisiteIds: readonly string[];
@@ -107,14 +84,35 @@ export type ApiConceptSearchResult = {
   shortDescription: string | null;
   contexts: ApiConceptContext[];
 };
-export type ApiLearningContent = {
-  id: string;
-  conceptId: string;
-  title: string | null;
-  contentText: string | null;
-  contentType: string | null;
-  chapterOrder: number | null;
-  mediaURI: string | null;
+export type StructuredLesson = {
+  concept: {
+    id: string;
+    title: string;
+    subjectId: string | null;
+    topicId: string | null;
+    order: number | null;
+    estimatedMinutes: number | null;
+  };
+  learningObjectives: string[];
+  definition: string | null;
+  explanation: string[];
+  keyTerms: { term: string; definition: string }[];
+  illustrations: {
+    type: string | null;
+    caption: string | null;
+    description: string | null;
+    table: LessonValue;
+    mediaURI: string | null;
+  }[];
+  workedExamples: { problem: string; steps: string[]; answer: string | null }[];
+  realWorldApplications: string[];
+  commonMistakes: string[];
+  summary: string[];
+  prerequisiteNotes: string[];
+  prerequisites: { id: string; name: string | null }[];
+  relatedConcepts: { id: string; name: string | null }[];
+  practiceAvailable: boolean;
+  questionCount: number;
 };
 export type ApiQuestion = {
   id: string;
@@ -197,36 +195,6 @@ export function toCatalogSubject(api: ApiSubject): CatalogSubject {
   };
 }
 
-const CONTENT_TYPE_MAP: Record<string, ContentType> = {
-  definition: 'DEFINITION',
-  explanation: 'EXPLANATION',
-  formula: 'FORMULA',
-  'worked example': 'WORKED_EXAMPLE',
-  workedexample: 'WORKED_EXAMPLE',
-  example: 'WORKED_EXAMPLE',
-  media: 'MEDIA',
-  question: 'QUESTION',
-  check: 'QUESTION',
-};
-
-export function mapContentType(raw: string | null | undefined): ContentType {
-  if (!raw) return 'EXPLANATION';
-  const key = raw.trim().toLowerCase().replace(/[_-]+/g, ' ');
-  return CONTENT_TYPE_MAP[key] ?? CONTENT_TYPE_MAP[key.replace(/\s+/g, '')] ?? 'EXPLANATION';
-}
-
-export function mapContent(api: ApiLearningContent, conceptId: string): LearningContent {
-  return {
-    id: api.id,
-    conceptId,
-    title: api.title ?? CONTENT_LABELS[mapContentType(api.contentType)],
-    contentText: api.contentText ?? '',
-    contentType: mapContentType(api.contentType),
-    chapterOrder: api.chapterOrder ?? 0,
-    mediaURI: api.mediaURI ?? null,
-  };
-}
-
 export function mapConceptSummary(
   api: ApiConceptSummary,
   topicId: string,
@@ -239,7 +207,6 @@ export function mapConceptSummary(
     subjectIds: [subjectId],
     title: api.name ?? api.prefLabel ?? api.id,
     definition: '',
-    whyItMatters: '',
     prerequisites: api.prerequisites.map((item) => item.name ?? item.id),
     related: [],
     prerequisiteIds: api.prerequisites.map((item) => item.id),
@@ -262,7 +229,6 @@ export function mapConceptDetail(
     subjectIds,
     title: api.title ?? api.id,
     definition: api.shortDescription ?? '',
-    whyItMatters: '',
     prerequisites: api.prerequisites.map((item) => item.name ?? item.id),
     related: api.related.map((item) => item.name ?? item.id),
     prerequisiteIds: api.prerequisiteIds.filter(Boolean),
@@ -271,16 +237,6 @@ export function mapConceptDetail(
     tint: theme.tint,
     soft: theme.soft,
   };
-}
-
-/** Turn the `/lesson` payload into ordered sections for a single concept. */
-export function mapLesson(
-  api: ApiLearningContent[],
-  conceptId: string,
-): LearningContent[] {
-  return [...api]
-    .map((item) => mapContent(item, conceptId))
-    .sort((a, b) => a.chapterOrder - b.chapterOrder);
 }
 
 export function mapQuestions(api: ApiQuestion[]): QuizQuestion[] {

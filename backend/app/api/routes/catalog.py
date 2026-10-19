@@ -3,12 +3,12 @@ from fastapi import APIRouter, HTTPException, Query, status
 from app.api.deps import RepositoryDep
 from app.models.catalog import (
     Concept,
-    ConceptSearchResult,
     ConceptRef,
+    ConceptSearchResult,
     ConceptSummary,
-    LearningContent,
     Question,
     QuestionOption,
+    StructuredLesson,
     Subject,
     Topic,
 )
@@ -69,9 +69,12 @@ async def get_concept(concept_id: str, repo: RepositoryDep) -> Concept:
     )
 
 
-@router.get("/concepts/{concept_id}/lesson", response_model=list[LearningContent])
-async def get_lesson(concept_id: str, repo: RepositoryDep) -> list[LearningContent]:
-    return [LearningContent(**row) for row in await repo.list_content(concept_id)]
+@router.get("/concepts/{concept_id}/lesson", response_model=StructuredLesson)
+async def get_lesson(concept_id: str, repo: RepositoryDep) -> StructuredLesson:
+    row = await repo.get_structured_lesson(concept_id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lesson not found.")
+    return StructuredLesson(**row)
 
 
 @router.get("/concepts/{concept_id}/questions", response_model=list[Question])

@@ -170,18 +170,33 @@ class FakeGraphRepository:
             "related": [{"id": "concept-acceleration", "name": "Acceleration"}],
         }
 
-    async def list_content(self, concept_id: str) -> list[dict]:
-        return [
-            {
-                "id": "c-velocity-def",
-                "conceptId": concept_id,
-                "title": "Definition",
-                "contentText": "Velocity is a vector quantity.",
-                "contentType": "Definition",
-                "chapterOrder": 1,
-                "mediaURI": None,
-            }
-        ]
+    async def get_structured_lesson(self, concept_id: str) -> dict | None:
+        if concept_id != "concept-velocity":
+            return None
+        return {
+            "concept": {
+                "id": concept_id,
+                "title": "Velocity",
+                "subjectId": "physics",
+                "topicId": "topic-speed-velocity",
+                "order": 2,
+                "estimatedMinutes": 30,
+            },
+            "learningObjectives": [],
+            "definition": None,
+            "explanation": [],
+            "keyTerms": [],
+            "illustrations": [],
+            "workedExamples": [],
+            "realWorldApplications": [],
+            "commonMistakes": [],
+            "summary": [],
+            "prerequisiteNotes": [],
+            "prerequisites": [{"id": "concept-displacement", "name": "Distance and displacement"}],
+            "relatedConcepts": [{"id": "concept-acceleration", "name": "Acceleration"}],
+            "practiceAvailable": True,
+            "questionCount": 3,
+        }
 
     async def list_questions(self, concept_id: str) -> list[dict]:
         return [

@@ -1,8 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import type { LearningContent, QuizQuestion } from '../types/catalog';
+import type { QuizQuestion, StructuredLesson } from '../types/catalog';
 
-const LESSON_PREFIX = 'stem-mastery.lesson.v1.';
+const LESSON_PREFIX = 'stem-mastery.lesson.v2.';
 const QUESTIONS_PREFIX = 'stem-mastery.questions.v1.';
 export const DOWNLOADS_STORAGE_KEY = 'stem-mastery.downloads.v2';
 export const READING_STORAGE_KEY = 'stem-mastery.reading.v1';
@@ -55,16 +55,16 @@ async function writeJson(key: string, value: unknown): Promise<void> {
 
 const lessonKey = (conceptId: string) => `${LESSON_PREFIX}${conceptId}`;
 
-export type LessonCache = { conceptId: string; content: LearningContent[]; savedAt: string };
+export type LessonCache = { conceptId: string; lesson: StructuredLesson; savedAt: string };
 
 export function loadLesson(conceptId: string): Promise<LessonCache | null> {
   return readJson<LessonCache>(lessonKey(conceptId));
 }
 
-export function saveLesson(conceptId: string, content: LearningContent[]): Promise<void> {
+export function saveLesson(conceptId: string, lesson: StructuredLesson): Promise<void> {
   return writeJson(lessonKey(conceptId), {
     conceptId,
-    content,
+    lesson,
     savedAt: new Date().toISOString(),
   });
 }

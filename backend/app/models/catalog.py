@@ -11,6 +11,8 @@ models — grading happens server-side.
 
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -53,14 +55,50 @@ class ConceptSearchResult(BaseModel):
     contexts: list[ConceptContext] = Field(default_factory=list)
 
 
-class LearningContent(BaseModel):
+class LessonConcept(BaseModel):
     id: str
-    conceptId: str
-    title: str | None = None
-    contentText: str | None = None
-    contentType: str | None = None
-    chapterOrder: int | None = None
+    title: str
+    subjectId: str | None = None
+    topicId: str | None = None
+    order: int | None = None
+    estimatedMinutes: int | None = None
+
+
+class KeyTerm(BaseModel):
+    term: str
+    definition: str
+
+
+class WorkedExample(BaseModel):
+    problem: str
+    steps: list[str] = Field(default_factory=list)
+    answer: str | None = None
+
+
+class Illustration(BaseModel):
+    type: str | None = None
+    caption: str | None = None
+    description: str | None = None
+    table: Any | None = None
     mediaURI: str | None = None
+
+
+class StructuredLesson(BaseModel):
+    concept: LessonConcept
+    learningObjectives: list[str] = Field(default_factory=list)
+    definition: str | None = None
+    explanation: list[str] = Field(default_factory=list)
+    keyTerms: list[KeyTerm] = Field(default_factory=list)
+    illustrations: list[Illustration] = Field(default_factory=list)
+    workedExamples: list[WorkedExample] = Field(default_factory=list)
+    realWorldApplications: list[str] = Field(default_factory=list)
+    commonMistakes: list[str] = Field(default_factory=list)
+    summary: list[str] = Field(default_factory=list)
+    prerequisiteNotes: list[str] = Field(default_factory=list)
+    prerequisites: list[ConceptRef] = Field(default_factory=list)
+    relatedConcepts: list[ConceptRef] = Field(default_factory=list)
+    practiceAvailable: bool = False
+    questionCount: int = 0
 
 
 class QuestionOption(BaseModel):

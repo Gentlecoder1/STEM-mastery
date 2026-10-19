@@ -3,9 +3,9 @@ import type {
   ApiConcept,
   ApiConceptSearchResult,
   ApiConceptSummary,
-  ApiLearningContent,
   ApiSubject,
   ApiTopic,
+  StructuredLesson,
 } from '../types/catalog';
 
 export function fetchSubjects(): Promise<ApiSubject[]> {
@@ -31,7 +31,7 @@ export function fetchConcept(id: string): Promise<ApiConcept> {
   return apiFetch<ApiConcept>(`/api/v1/concepts/${encodeURIComponent(id)}`);
 }
 
-/** Full lesson payload, cached when a concept is opened or a topic downloaded. */
-export function fetchLesson(id: string): Promise<ApiLearningContent[]> {
-  return apiFetch<ApiLearningContent[]>(`/api/v1/concepts/${encodeURIComponent(id)}/lesson`);
+/** Structured lesson payload, cached when a concept is opened or a topic downloaded. */
+export function fetchLesson(id: string): Promise<StructuredLesson> {
+  return apiFetch<StructuredLesson>(`/api/v1/concepts/${encodeURIComponent(id)}/lesson`);
 }

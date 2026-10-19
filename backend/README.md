@@ -104,12 +104,25 @@ All routes are mounted under `STEM_API_PREFIX` (default `/api/v1`).
 | GET | `/subjects` | List subjects |
 | GET | `/subjects/{id}/topics` | Topics of a subject |
 | GET | `/topics/{id}/concepts` | Concepts of a topic |
-| GET | `/concepts/{id}` | Concept detail (definition, prerequisites, related, content, questions) |
-| GET | `/concepts/{id}/content` | Learning content for a concept |
+| GET | `/concepts/{id}` | Concept metadata and graph relationships |
+| GET | `/concepts/{id}/lesson` | Structured V3 lesson (practice questions remain separate) |
 | GET | `/concepts/{id}/questions` | Questions for a concept (answers withheld) |
 | GET | `/graph/schema` | Dev-only labels/relationships/property keys |
 
 Correct answers are never returned to clients; grading is server-side.
+
+The V3 lesson endpoint reads one `LearningContent` node connected to a canonical
+`Concept` by `HAS_CONTENT`. Both nodes must have `structureVersion = "v3-json"`;
+the concept must also have `canonical = true`. Lesson fields are projected
+explicitly, so ingestion metadata and authoring fields are not returned. Store
+array/object lesson fields as JSON strings in Neo4j (which does not support
+nested maps as node properties); the API decodes them and preserves their
+structure. Graph prerequisites use
+`(:Concept)-[:PREREQUISITE_OF]->(:Concept)` and questions are fetched separately.
+The structured `LearningContent` properties are `learningObjectives`,
+`definition`, `explanation`, `keyTerms`, `illustrations`, `workedExamples`,
+`realWorldApplications`, `commonMistakes`, and `summary`. Concepts without a
+linked V3 lesson return `404` from `/concepts/{id}/lesson`.
 
 ## Project layout
 
