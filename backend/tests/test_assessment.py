@@ -13,6 +13,7 @@ def test_check_correct(client: TestClient) -> None:
     assert body["correct"] is True
     assert body["conceptId"] == "concept-velocity"
     assert body["correctOptionId"] == "b"
+    assert body["explanation"] == "Velocity is speed in a particular direction."
     assert "correctOption" not in body
 
 
@@ -25,12 +26,15 @@ def test_check_incorrect(client: TestClient) -> None:
     body = response.json()
     assert body["correct"] is False
     assert body["correctOptionId"] == "b"
+    assert body["explanation"] == "Velocity is speed in a particular direction."
     assert body["prerequisites"] == [
         {"id": "concept-displacement", "name": "Distance and displacement"}
     ]
 
 
-def test_concept_quiz_pass_persists_mastery(client: TestClient, learner_state: FakeLearnerState) -> None:
+def test_concept_quiz_pass_persists_mastery(
+    client: TestClient, learner_state: FakeLearnerState
+) -> None:
     response = client.post(
         "/api/v1/concepts/concept-velocity/quiz/submit",
         json={
@@ -80,6 +84,19 @@ def test_check_theory_is_ungraded(client: TestClient) -> None:
     )
     assert response.status_code == 200
     assert response.json()["correct"] is None
+    assert response.json()["explanation"] == (
+        "Reference answer: Velocity is a vector.\n\n"
+        "Velocity has both magnitude and direction."
+    )
+
+
+def test_check_without_submitted_response_does_not_return_feedback(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/concepts/concept-velocity/quiz/check",
+        json={"questionId": "q-velocity-1"},
+    )
+    assert response.status_code == 200
+    assert response.json()["explanation"] is None
 
 
 def test_check_unknown_question(client: TestClient) -> None:

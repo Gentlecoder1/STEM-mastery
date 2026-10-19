@@ -112,17 +112,18 @@ All routes are mounted under `STEM_API_PREFIX` (default `/api/v1`).
 Correct answers are never returned to clients; grading is server-side.
 
 The V3 lesson endpoint reads one `LearningContent` node connected to a canonical
-`Concept` by `HAS_CONTENT`. Both nodes must have `structureVersion = "v3-json"`;
-the concept must also have `canonical = true`. Lesson fields are projected
-explicitly, so ingestion metadata and authoring fields are not returned. Store
-array/object lesson fields as JSON strings in Neo4j (which does not support
-nested maps as node properties); the API decodes them and preserves their
-structure. Graph prerequisites use
+`Concept` by `HAS_CONTENT`. In the seeder format, each pedagogical item is its
+own `LearningContent` node; `type`, `chapterOrder`, and `order` preserve the
+section/item sequence, and rich objects are JSON-encoded in `contentData`.
+Both nodes must have `structureVersion = "v3-json"`; the concept must also have
+`canonical = true` and lesson nodes must be `learnerFacing`. Lesson fields are
+projected explicitly, so ingestion metadata and authoring fields are not
+returned. The API orders content by
+`coalesce(lc.chapterOrder, 0), coalesce(lc.order, 0), lc.contentID`, then
+assembles each content type into the structured response. Graph prerequisites use
 `(:Concept)-[:PREREQUISITE_OF]->(:Concept)` and questions are fetched separately.
-The structured `LearningContent` properties are `learningObjectives`,
-`definition`, `explanation`, `keyTerms`, `illustrations`, `workedExamples`,
-`realWorldApplications`, `commonMistakes`, and `summary`. Concepts without a
-linked V3 lesson return `404` from `/concepts/{id}/lesson`.
+Concepts without learner-facing V3 lesson nodes return `404` from
+`/concepts/{id}/lesson`.
 
 ## Project layout
 

@@ -141,7 +141,13 @@ def test_questions_withhold_answers(client: TestClient) -> None:
     question = response.json()[0]
     assert question["id"] == "q-velocity-1"
     assert question["options"][0] == {"id": "a", "label": "A", "text": "How far an object travels"}
-    for leaked in ("correctOption", "correctAnswer", "referenceAnswer", "answerId"):
+    for leaked in (
+        "correctOption",
+        "correctAnswer",
+        "referenceAnswer",
+        "answerId",
+        "solution",
+    ):
         assert leaked not in question
 
 

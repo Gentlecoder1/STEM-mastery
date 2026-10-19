@@ -76,11 +76,7 @@ RETURN c.id AS id, coalesce(c.name, c.prefLabel) AS name,
 _HAS_LESSON = """
 MATCH (c:Concept {id: $concept_id})-[:HAS_CONTENT]->(lc:LearningContent)
 WHERE c.structureVersion = 'v3-json' AND c.canonical = true
-  AND lc.structureVersion = 'v3-json'
-  AND any(field IN [
-      'learningObjectives', 'definition', 'explanation', 'keyTerms', 'illustrations',
-      'workedExamples', 'realWorldApplications', 'commonMistakes', 'summary'
-  ] WHERE field IN keys(lc))
+  AND lc.structureVersion = 'v3-json' AND lc.learnerFacing = true
 RETURN count(*) > 0 AS hasLesson
 """
 
@@ -108,13 +104,10 @@ WITH c, collect(DISTINCT CASE WHEN s IS NULL OR t IS NULL THEN null ELSE {
     topicOrder: hc.order
 } END) AS contexts
 OPTIONAL MATCH (c)-[:HAS_CONTENT]->(lc:LearningContent)
-WHERE lc.structureVersion = 'v3-json'
-  AND any(field IN [
-      'learningObjectives', 'definition', 'explanation', 'keyTerms', 'illustrations',
-      'workedExamples', 'realWorldApplications', 'commonMistakes', 'summary'
-  ] WHERE field IN keys(lc))
-WITH c, contexts,
-     collect(CASE WHEN lc IS NULL THEN null ELSE properties(lc) END) AS lessons
+WHERE lc.structureVersion = 'v3-json' AND lc.learnerFacing = true
+WITH c, contexts, lc
+ORDER BY coalesce(lc.chapterOrder, 0), coalesce(lc.order, 0), lc.contentID
+WITH c, contexts, collect(CASE WHEN lc IS NULL THEN null ELSE properties(lc) END) AS lessons
 OPTIONAL MATCH (p:Concept)-[:PREREQUISITE_OF]->(c)
 WHERE p.legacyArchivedAt IS NULL AND coalesce(p.canonical, true) = true
 WITH c, contexts, lessons,
@@ -131,7 +124,7 @@ RETURN c.id AS id, coalesce(c.title, c.name, c.prefLabel, c.id) AS title,
        c.subjectId AS subjectId, c.topicId AS topicId, c.order AS conceptOrder,
        c.estimatedMinutes AS estimatedMinutes,
        c.prerequisiteNotes AS prerequisiteNotes,
-       contexts, head([item IN lessons WHERE item IS NOT NULL]) AS lesson,
+       contexts, [item IN lessons WHERE item IS NOT NULL] AS lessons,
        [item IN prerequisites WHERE item IS NOT NULL] AS prerequisites,
        [item IN related WHERE item IS NOT NULL] AS relatedConcepts
 """
@@ -161,7 +154,7 @@ WHERE (q)-[:ASSESSES_CONCEPT]->(:Concept {id: $concept_id})
 RETURN DISTINCT q.questionID AS questionID, q.type AS type,
        q.options AS options, q.correctOption AS correctOption,
        q.correctAnswer AS correctAnswer, q.referenceAnswer AS referenceAnswer,
-       q.expectedNumericAnswer AS expectedNumericAnswer
+       q.expectedNumericAnswer AS expectedNumericAnswer, q.solution AS solution
 """
 
 _QUESTION_ANSWER = """
@@ -294,6 +287,7 @@ def _question_answer(row: dict[str, Any]) -> dict[str, Any]:
         "correctAnswer": row.get("correctAnswer"),
         "referenceAnswer": row.get("referenceAnswer"),
         "expectedNumericAnswer": row.get("expectedNumericAnswer"),
+        "solution": row.get("solution"),
         "conceptId": row.get("conceptId"),
         "subjectId": row.get("subjectId"),
     }
@@ -454,21 +448,8 @@ class GraphRepository:
             return None
 
         row = rows[0]
-        content = row.get("lesson") or {}
-        if not any(
-            content.get(field) is not None
-            for field in (
-                "learningObjectives",
-                "definition",
-                "explanation",
-                "keyTerms",
-                "illustrations",
-                "workedExamples",
-                "realWorldApplications",
-                "commonMistakes",
-                "summary",
-            )
-        ):
+        content_rows = row.get("lessons") or []
+        if not content_rows:
             return None
 
         contexts = [context for context in (row.get("contexts") or []) if context]
@@ -485,6 +466,55 @@ class GraphRepository:
         )
         count_rows = await self._read(_STRUCTURED_QUESTION_COUNT, concept_id=concept_id)
         question_count = int(count_rows[0].get("questionCount") or 0) if count_rows else 0
+        section_values: dict[str, list[Any]] = {
+            "learning_objective": [],
+            "prerequisite_note": [],
+            "explanation": [],
+            "key_term": [],
+            "illustration": [],
+            "worked_example": [],
+            "real_world_application": [],
+            "common_mistake": [],
+            "summary": [],
+        }
+        definition: str | None = None
+        for content_row in content_rows:
+            content_type = content_row.get("type")
+            content_text = content_row.get("contentText")
+            content_data = _json_value(content_row.get("contentData"), None)
+            if content_type == "definition":
+                definition = content_text
+            elif content_type in section_values:
+                if content_type == "key_term":
+                    value = content_data if isinstance(content_data, dict) else {
+                        "term": content_row.get("title") or "",
+                        "definition": content_text or "",
+                    }
+                    section_values[content_type].append(
+                        {"term": value.get("term", ""), "definition": value.get("definition", "")}
+                    )
+                elif content_type == "worked_example":
+                    value = content_data if isinstance(content_data, dict) else {}
+                    section_values[content_type].append(
+                        {
+                            "problem": value.get("problem") or content_row.get("title") or "",
+                            "steps": _as_list(value.get("steps")),
+                            "answer": value.get("answer") or None,
+                        }
+                    )
+                elif content_type == "illustration":
+                    value = content_data if isinstance(content_data, dict) else {}
+                    section_values[content_type].append(
+                        {
+                            "type": value.get("type"),
+                            "caption": value.get("caption") or content_row.get("title"),
+                            "description": value.get("description") or content_text,
+                            "table": value.get("table"),
+                            "mediaURI": content_row.get("mediaURI"),
+                        }
+                    )
+                else:
+                    section_values[content_type].append(content_text or "")
 
         concept = {
             "id": row["id"],
@@ -500,16 +530,19 @@ class GraphRepository:
         }
         return {
             "concept": concept,
-            "learningObjectives": _json_value(content.get("learningObjectives"), []),
-            "definition": _json_value(content.get("definition"), None),
-            "explanation": _json_value(content.get("explanation"), []),
-            "keyTerms": _json_value(content.get("keyTerms"), []),
-            "illustrations": _json_value(content.get("illustrations"), []),
-            "workedExamples": _json_value(content.get("workedExamples"), []),
-            "realWorldApplications": _json_value(content.get("realWorldApplications"), []),
-            "commonMistakes": _json_value(content.get("commonMistakes"), []),
-            "summary": _json_value(content.get("summary"), []),
-            "prerequisiteNotes": _as_list(row.get("prerequisiteNotes")),
+            "learningObjectives": section_values["learning_objective"],
+            "definition": definition,
+            "explanation": section_values["explanation"],
+            "keyTerms": section_values["key_term"],
+            "illustrations": section_values["illustration"],
+            "workedExamples": section_values["worked_example"],
+            "realWorldApplications": section_values["real_world_application"],
+            "commonMistakes": section_values["common_mistake"],
+            "summary": section_values["summary"],
+            "prerequisiteNotes": (
+                _as_list(row.get("prerequisiteNotes"))
+                or section_values["prerequisite_note"]
+            ),
             "prerequisites": [item for item in (row.get("prerequisites") or []) if item],
             "relatedConcepts": [item for item in (row.get("relatedConcepts") or []) if item],
             "practiceAvailable": question_count > 0,

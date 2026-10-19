@@ -45,12 +45,18 @@ async def check_question(
     correct = grading.grade_response(question, response)
     correct_option = grading.resolve_correct_option(question) if correct is not None else None
     concept = await repo.get_concept(concept_id) if correct is False else None
+    explanation = None
+    if response is not None and response.strip():
+        explanation = question.get("solution") or question.get("referenceAnswer")
+        reference_answer = question.get("referenceAnswer")
+        if explanation and reference_answer and not grading.is_multiple_choice(question):
+            explanation = f"Reference answer: {reference_answer}\n\n{explanation}"
     return CheckResponse(
         questionId=request.questionId,
         conceptId=concept_id,
         correct=correct,
         correctOptionId=correct_option,
-        explanation=None,
+        explanation=explanation,
         prerequisites=concept.get("prerequisites", []) if concept else [],
         relatedConcepts=concept.get("related", []) if concept else [],
     )

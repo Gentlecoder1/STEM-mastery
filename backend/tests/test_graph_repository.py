@@ -117,25 +117,51 @@ def test_structured_lesson_decodes_content_and_keeps_graph_relationships_separat
                 "topicOrder": 3,
             }
         ],
-        "lesson": {
-            "learningObjectives": '["Read a measuring instrument"]',
-            "definition": '"Length is the distance between two points."',
-            "explanation": '["Explanation one", "Explanation two"]',
-            "keyTerms": '[{"term":"Least count","definition":"Smallest readable division."}]',
-            "illustrations": (
-                '[{"type":"table","caption":"Readings","table":'
-                '{"headers":["Instrument","Reading"],"rows":[["Rule","10 cm"]]}}]'
-            ),
-            "workedExamples": (
-                '[{"problem":"Read the scale.","steps":["Align zero","Read the mark"],'
-                '"answer":"10 cm"}]'
-            ),
-            "realWorldApplications": '["Measure an object"]',
-            "commonMistakes": '["Misreading the zero mark"]',
-            "summary": '["Use the instrument scale carefully."]',
-            "image_prompt": "must not be exposed",
-            "repositoryFile": "internal.json",
-        },
+        "lessons": [
+            {
+                "type": "learning_objective",
+                "contentText": "Read a measuring instrument",
+            },
+            {
+                "type": "prerequisite_note",
+                "contentText": "Decimals",
+            },
+            {
+                "type": "definition",
+                "contentText": "Length is the distance between two points.",
+            },
+            {"type": "explanation", "contentText": "Explanation one"},
+            {"type": "explanation", "contentText": "Explanation two"},
+            {
+                "type": "key_term",
+                "title": "Least count",
+                "contentText": "Smallest readable division.",
+                "contentData": (
+                    '{"term":"Least count","definition":"Smallest readable division."}'
+                ),
+            },
+            {
+                "type": "illustration",
+                "title": "Readings",
+                "contentText": "",
+                "contentData": (
+                    '{"type":"table","caption":"Readings","table":{"headers":'
+                    '["Instrument","Reading"],"rows":[["Rule","10 cm"]]}}'
+                ),
+            },
+            {
+                "type": "worked_example",
+                "title": "Worked example 1",
+                "contentText": "Read the scale.",
+                "contentData": (
+                    '{"problem":"Read the scale.","steps":["Align zero","Read the mark"],'
+                    '"answer":"10 cm"}'
+                ),
+            },
+            {"type": "real_world_application", "contentText": "Measure an object"},
+            {"type": "common_mistake", "contentText": "Misreading the zero mark"},
+            {"type": "summary", "contentText": "Use the instrument scale carefully."},
+        ],
         "prerequisites": [{"id": "math-ss1-03-03", "name": "Decimals"}],
         "relatedConcepts": [{"id": "phys-ss1-03-04", "name": "Displacement"}],
     }
@@ -178,7 +204,7 @@ def test_structured_lesson_returns_none_when_v3_content_is_missing() -> None:
                 {
                     "id": "phys-ss1-03-03",
                     "title": "Measuring length",
-                    "lesson": None,
+                    "lessons": [],
                     "contexts": [],
                     "prerequisites": [],
                     "relatedConcepts": [],
