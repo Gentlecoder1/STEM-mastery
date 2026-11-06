@@ -11,6 +11,7 @@ from app.models.catalog import (
     StructuredLesson,
     Subject,
     Topic,
+    TopicPacket,
 )
 
 router = APIRouter(tags=["catalog"])
@@ -44,6 +45,21 @@ async def search_concepts(
 @router.get("/topics/{topic_id}/concepts", response_model=list[ConceptSummary])
 async def list_concepts(topic_id: str, repo: RepositoryDep) -> list[ConceptSummary]:
     return [ConceptSummary(**row) for row in await repo.list_concepts(topic_id)]
+
+
+@router.get("/topics/{topic_id}/packet", response_model=TopicPacket)
+async def get_topic_packet(topic_id: str, repo: RepositoryDep) -> TopicPacket:
+    """Return one bounded topic subgraph for mobile/offline delivery."""
+    row = await repo.topic_packet(topic_id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Topic not found.")
+    return TopicPacket(
+        topic=Topic(**row["topic"]),
+        concepts=[ConceptSummary(**concept) for concept in row["concepts"]],
+        prerequisiteConcepts=[
+            ConceptRef(**concept) for concept in row["prerequisiteConcepts"]
+        ],
+    )
 
 
 @router.get("/concepts/{concept_id}", response_model=Concept)

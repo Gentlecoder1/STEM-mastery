@@ -6,6 +6,7 @@ import type {
   ApiSubject,
   ApiTopic,
   StructuredLesson,
+  TopicPacket,
 } from '../types/catalog';
 
 export function fetchSubjects(): Promise<ApiSubject[]> {
@@ -18,6 +19,13 @@ export function fetchTopics(subjectId: string): Promise<ApiTopic[]> {
 
 export function fetchConcepts(topicId: string): Promise<ApiConceptSummary[]> {
   return apiFetch<ApiConceptSummary[]>(`/api/v1/topics/${encodeURIComponent(topicId)}/concepts`);
+}
+
+/** Bounded topic graph used for mobile/offline delivery. */
+export function fetchTopicPacket(topicId: string): Promise<TopicPacket> {
+  return apiFetch<TopicPacket>(
+    `/api/v1/topics/${encodeURIComponent(topicId)}/packet`,
+  );
 }
 
 export function searchConcepts(query: string): Promise<ApiConceptSearchResult[]> {

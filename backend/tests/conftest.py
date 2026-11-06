@@ -144,6 +144,20 @@ class FakeGraphRepository:
             },
         ]
 
+    async def topic_packet(self, topic_id: str) -> dict | None:
+        if topic_id != "topic-speed-velocity":
+            return None
+        concepts = await self.list_concepts(topic_id)
+        return {
+            "topic": {
+                "id": topic_id,
+                "name": "Speed and velocity",
+                "iri": None,
+            },
+            "concepts": concepts,
+            "prerequisiteConcepts": [],
+        }
+
     async def ordered_concept_ids(self, topic_id: str) -> list[str]:
         return [row["id"] for row in await self.list_concepts(topic_id)]
 

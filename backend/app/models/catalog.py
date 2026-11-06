@@ -41,6 +41,14 @@ class ConceptSummary(BaseModel):
     prerequisites: list[ConceptRef] = Field(default_factory=list)
 
 
+class TopicPacket(BaseModel):
+    """Topic-scoped graph data used by the mobile offline cache."""
+
+    topic: Topic
+    concepts: list[ConceptSummary] = Field(default_factory=list)
+    prerequisiteConcepts: list[ConceptRef] = Field(default_factory=list)
+
+
 class ConceptContext(BaseModel):
     subjectId: str | None = None
     subjectName: str | None = None

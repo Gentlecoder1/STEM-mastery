@@ -1,9 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import type { QuizQuestion, StructuredLesson } from '../types/catalog';
+import type { QuizQuestion, StructuredLesson, TopicPacket } from '../types/catalog';
 
 const LESSON_PREFIX = 'stem-mastery.lesson.v2.';
 const QUESTIONS_PREFIX = 'stem-mastery.questions.v1.';
+const TOPIC_PACKET_PREFIX = 'stem-mastery.topic-packet.v1.';
 export const DOWNLOADS_STORAGE_KEY = 'stem-mastery.downloads.v2';
 export const READING_STORAGE_KEY = 'stem-mastery.reading.v1';
 export const PENDING_STORAGE_KEY = 'stem-mastery.pending.v1';
@@ -85,12 +86,36 @@ export function saveQuestions(conceptId: string, questions: QuizQuestion[]): Pro
   });
 }
 
+export type TopicPacketCache = {
+  topicId: string;
+  packet: TopicPacket;
+  savedAt: string;
+};
+
+const topicPacketKey = (topicId: string) => `${TOPIC_PACKET_PREFIX}${topicId}`;
+
+export function loadTopicPacket(topicId: string): Promise<TopicPacketCache | null> {
+  return readJson<TopicPacketCache>(topicPacketKey(topicId));
+}
+
+export function saveTopicPacket(topicId: string, packet: TopicPacket): Promise<void> {
+  return writeJson(topicPacketKey(topicId), {
+    topicId,
+    packet,
+    savedAt: new Date().toISOString(),
+  });
+}
+
 export function removeLesson(conceptId: string): Promise<void> {
   return AsyncStorage.removeItem(lessonKey(conceptId)).catch(() => {});
 }
 
 export function removeQuestions(conceptId: string): Promise<void> {
   return AsyncStorage.removeItem(questionsKey(conceptId)).catch(() => {});
+}
+
+export function removeTopicPacket(topicId: string): Promise<void> {
+  return AsyncStorage.removeItem(topicPacketKey(topicId)).catch(() => {});
 }
 
 export function loadDownloads(): Promise<string[] | null> {

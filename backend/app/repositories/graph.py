@@ -46,6 +46,12 @@ RETURN t.id AS id, coalesce(t.name, t.prefLabel, t.id) AS name, t.iri AS iri,
 ORDER BY r.order ASC
 """
 
+_TOPIC = """
+MATCH (t:Topic {id: $topic_id})
+RETURN t.id AS id, coalesce(t.name, t.prefLabel, t.id) AS name, t.iri AS iri
+LIMIT 1
+"""
+
 _CONCEPTS = """
 MATCH (t:Topic {id: $topic_id})-[r:HAS_CONCEPT]->(c:Concept)
 WHERE c.legacyArchivedAt IS NULL AND coalesce(c.canonical, true) = true
@@ -335,6 +341,17 @@ RETURN n.id AS id, coalesce(n.name, n.prefLabel, n.id) AS name, n.aliases AS ali
 """
 
 
+def _deduplicate_refs(refs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    unique: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for ref in refs:
+        ref_id = ref.get("id")
+        if ref_id and ref_id not in seen:
+            unique.append(ref)
+            seen.add(ref_id)
+    return unique
+
+
 class GraphRepository:
     """Read-only access to the curriculum graph."""
 
@@ -377,6 +394,25 @@ class GraphRepository:
                 if prerequisite is not None
             ]
         return rows
+
+    async def topic_packet(self, topic_id: str) -> dict[str, Any] | None:
+        """Return the bounded graph slice needed to start a topic offline."""
+        topic_rows = await self._read(_TOPIC, topic_id=topic_id)
+        if not topic_rows:
+            return None
+        concepts = await self.list_concepts(topic_id)
+        in_topic_ids = {concept["id"] for concept in concepts}
+        prerequisite_concepts = [
+            prerequisite
+            for concept in concepts
+            for prerequisite in concept.get("prerequisites", [])
+            if prerequisite.get("id") not in in_topic_ids
+        ]
+        return {
+            "topic": topic_rows[0],
+            "concepts": concepts,
+            "prerequisiteConcepts": _deduplicate_refs(prerequisite_concepts),
+        }
 
     async def ordered_concept_ids(self, topic_id: str) -> list[str]:
         concepts = await self.list_concepts(topic_id)

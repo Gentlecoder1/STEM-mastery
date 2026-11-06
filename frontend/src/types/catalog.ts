@@ -72,6 +72,11 @@ export type ApiConceptSummary = {
   iri: string | null;
   prerequisites: { id: string; name: string | null }[];
 };
+export type TopicPacket = {
+  topic: ApiTopic;
+  concepts: ApiConceptSummary[];
+  prerequisiteConcepts: { id: string; name: string | null }[];
+};
 export type ApiConceptContext = {
   subjectId: string | null;
   subjectName: string | null;

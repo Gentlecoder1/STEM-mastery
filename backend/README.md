@@ -104,12 +104,19 @@ All routes are mounted under `STEM_API_PREFIX` (default `/api/v1`).
 | GET | `/subjects` | List subjects |
 | GET | `/subjects/{id}/topics` | Topics of a subject |
 | GET | `/topics/{id}/concepts` | Concepts of a topic |
+| GET | `/topics/{id}/packet` | Bounded topic subgraph for mobile/offline caching |
 | GET | `/concepts/{id}` | Concept metadata and graph relationships |
 | GET | `/concepts/{id}/lesson` | Structured V3 lesson (practice questions remain separate) |
 | GET | `/concepts/{id}/questions` | Questions for a concept (answers withheld) |
 | GET | `/graph/schema` | Dev-only labels/relationships/property keys |
 
 Correct answers are never returned to clients; grading is server-side.
+
+Responses larger than 256 bytes are gzip-compressed by the API middleware. The
+mobile topic packet endpoint selects only the requested topic, its concepts,
+and prerequisite references; the Android networking stack decompresses the
+response before the packet is saved in its offline cache. Neo4j remains the
+authoritative full graph.
 
 The V3 lesson endpoint reads one `LearningContent` node connected to a canonical
 `Concept` by `HAS_CONTENT`. In the seeder format, each pedagogical item is its

@@ -60,6 +60,19 @@ def test_list_concepts_ordered_with_prerequisites(client: TestClient) -> None:
     ]
 
 
+def test_topic_packet_is_bounded_to_requested_topic(client: TestClient) -> None:
+    response = client.get("/api/v1/topics/topic-speed-velocity/packet")
+    assert response.status_code == 200
+    assert response.headers["content-encoding"] == "gzip"
+    body = response.json()
+    assert body["topic"]["id"] == "topic-speed-velocity"
+    assert [concept["id"] for concept in body["concepts"]] == [
+        "concept-displacement",
+        "concept-velocity",
+    ]
+    assert body["prerequisiteConcepts"] == []
+
+
 def test_get_concept(client: TestClient) -> None:
     response = client.get("/api/v1/concepts/concept-velocity")
     assert response.status_code == 200

@@ -6,6 +6,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from neo4j.exceptions import Neo4jError
+from starlette.middleware.gzip import GZipMiddleware
 
 from app.api.routes import assessment, catalog, graph, health, placement, progress, semantic
 from app.core.config import settings
@@ -50,6 +51,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(GZipMiddleware, minimum_size=256, compresslevel=6)
 
 
 @app.exception_handler(Neo4jError)

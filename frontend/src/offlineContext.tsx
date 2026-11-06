@@ -10,13 +10,14 @@ import {
 } from 'react';
 
 import { isApiConfigured } from './lib/api';
-import { fetchLesson } from './lib/catalogApi';
+import { fetchLesson, fetchTopicPacket } from './lib/catalogApi';
 import { mapQuestions, type QuizQuestion, type StructuredLesson } from './types/catalog';
 import {
   emptyReading,
   loadAllReading,
   loadDownloads,
   loadLesson,
+  saveTopicPacket,
   loadPending,
   loadQuestions,
   removeLesson,
@@ -177,6 +178,14 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
 
   const downloadTopic = useCallback(
     async (topicId: string) => {
+      if (!isApiConfigured || !isOnline) return 0;
+      try {
+        // Fetching one bounded packet avoids downloading the full graph. The
+        // native fetch implementation transparently decompresses gzip responses.
+        await saveTopicPacket(topicId, await fetchTopicPacket(topicId));
+      } catch {
+        return 0;
+      }
       const ids = getTopicConceptIds(topicId);
       let completed = 0;
       for (let index = 0; index < ids.length; index += 4) {
@@ -192,7 +201,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       }
       return completed;
     },
-    [downloadConcept, getTopicConceptIds],
+    [downloadConcept, getTopicConceptIds, isOnline],
   );
 
   const removeDownload = useCallback(
