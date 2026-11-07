@@ -11,7 +11,7 @@ import {
 
 import { isApiConfigured } from './lib/api';
 import { fetchLesson, fetchTopicPacket } from './lib/catalogApi';
-import { mapQuestions, type QuizQuestion, type StructuredLesson } from './types/catalog';
+import { mapLesson, mapQuestions, type LearningContent, type QuizQuestion } from './types/catalog';
 import {
   emptyReading,
   loadAllReading,
@@ -41,8 +41,9 @@ type OfflineContextValue = {
   downloadTopic: (topicId: string) => Promise<number>;
   removeDownload: (conceptId: string) => void;
   removeTopicDownload: (topicId: string) => void;
-  getLesson: (conceptId: string) => StructuredLesson | null;
-  ensureLesson: (conceptId: string) => Promise<StructuredLesson | null>;
+  getLesson: (conceptId: string) => LearningContent[] | null;
+  getLessonContent: (conceptId: string) => LearningContent[] | null;
+  ensureLesson: (conceptId: string) => Promise<LearningContent[] | null>;
   getQuestions: (conceptId: string) => QuizQuestion[] | null;
   ensureQuestions: (conceptId: string) => Promise<QuizQuestion[] | null>;
   getReading: (conceptId: string) => ReadingProgress;
@@ -79,7 +80,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   const { getTopicConceptIds } = useCatalog();
 
   const [downloads, setDownloads] = useState<string[]>([]);
-  const [lessons, setLessons] = useState<Record<string, StructuredLesson>>({});
+  const [lessons, setLessons] = useState<Record<string, LearningContent[]>>({});
   const [questions, setQuestions] = useState<Record<string, QuizQuestion[]>>({});
   const [reading, setReading] = useState<Record<string, ReadingProgress>>({});
   const [pending, setPending] = useState<Record<string, ReadingProgress>>({});
@@ -143,8 +144,8 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     [getTopicConceptIds],
   );
 
-  const cacheLesson = useCallback(async (conceptId: string): Promise<StructuredLesson> => {
-    const lesson = await fetchLesson(conceptId);
+  const cacheLesson = useCallback(async (conceptId: string): Promise<LearningContent[]> => {
+    const lesson = mapLesson(await fetchLesson(conceptId), conceptId);
     await saveLesson(conceptId, lesson);
     setLessons((current) => ({ ...current, [conceptId]: lesson }));
     return lesson;
@@ -237,7 +238,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   );
 
   const ensureLesson = useCallback(
-    async (conceptId: string): Promise<StructuredLesson | null> => {
+    async (conceptId: string): Promise<LearningContent[] | null> => {
       const inMemory = lessonsRef.current[conceptId];
       if (inMemory) return inMemory;
       const cached = await loadLesson(conceptId);
@@ -275,9 +276,11 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   );
 
   const getLesson = useCallback(
-    (conceptId: string): StructuredLesson | null => lessons[conceptId] ?? null,
+    (conceptId: string): LearningContent[] | null => lessons[conceptId] ?? null,
     [lessons],
   );
+
+  const getLessonContent = getLesson;
 
   const getQuestions = useCallback(
     (conceptId: string): QuizQuestion[] | null => questions[conceptId] ?? null,
@@ -393,6 +396,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       removeDownload,
       removeTopicDownload,
       getLesson,
+      getLessonContent,
       ensureLesson,
       getQuestions,
       ensureQuestions,
@@ -414,6 +418,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       removeDownload,
       removeTopicDownload,
       getLesson,
+      getLessonContent,
       ensureLesson,
       getQuestions,
       ensureQuestions,

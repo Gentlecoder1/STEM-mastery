@@ -3,9 +3,9 @@ import type {
   ApiConcept,
   ApiConceptSearchResult,
   ApiConceptSummary,
+  ApiLearningContent,
   ApiSubject,
   ApiTopic,
-  StructuredLesson,
   TopicPacket,
 } from '../types/catalog';
 
@@ -21,11 +21,8 @@ export function fetchConcepts(topicId: string): Promise<ApiConceptSummary[]> {
   return apiFetch<ApiConceptSummary[]>(`/api/v1/topics/${encodeURIComponent(topicId)}/concepts`);
 }
 
-/** Bounded topic graph used for mobile/offline delivery. */
 export function fetchTopicPacket(topicId: string): Promise<TopicPacket> {
-  return apiFetch<TopicPacket>(
-    `/api/v1/topics/${encodeURIComponent(topicId)}/packet`,
-  );
+  return apiFetch<TopicPacket>(`/api/v1/topics/${encodeURIComponent(topicId)}/packet`);
 }
 
 export function searchConcepts(query: string): Promise<ApiConceptSearchResult[]> {
@@ -39,7 +36,7 @@ export function fetchConcept(id: string): Promise<ApiConcept> {
   return apiFetch<ApiConcept>(`/api/v1/concepts/${encodeURIComponent(id)}`);
 }
 
-/** Structured lesson payload, cached when a concept is opened or a topic downloaded. */
-export function fetchLesson(id: string): Promise<StructuredLesson> {
-  return apiFetch<StructuredLesson>(`/api/v1/concepts/${encodeURIComponent(id)}/lesson`);
+/** Full lesson payload, cached when a concept is opened or a topic downloaded. */
+export function fetchLesson(id: string): Promise<ApiLearningContent[]> {
+  return apiFetch<ApiLearningContent[]>(`/api/v1/concepts/${encodeURIComponent(id)}/lesson`);
 }

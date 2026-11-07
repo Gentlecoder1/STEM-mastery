@@ -37,7 +37,6 @@ class FakeGraphRepository:
                 "correctAnswer": None,
                 "referenceAnswer": None,
                 "expectedNumericAnswer": None,
-                "solution": "Velocity is speed in a particular direction.",
                 "conceptId": "concept-velocity",
                 "subjectId": "physics",
             },
@@ -52,7 +51,6 @@ class FakeGraphRepository:
                 "correctAnswer": None,
                 "referenceAnswer": None,
                 "expectedNumericAnswer": None,
-                "solution": "Use distance divided by time and include direction.",
                 "conceptId": "concept-velocity",
                 "subjectId": "physics",
             },
@@ -64,7 +62,6 @@ class FakeGraphRepository:
                 "correctAnswer": None,
                 "referenceAnswer": "Velocity is a vector.",
                 "expectedNumericAnswer": None,
-                "solution": "Velocity has both magnitude and direction.",
                 "conceptId": "concept-velocity",
                 "subjectId": "physics",
             },
@@ -79,7 +76,6 @@ class FakeGraphRepository:
                 "correctAnswer": None,
                 "referenceAnswer": None,
                 "expectedNumericAnswer": None,
-                "solution": "Displacement includes direction from start to finish.",
                 "conceptId": "concept-displacement",
                 "subjectId": "physics",
             },
@@ -144,20 +140,6 @@ class FakeGraphRepository:
             },
         ]
 
-    async def topic_packet(self, topic_id: str) -> dict | None:
-        if topic_id != "topic-speed-velocity":
-            return None
-        concepts = await self.list_concepts(topic_id)
-        return {
-            "topic": {
-                "id": topic_id,
-                "name": "Speed and velocity",
-                "iri": None,
-            },
-            "concepts": concepts,
-            "prerequisiteConcepts": [],
-        }
-
     async def ordered_concept_ids(self, topic_id: str) -> list[str]:
         return [row["id"] for row in await self.list_concepts(topic_id)]
 
@@ -188,33 +170,18 @@ class FakeGraphRepository:
             "related": [{"id": "concept-acceleration", "name": "Acceleration"}],
         }
 
-    async def get_structured_lesson(self, concept_id: str) -> dict | None:
-        if concept_id != "concept-velocity":
-            return None
-        return {
-            "concept": {
-                "id": concept_id,
-                "title": "Velocity",
-                "subjectId": "physics",
-                "topicId": "topic-speed-velocity",
-                "order": 2,
-                "estimatedMinutes": 30,
-            },
-            "learningObjectives": [],
-            "definition": None,
-            "explanation": [],
-            "keyTerms": [],
-            "illustrations": [],
-            "workedExamples": [],
-            "realWorldApplications": [],
-            "commonMistakes": [],
-            "summary": [],
-            "prerequisiteNotes": [],
-            "prerequisites": [{"id": "concept-displacement", "name": "Distance and displacement"}],
-            "relatedConcepts": [{"id": "concept-acceleration", "name": "Acceleration"}],
-            "practiceAvailable": True,
-            "questionCount": 3,
-        }
+    async def list_content(self, concept_id: str) -> list[dict]:
+        return [
+            {
+                "id": "c-velocity-def",
+                "conceptId": concept_id,
+                "title": "Definition",
+                "contentText": "Velocity is a vector quantity.",
+                "contentType": "Definition",
+                "chapterOrder": 1,
+                "mediaURI": None,
+            }
+        ]
 
     async def list_questions(self, concept_id: str) -> list[dict]:
         return [

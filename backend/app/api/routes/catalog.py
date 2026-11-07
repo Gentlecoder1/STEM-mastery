@@ -3,15 +3,14 @@ from fastapi import APIRouter, HTTPException, Query, status
 from app.api.deps import RepositoryDep
 from app.models.catalog import (
     Concept,
-    ConceptRef,
     ConceptSearchResult,
+    ConceptRef,
     ConceptSummary,
+    LearningContent,
     Question,
     QuestionOption,
-    StructuredLesson,
     Subject,
     Topic,
-    TopicPacket,
 )
 
 router = APIRouter(tags=["catalog"])
@@ -47,21 +46,6 @@ async def list_concepts(topic_id: str, repo: RepositoryDep) -> list[ConceptSumma
     return [ConceptSummary(**row) for row in await repo.list_concepts(topic_id)]
 
 
-@router.get("/topics/{topic_id}/packet", response_model=TopicPacket)
-async def get_topic_packet(topic_id: str, repo: RepositoryDep) -> TopicPacket:
-    """Return one bounded topic subgraph for mobile/offline delivery."""
-    row = await repo.topic_packet(topic_id)
-    if row is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Topic not found.")
-    return TopicPacket(
-        topic=Topic(**row["topic"]),
-        concepts=[ConceptSummary(**concept) for concept in row["concepts"]],
-        prerequisiteConcepts=[
-            ConceptRef(**concept) for concept in row["prerequisiteConcepts"]
-        ],
-    )
-
-
 @router.get("/concepts/{concept_id}", response_model=Concept)
 async def get_concept(concept_id: str, repo: RepositoryDep) -> Concept:
     """Concept metadata only — lesson payload and quizzes live on their own routes."""
@@ -85,12 +69,9 @@ async def get_concept(concept_id: str, repo: RepositoryDep) -> Concept:
     )
 
 
-@router.get("/concepts/{concept_id}/lesson", response_model=StructuredLesson)
-async def get_lesson(concept_id: str, repo: RepositoryDep) -> StructuredLesson:
-    row = await repo.get_structured_lesson(concept_id)
-    if row is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lesson not found.")
-    return StructuredLesson(**row)
+@router.get("/concepts/{concept_id}/lesson", response_model=list[LearningContent])
+async def get_lesson(concept_id: str, repo: RepositoryDep) -> list[LearningContent]:
+    return [LearningContent(**row) for row in await repo.list_content(concept_id)]
 
 
 @router.get("/concepts/{concept_id}/questions", response_model=list[Question])
