@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { StyleSheet } from 'react-native';
+import { ImageStyle, StyleSheet, TextStyle, ViewStyle } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { applyColors, colors, type ThemeColors, type ThemeMode } from './theme';
 
@@ -160,7 +160,9 @@ export function useThemeReveal(): ThemeRevealContextValue {
   return useContext(ThemeRevealContext);
 }
 
-export function useThemedStyles<T extends Record<string, object>>(
+export function useThemedStyles<
+  T extends Record<string, ViewStyle | TextStyle | ImageStyle>,
+>(
   factory: (c: ThemeColors) => T,
 ): T {
   const { mode } = useTheme();

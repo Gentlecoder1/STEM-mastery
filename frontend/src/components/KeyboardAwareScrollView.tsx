@@ -62,7 +62,7 @@ export function KeyboardAwareScrollView({
     return () => subscription.remove();
   }, []);
 
-  const scrollToInput = useCallback((nodeHandle: number | null | undefined) => {
+  const scrollToInput = useCallback((nodeHandle: number | HostInstance | null | undefined) => {
     if (nodeHandle == null) return;
     focusedInput.current = nodeHandle;
     scrollRef.current?.scrollResponderScrollNativeHandleToKeyboard(nodeHandle, 28, true);
