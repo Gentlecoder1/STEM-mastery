@@ -97,7 +97,7 @@ function AppShell() {
 
   return (
     <SafeAreaProvider>
-      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+      <StatusBar style="light" />
       <NavigationContainer theme={navTheme}>
         <Stack.Navigator
           initialRouteName={isAuthenticated && profile?.onboardedAt ? 'Home' : isAuthenticated ? 'Onboarding' : 'Splash'}

@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View, type TextInputInstance } from 'react-native';
 
 import { colors, fonts, radius } from '../theme';
 import { useThemedStyles } from '../themeContext';
@@ -23,7 +23,7 @@ export function OtpInput({
   disabled = false,
   autoFocus = true,
 }: OtpInputProps) {
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<TextInputInstance>(null);
   const styles = useThemedStyles(createStyles);
   const digits = value.split('');
 

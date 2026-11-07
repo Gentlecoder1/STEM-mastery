@@ -12,12 +12,14 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
+  type HostInstance,
+  type ScrollViewInstance,
   type ScrollViewProps,
 } from 'react-native';
 
 type KeyboardScrollContextValue = {
   /** Scrolls the given native node handle fully above the keyboard. */
-  scrollToInput: (nodeHandle: number | null | undefined) => void;
+  scrollToInput: (nodeHandle: number | HostInstance | null | undefined) => void;
 };
 
 const KeyboardScrollContext = createContext<KeyboardScrollContextValue>({
@@ -48,8 +50,8 @@ export function KeyboardAwareScrollView({
   contentContainerStyle,
   ...rest
 }: KeyboardAwareScrollViewProps) {
-  const scrollRef = useRef<ScrollView>(null);
-  const focusedInput = useRef<number | null>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
+  const focusedInput = useRef<number | HostInstance | null>(null);
 
   useEffect(() => {
     const subscription = Keyboard.addListener('keyboardDidShow', () => {

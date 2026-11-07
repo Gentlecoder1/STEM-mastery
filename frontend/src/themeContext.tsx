@@ -160,7 +160,7 @@ export function useThemeReveal(): ThemeRevealContextValue {
   return useContext(ThemeRevealContext);
 }
 
-export function useThemedStyles<T extends StyleSheet.NamedStyles<T>>(
+export function useThemedStyles<T extends Record<string, object>>(
   factory: (c: ThemeColors) => T,
 ): T {
   const { mode } = useTheme();
