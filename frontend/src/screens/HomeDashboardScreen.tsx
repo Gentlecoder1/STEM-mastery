@@ -1,136 +1,24 @@
+import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useMemo, useState } from 'react';
 
 import BottomNav from '../components/BottomNav';
-import { ProgressBar } from '../components/PracticeUI';
 import { navigateToTab } from '../navigation/tabs';
-import MasteryRing from '../components/MasteryRing';
-import {
-  FlameIcon,
-  ZapIcon,
-  GaugeIcon,
-  StarIcon,
-  TargetIcon,
-  AtomIcon,
-  SigmaIcon,
-  FlaskIcon,
-  SearchIcon,
-} from '../components/glyphs';
-import { colors, fonts, lightColors, shadow, type ColorToken, type SubjectId } from '../theme';
+import { ArrowRightIcon } from '../components/icons';
+import { AtomIcon, FlaskIcon, FlameIcon, SearchIcon, SigmaIcon } from '../components/glyphs';
+import { colors, fonts, shadow } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
 import { useProfile } from '../profileContext';
 import { useDisplayName } from '../displayName';
-import { useProgress } from '../progressContext';
 import { useCatalog } from '../catalogContext';
 import type { RootScreenProps } from '../navigation/types';
-import type { IconProps } from '../components/icons';
 
-type SubjectIconKey = 'atom' | 'sigma' | 'flask';
-
-type DashboardSubject = {
-  id: SubjectId;
-  name: string;
-  icon: SubjectIconKey;
-  tint: ColorToken;
-  soft: ColorToken;
-  mastery: number;
-  subtitle: string;
+const SUBJECT_ICONS = {
+  mathematics: SigmaIcon,
+  physics: AtomIcon,
+  chemistry: FlaskIcon,
 };
-
-type IconComponent = (props: IconProps) => React.JSX.Element;
-
-const SUBJECT_ICONS: Record<SubjectIconKey, IconComponent> = {
-  atom: AtomIcon,
-  sigma: SigmaIcon,
-  flask: FlaskIcon,
-};
-
-const SUBJECTS: readonly DashboardSubject[] = [
-  {
-    id: 'physics',
-    name: 'Physics',
-    icon: 'atom',
-    tint: 'blue',
-    soft: 'blueSoft',
-    mastery: 0,
-    subtitle: '0% mastery • Start your first topic',
-  },
-  {
-    id: 'mathematics',
-    name: 'Mathematics',
-    icon: 'sigma',
-    tint: 'green',
-    soft: 'greenSoft',
-    mastery: 0,
-    subtitle: '0% mastery • Ready to begin',
-  },
-  {
-    id: 'chemistry',
-    name: 'Chemistry',
-    icon: 'flask',
-    tint: 'violet',
-    soft: 'violetSoft',
-    mastery: 0,
-    subtitle: '0% mastery • Ready to begin',
-  },
-];
-
-type Stat = {
-  key: string;
-  bg: ColorToken;
-  tint: ColorToken;
-  Icon: IconComponent;
-  value: string;
-  label: string;
-};
-
-const STATS: readonly Stat[] = [
-  { key: 'xp', bg: 'orangeSoft' as ColorToken, tint: 'orange' as ColorToken, Icon: StarIcon, value: '0 XP', label: 'Today' },
-  { key: 'goal', bg: 'greenSoft' as ColorToken, tint: 'teal' as ColorToken, Icon: TargetIcon, value: '0 / 4', label: 'Daily goal' },
-];
-
-type SubjectIconProps = {
-  subject: DashboardSubject;
-  size?: number;
-  box?: number;
-  radius?: number;
-};
-
-function SubjectIcon({ subject, size = 19, box = 38, radius = 12 }: SubjectIconProps) {
-  const styles = useThemedStyles(createStyles);
-  const Icon = SUBJECT_ICONS[subject.icon];
-  return (
-    <View
-      style={[
-        styles.leadingIcon,
-        { width: box, height: box, borderRadius: radius, backgroundColor: colors[subject.soft] },
-      ]}
-    >
-      <Icon size={size} color={colors[subject.tint]} />
-    </View>
-  );
-}
-
-type StatCardProps = {
-  bg: ColorToken;
-  tint: ColorToken;
-  Icon: IconComponent;
-  value: string;
-  label: string;
-};
-
-function StatCard({ bg, tint, Icon, value, label }: StatCardProps) {
-  const styles = useThemedStyles(createStyles);
-  return (
-    <View style={[styles.stat, { backgroundColor: colors[bg] }]}>
-      <Icon size={18} color={colors[tint]} />
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
-  );
-}
 
 export default function HomeDashboardScreen({ navigation }: RootScreenProps<'Home'>) {
   const insets = useSafeAreaInsets();
@@ -138,359 +26,183 @@ export default function HomeDashboardScreen({ navigation }: RootScreenProps<'Hom
   const styles = useThemedStyles(createStyles);
   const { profile } = useProfile();
   const displayName = useDisplayName();
-  const { getSubjectMastery, lastConcept } = useProgress();
-  const { subjects } = useCatalog();
+  const { subjects, topics } = useCatalog();
   const [searchQuery, setSearchQuery] = useState('');
-
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
     if (hour < 12) return 'Good morning';
     if (hour < 18) return 'Good afternoon';
     return 'Good evening';
   }, []);
+  const featuredTopics = topics.slice(0, 3);
 
-  const hero = useMemo(() => {
-    if (lastConcept) {
-      const subjectName = subjects.find(
-        (subject) => lastConcept.subjectIds.includes(String(subject.id)),
-      )?.name;
-      const subjectId = lastConcept.subjectIds[0] ?? '';
-      return {
-        pill: 'CONTINUE WHERE YOU LEFT OFF',
-        subject: subjectName ? subjectName.toUpperCase() : '',
-        title: 'Continue your lesson',
-        lesson: lastConcept.title,
-        progress: getSubjectMastery(subjectId),
-      };
-    }
-    return {
-      pill: 'START YOUR LEARNING PATH',
-      subject: '',
-      title: 'Begin your first lesson',
-      lesson: '',
-      progress: 0,
-    };
-  }, [lastConcept, subjects, getSubjectMastery]);
-
-  const openSubjects = () => navigation.navigate('Subjects');
+  const openKnowledgeMap = (topicId?: string) => {
+    navigation.navigate('KnowledgeMap', topicId ? { topicId } : undefined);
+  };
 
   return (
     <View style={styles.root}>
       <StatusBar style={statusBarStyle} />
-      <View style={styles.body}>
-        <ScrollView
-          contentContainerStyle={[
-            styles.scroll,
-            { paddingTop: insets.top + 6, paddingBottom: insets.bottom + 14 },
-          ]}
-          showsVerticalScrollIndicator={false}
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: insets.top + 10, paddingBottom: insets.bottom + 18 },
+        ]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.greetingRow}>
+          <View style={styles.greetingCopy}>
+            <Text style={styles.eyebrow}>{greeting},</Text>
+            <Text style={styles.name}>{displayName || 'Learner'}</Text>
+          </View>
+          <View style={styles.streak}>
+            <FlameIcon size={16} color={colors.orange} />
+            <Text style={styles.streakText}>{profile?.streak ?? 0} day streak</Text>
+          </View>
+        </View>
+
+        <Text style={styles.prompt}>Where would you like to explore?</Text>
+        <View style={styles.searchField}>
+          <SearchIcon size={18} color={colors.slate} />
+          <TextInput
+            style={styles.searchInput}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search concepts"
+            placeholderTextColor={colors.slate}
+            returnKeyType="search"
+            accessibilityLabel="Search curriculum concepts"
+            onSubmitEditing={() => navigation.navigate('Search', { query: searchQuery.trim() })}
+          />
+          <Pressable
+            onPress={() => navigation.navigate('Search', { query: searchQuery.trim() })}
+            accessibilityRole="button"
+            accessibilityLabel="Search concepts"
+          >
+            <ArrowRightIcon size={18} color={colors.primary} />
+          </Pressable>
+        </View>
+
+        <Pressable
+          style={styles.mapCard}
+          onPress={() => openKnowledgeMap()}
+          accessibilityRole="button"
+          accessibilityLabel="Open the Knowledge Map"
         >
-          <View style={styles.greeting}>
-            <View style={styles.greetingCopy}>
-              <Text style={styles.eyebrow}>{greeting},</Text>
-              <Text style={styles.name}>{displayName || 'User'} 👋</Text>
-            </View>
-            <View style={styles.streak}>
-              <FlameIcon size={18} color="#FF9F1C" />
-              <Text style={styles.streakValue}>{profile?.streak ?? 0} days</Text>
-            </View>
+          <View style={styles.mapDecor}>
+            <View style={styles.mapNodeCenter} />
+            <View style={styles.mapNodeOne} />
+            <View style={styles.mapNodeTwo} />
+            <View style={styles.mapLineOne} />
+            <View style={styles.mapLineTwo} />
           </View>
-
-          <Text style={styles.discoveryTitle}>What do you want to learn today?</Text>
-          <View style={styles.searchPrompt}>
-            <SearchIcon size={19} color={colors.slate} />
-            <TextInput
-              style={styles.searchPromptInput}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              placeholder="Search concepts in your curriculum"
-              placeholderTextColor={colors.slate}
-              returnKeyType="search"
-              accessibilityLabel="What do you want to learn today? Search concepts"
-              onSubmitEditing={() => navigation.navigate('Search', { query: searchQuery.trim() })}
-            />
+          <Text style={styles.mapEyebrow}>YOUR CURRICULUM, CONNECTED</Text>
+          <Text style={styles.mapTitle}>Knowledge Map</Text>
+          <Text style={styles.mapDescription}>
+            Explore how concepts fit together and find your next place to learn.
+          </Text>
+          <View style={styles.mapAction}>
+            <Text style={styles.mapActionText}>Explore the map</Text>
+            <ArrowRightIcon size={16} color={colors.onPrimary} />
           </View>
+        </Pressable>
 
-          <View style={styles.hero}>
-            <View style={styles.heroHead}>
-              <View style={styles.nextUp}>
-                <ZapIcon size={13} color="#FFD84D" />
-                <Text style={styles.nextUpLabel}>{hero.pill}</Text>
-              </View>
-            </View>
-
-            <View style={styles.lesson}>
-              <View style={styles.lessonIcon}>
-                <GaugeIcon size={27} color="#FFFFFF" />
-              </View>
-              <View style={styles.lessonCopy}>
-                {hero.subject ? <Text style={styles.lessonSubject}>{hero.subject}</Text> : null}
-                <Text style={styles.lessonTitle}>{hero.title}</Text>
-                {hero.lesson ? <Text style={styles.lessonSub}>{hero.lesson}</Text> : null}
-              </View>
-            </View>
-
-            <View style={styles.progressRow}>
-              <ProgressBar
-                progress={hero.progress}
-                track="rgba(255,255,255,0.1451)"
-                fill={colors.yellow}
-                style={styles.heroBar}
-              />
-              <Text style={styles.progressValue}>{hero.progress}%</Text>
-            </View>
-          </View>
-
-          <View style={styles.stats}>
-            {STATS.map(({ key, bg, tint, Icon, value, label }) => (
-              <StatCard key={key} bg={bg} tint={tint} Icon={Icon} value={value} label={label} />
-            ))}
-          </View>
-
-          <View style={styles.sectionHead}>
-            <Text style={styles.sectionTitle}>Your subjects</Text>
-            <Pressable onPress={openSubjects}>
-              <Text style={styles.sectionAction}>See all</Text>
-            </Pressable>
-          </View>
-
-          <View style={styles.subjectList}>
-            {SUBJECTS.map((subject) => {
-              const mastery = getSubjectMastery(subject.id);
-              return (
-              <Pressable key={subject.name} style={styles.subjectRow} onPress={openSubjects}>
-                <SubjectIcon subject={{ ...subject, mastery }} />
-                <View style={styles.subjectCopy}>
-                  <Text style={styles.subjectName}>{subject.name}</Text>
-                  <Text style={styles.subjectSubtitle}>{mastery}% mastery • {mastery === 0 ? 'Ready to begin' : 'Keep learning'}</Text>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Explore by subject</Text>
+          <Pressable onPress={() => navigation.navigate('Subjects')}>
+            <Text style={styles.seeAll}>All subjects</Text>
+          </Pressable>
+        </View>
+        <View style={styles.subjectGrid}>
+          {subjects.map((subject) => {
+            const Icon = SUBJECT_ICONS[subject.id as keyof typeof SUBJECT_ICONS] ?? AtomIcon;
+            return (
+              <Pressable
+                key={String(subject.id)}
+                style={styles.subjectCard}
+                onPress={() => navigation.navigate('Subjects')}
+              >
+                <View style={[styles.subjectIcon, { backgroundColor: subject.soft }]}>
+                  <Icon size={21} color={subject.accent} />
                 </View>
-                <MasteryRing percent={mastery} color={colors[subject.tint]} />
+                <Text style={styles.subjectName} numberOfLines={1}>{subject.name}</Text>
+                <Text style={styles.subjectMeta}>Browse concepts</Text>
               </Pressable>
-              );
-            })}
-          </View>
-        </ScrollView>
-      </View>
+            );
+          })}
+        </View>
 
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Start with a topic</Text>
+          <Pressable onPress={() => navigation.navigate('Subjects')}>
+            <Text style={styles.seeAll}>Browse</Text>
+          </Pressable>
+        </View>
+        <View style={styles.topicList}>
+          {featuredTopics.map((topic) => {
+            const subject = subjects.find((item) => String(item.id) === String(topic.subjectId));
+            return (
+              <Pressable
+                key={topic.id}
+                style={styles.topicRow}
+                onPress={() => openKnowledgeMap(topic.id)}
+                accessibilityRole="button"
+              >
+                <View style={styles.topicCopy}>
+                  <Text style={styles.topicTitle} numberOfLines={1}>{topic.name}</Text>
+                  <Text style={styles.topicSubject}>{subject?.name ?? 'Curriculum'}</Text>
+                </View>
+                <ArrowRightIcon size={17} color={colors.primary} />
+              </Pressable>
+            );
+          })}
+          {featuredTopics.length === 0 ? (
+            <Text style={styles.emptyTopics}>Topics will appear here when the curriculum is available.</Text>
+          ) : null}
+        </View>
+      </ScrollView>
       <BottomNav active="Home" onSelect={navigateToTab(navigation, 'Home')} />
     </View>
   );
 }
 
 const createStyles = () => StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: colors.canvas,
-  },
-  body: {
-    flex: 1,
-  },
-  scroll: {
-    paddingHorizontal: 18,
-    gap: 14,
-  },
-
-  greeting: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  discoveryTitle: { fontFamily: fonts.extrabold, fontSize: 19, lineHeight: 24, color: colors.ink },
-  searchPrompt: {
-    minHeight: 52,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  searchPromptInput: { flex: 1, fontFamily: fonts.regular, fontSize: 14, color: colors.ink, paddingVertical: 0 },
-  greetingCopy: {
-    gap: 2,
-  },
-  eyebrow: {
-    fontFamily: fonts.semibold,
-    fontSize: 12,
-    lineHeight: 15,
-    color: colors.slate,
-  },
-  name: {
-    fontFamily: fonts.regular,
-    fontSize: 22,
-    lineHeight: 27,
-    color: colors.ink,
-  },
-  streak: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    height: 34,
-    paddingHorizontal: 11,
-    borderRadius: 999,
-    backgroundColor: colors.orangeSoft,
-  },
-  streakValue: {
-    fontFamily: fonts.extrabold,
-    fontSize: 13,
-    lineHeight: 16,
-    color: colors.orange,
-  },
-
-  hero: {
-    backgroundColor: lightColors.inkDeep,
-    borderRadius: 18,
-    padding: 17,
-    gap: 12,
-    ...shadow.frame,
-  },
-  heroHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  nextUp: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    height: 25,
-    paddingHorizontal: 10,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,216,77,0.1333)',
-  },
-  nextUpLabel: {
-    fontFamily: fonts.regular,
-    fontSize: 10,
-    lineHeight: 12,
-    color: colors.yellow,
-  },
-  lessonSub: {
-    fontFamily: fonts.medium,
-    fontSize: 12,
-    lineHeight: 15,
-    color: '#BEC6E9',
-  },
-  lesson: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  lessonIcon: {
-    width: 54,
-    height: 54,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: lightColors.blue,
-  },
-  lessonCopy: {
-    flex: 1,
-    gap: 4,
-  },
-  lessonSubject: {
-    fontFamily: fonts.regular,
-    fontSize: 10,
-    lineHeight: 12,
-    color: '#8FB8FF',
-  },
-  lessonTitle: {
-    fontFamily: fonts.extrabold,
-    fontSize: 17,
-    lineHeight: 21,
-    color: lightColors.surface,
-  },
-  progressRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  heroBar: {
-    flex: 1,
-  },
-  progressValue: {
-    fontFamily: fonts.regular,
-    fontSize: 12,
-    lineHeight: 15,
-    color: lightColors.surface,
-  },
-
-  stats: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  stat: {
-    flex: 1,
-    height: 85,
-    borderRadius: 12,
-    padding: 12,
-    gap: 5,
-  },
-  statValue: {
-    fontFamily: fonts.extrabold,
-    fontSize: 17,
-    lineHeight: 21,
-    color: colors.ink,
-  },
-  statLabel: {
-    fontFamily: fonts.semibold,
-    fontSize: 10,
-    lineHeight: 12,
-    color: colors.slate,
-  },
-
-  sectionHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  sectionTitle: {
-    fontFamily: fonts.regular,
-    fontSize: 17,
-    lineHeight: 21,
-    color: colors.ink,
-  },
-  sectionAction: {
-    fontFamily: fonts.bold,
-    fontSize: 12,
-    lineHeight: 15,
-    color: colors.primary,
-  },
-
-  subjectList: {
-    gap: 8,
-  },
-  subjectRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    height: 62,
-    paddingVertical: 9,
-    paddingHorizontal: 10,
-    borderRadius: 12,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  leadingIcon: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  subjectCopy: {
-    flex: 1,
-    gap: 2,
-  },
-  subjectName: {
-    fontFamily: fonts.regular,
-    fontSize: 13,
-    lineHeight: 16,
-    color: colors.ink,
-  },
-  subjectSubtitle: {
-    fontFamily: fonts.medium,
-    fontSize: 10,
-    lineHeight: 13,
-    color: colors.slate,
-  },
+  root: { flex: 1, backgroundColor: colors.canvas },
+  content: { paddingHorizontal: 18, gap: 16 },
+  greetingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  greetingCopy: { gap: 2 },
+  eyebrow: { fontFamily: fonts.medium, fontSize: 12, color: colors.slate },
+  name: { fontFamily: fonts.extrabold, fontSize: 22, lineHeight: 27, color: colors.ink },
+  streak: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, height: 32, borderRadius: 999, backgroundColor: colors.orangeSoft },
+  streakText: { fontFamily: fonts.semibold, fontSize: 10, color: colors.orange },
+  prompt: { fontFamily: fonts.bold, fontSize: 17, lineHeight: 22, color: colors.ink },
+  searchField: { height: 50, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 13, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  searchInput: { flex: 1, paddingVertical: 0, fontFamily: fonts.regular, fontSize: 13, color: colors.ink },
+  mapCard: { minHeight: 210, position: 'relative', overflow: 'hidden', padding: 18, borderRadius: 20, backgroundColor: colors.inkDeep, ...shadow.frame },
+  mapDecor: { position: 'absolute', width: 140, height: 120, right: -9, top: 12 },
+  mapLineOne: { position: 'absolute', width: 60, height: 2, right: 34, top: 43, backgroundColor: '#6874B8', transform: [{ rotate: '29deg' }] },
+  mapLineTwo: { position: 'absolute', width: 54, height: 2, right: 37, top: 70, backgroundColor: '#6874B8', transform: [{ rotate: '-31deg' }] },
+  mapNodeCenter: { position: 'absolute', width: 20, height: 20, right: 58, top: 48, borderRadius: 10, backgroundColor: colors.yellow, borderWidth: 3, borderColor: '#3B4478' },
+  mapNodeOne: { position: 'absolute', width: 13, height: 13, right: 24, top: 24, borderRadius: 7, backgroundColor: '#8FB8FF', borderWidth: 2, borderColor: '#3B4478' },
+  mapNodeTwo: { position: 'absolute', width: 13, height: 13, right: 22, top: 80, borderRadius: 7, backgroundColor: '#9CE8D8', borderWidth: 2, borderColor: '#3B4478' },
+  mapEyebrow: { fontFamily: fonts.bold, fontSize: 9, letterSpacing: 0.9, color: colors.yellow },
+  mapTitle: { marginTop: 40, fontFamily: fonts.extrabold, fontSize: 23, lineHeight: 28, color: colors.surface },
+  mapDescription: { maxWidth: 280, marginTop: 5, fontFamily: fonts.regular, fontSize: 12, lineHeight: 18, color: '#D5DBF3' },
+  mapAction: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 13, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: colors.primary },
+  mapActionText: { fontFamily: fonts.semibold, fontSize: 11, color: colors.onPrimary },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
+  sectionTitle: { fontFamily: fonts.bold, fontSize: 15, color: colors.ink },
+  seeAll: { fontFamily: fonts.semibold, fontSize: 11, color: colors.primary },
+  subjectGrid: { flexDirection: 'row', gap: 9 },
+  subjectCard: { flex: 1, minWidth: 0, padding: 10, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  subjectIcon: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 11, marginBottom: 8 },
+  subjectName: { fontFamily: fonts.semibold, fontSize: 11, color: colors.ink },
+  subjectMeta: { marginTop: 3, fontFamily: fonts.regular, fontSize: 9, color: colors.slate },
+  topicList: { gap: 7 },
+  topicRow: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  topicCopy: { flex: 1, gap: 3 },
+  topicTitle: { fontFamily: fonts.semibold, fontSize: 12, color: colors.ink },
+  topicSubject: { fontFamily: fonts.regular, fontSize: 10, color: colors.slate },
+  emptyTopics: { padding: 14, fontFamily: fonts.regular, fontSize: 11, lineHeight: 16, color: colors.slate },
 });

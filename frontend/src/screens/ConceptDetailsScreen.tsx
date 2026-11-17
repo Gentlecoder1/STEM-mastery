@@ -108,6 +108,18 @@ export default function ConceptDetailsScreen({ navigation, route }: RootScreenPr
           </View>
         </View>
 
+        <Pressable
+          style={styles.mapButton}
+          onPress={() => navigation.navigate('KnowledgeMap', {
+            conceptId: concept.id,
+            topicId: route.params.contextTopicId ?? concept.topicIds[0],
+          })}
+          accessibilityRole="button"
+        >
+          <Text style={styles.mapButtonTitle}>View on Knowledge Map</Text>
+          <ArrowRightIcon size={16} color={colors.primary} />
+        </Pressable>
+
         <View style={styles.contextList}>
           {concept.topicIds.map((topicId) => {
             const topic = topics.find((item) => item.id === topicId);
@@ -229,6 +241,18 @@ const createStyles = () => StyleSheet.create({
   heroStatus: { fontFamily: fonts.bold, fontSize: 10, lineHeight: 12 },
   heroTitle: { fontFamily: fonts.extrabold, fontSize: 17, lineHeight: 21, color: colors.ink },
   heroMeta: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 15, color: colors.slate },
+  mapButton: {
+    minHeight: 46,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.blueBorder,
+    backgroundColor: colors.blueSoft,
+  },
+  mapButtonTitle: { fontFamily: fonts.semibold, fontSize: 12, color: colors.primary },
   contextList: { gap: 3 },
   contextLine: { fontFamily: fonts.medium, fontSize: 12, lineHeight: 16, color: colors.slate },
 

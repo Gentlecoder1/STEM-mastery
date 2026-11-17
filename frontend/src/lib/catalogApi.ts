@@ -6,6 +6,7 @@ import type {
   ApiLearningContent,
   ApiSubject,
   ApiTopic,
+  KnowledgeMapResponse,
   TopicPacket,
 } from '../types/catalog';
 
@@ -28,6 +29,44 @@ export function fetchTopicPacket(topicId: string): Promise<TopicPacket> {
 export function searchConcepts(query: string): Promise<ApiConceptSearchResult[]> {
   return apiFetch<ApiConceptSearchResult[]>(
     `/api/v1/concepts/search?q=${encodeURIComponent(query)}&limit=20`,
+  );
+}
+
+export function fetchTopicKnowledgeMap(
+  topicId: string,
+  options: { focusId?: string; depth?: number; includeConnectedTopics?: boolean } = {},
+): Promise<KnowledgeMapResponse> {
+  const params = new URLSearchParams();
+  if (options.focusId) params.set('focus_id', options.focusId);
+  if (options.depth !== undefined) params.set('depth', String(options.depth));
+  if (options.includeConnectedTopics !== undefined) {
+    params.set('include_connected_topics', String(options.includeConnectedTopics));
+  }
+  const query = params.toString();
+  return apiFetch<KnowledgeMapResponse>(
+    `/api/v1/knowledge-map/topics/${encodeURIComponent(topicId)}${query ? `?${query}` : ''}`,
+  );
+}
+
+export function fetchConceptKnowledgeMap(
+  conceptId: string,
+  options: { topicId?: string; depth?: number; includeConnectedTopics?: boolean } = {},
+): Promise<KnowledgeMapResponse> {
+  const params = new URLSearchParams();
+  if (options.topicId) params.set('topic_id', options.topicId);
+  if (options.depth !== undefined) params.set('depth', String(options.depth));
+  if (options.includeConnectedTopics !== undefined) {
+    params.set('include_connected_topics', String(options.includeConnectedTopics));
+  }
+  const query = params.toString();
+  return apiFetch<KnowledgeMapResponse>(
+    `/api/v1/knowledge-map/concepts/${encodeURIComponent(conceptId)}${query ? `?${query}` : ''}`,
+  );
+}
+
+export function searchKnowledgeMapConcepts(query: string): Promise<ApiConceptSearchResult[]> {
+  return apiFetch<ApiConceptSearchResult[]>(
+    `/api/v1/knowledge-map/search?q=${encodeURIComponent(query)}&limit=20`,
   );
 }
 

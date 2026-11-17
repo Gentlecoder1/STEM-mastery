@@ -9,6 +9,7 @@ export type RootStackParamList = {
   Onboarding: undefined;
   PlacementTest: undefined;
   Home: undefined;
+  KnowledgeMap: { topicId?: string; conceptId?: string } | undefined;
   Subjects: undefined;
   SubjectDashboard: { subjectId: SubjectId };
   TopicOverview: { topicId?: string } | undefined;

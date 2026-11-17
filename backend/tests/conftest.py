@@ -117,6 +117,59 @@ class FakeGraphRepository:
             }
         ][:limit]
 
+    async def knowledge_map_topic(
+        self,
+        topic_id: str,
+        focus_id: str | None = None,
+        depth: int = 1,
+        include_connected_topics: bool = False,
+    ) -> dict | None:
+        if topic_id != "topic-speed-velocity":
+            return None
+        focus = focus_id or "concept-displacement"
+        return {
+            "focusId": focus,
+            "subjectId": "physics",
+            "topicId": topic_id,
+            "nodes": [
+                {
+                    "id": "concept-displacement",
+                    "name": "Distance and displacement",
+                    "type": "concept",
+                    "subjectIds": ["physics"],
+                    "topicIds": [topic_id],
+                    "conceptOrder": 1,
+                    "contentPreview": None,
+                    "hasLesson": True,
+                    "prerequisiteCount": None,
+                    "dependentCount": None,
+                }
+            ],
+            "edges": [],
+            "mappingStatus": "pending",
+            "mappingMessage": (
+                "No verified Concept–Ontology mapping is available for this topic yet."
+            ),
+            "depth": depth,
+            "truncated": False,
+        }
+
+    async def knowledge_map_concept(
+        self,
+        concept_id: str,
+        depth: int = 1,
+        topic_id: str | None = None,
+        include_connected_topics: bool = True,
+    ) -> dict | None:
+        if concept_id != "concept-velocity":
+            return None
+        return await self.knowledge_map_topic(
+            topic_id or "topic-speed-velocity",
+            focus_id=concept_id,
+            depth=depth,
+            include_connected_topics=include_connected_topics,
+        )
+
     async def list_concepts(self, topic_id: str) -> list[dict]:
         if topic_id != "topic-speed-velocity":
             return []

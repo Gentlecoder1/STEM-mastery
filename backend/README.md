@@ -108,9 +108,23 @@ All routes are mounted under `STEM_API_PREFIX` (default `/api/v1`).
 | GET | `/concepts/{id}` | Concept metadata and graph relationships |
 | GET | `/concepts/{id}/lesson` | Structured V3 lesson (practice questions remain separate) |
 | GET | `/concepts/{id}/questions` | Questions for a concept (answers withheld) |
+| GET | `/knowledge-map/topics/{id}` | Topic concepts and verified prerequisite paths |
+| GET | `/knowledge-map/concepts/{id}` | Bounded concept-centered prerequisite neighborhood |
+| GET | `/knowledge-map/search?q=...` | Concept search for Knowledge Map navigation |
 | GET | `/graph/schema` | Dev-only labels/relationships/property keys |
 
 Correct answers are never returned to clients; grading is server-side.
+
+Knowledge Map prerequisite edges are derived only through explicit
+`(:Concept)-[:ONTOLOGY_MAPS_TO {reviewStatus: "VERIFIED_MAPPING_V1"}]->(:OntologyConcept)` mappings and
+`(:OntologyConcept)-[:PREREQUISITE_OF]->(:OntologyConcept)` relationships.
+Every mapped ontology node resolves to its linked canonical `Concept` node or
+nodes; names and labels are never used as mapping fallbacks. Unmapped ontology
+nodes may appear as `ontology_only` graph nodes and never link to app content.
+Edge direction is prerequisite concept → dependent concept. Concepts without
+verified mappings remain visible, and the response marks incomplete coverage
+as `pending` or `partial`. Traversal depth is limited to three and responses
+are bounded to 40 nodes.
 
 Responses larger than 256 bytes are gzip-compressed by the API middleware. The
 mobile topic packet endpoint selects only the requested topic, its concepts,

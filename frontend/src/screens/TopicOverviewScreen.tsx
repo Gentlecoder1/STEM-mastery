@@ -89,6 +89,18 @@ export default function TopicOverviewScreen({ navigation, route }: RootScreenPro
           <ProgressBar progress={quizScore} track={colors.surface} fill={colors.blue} style={styles.heroBar} />
         </View>
 
+        <Pressable
+          style={styles.mapButton}
+          onPress={() => navigation.navigate('KnowledgeMap', { topicId })}
+          accessibilityRole="button"
+        >
+          <View style={styles.mapButtonCopy}>
+            <Text style={styles.mapButtonTitle}>Explore this topic on the Knowledge Map</Text>
+            <Text style={styles.mapButtonSubtitle}>See concepts and verified prerequisite paths</Text>
+          </View>
+          <ArrowRightIcon size={17} color={colors.primary} />
+        </Pressable>
+
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Concepts</Text>
         </View>
@@ -186,6 +198,21 @@ const createStyles = () =>
     heroTitle: { fontFamily: fonts.extrabold, fontSize: 17, lineHeight: 21, color: colors.ink },
     meta: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 15, color: colors.slate },
     heroBar: { width: '100%', height: 12 },
+    mapButton: {
+      minHeight: 62,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingHorizontal: 13,
+      paddingVertical: 10,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: colors.blueBorder,
+      backgroundColor: colors.blueSoft,
+    },
+    mapButtonCopy: { flex: 1, gap: 3 },
+    mapButtonTitle: { fontFamily: fonts.semibold, fontSize: 12, color: colors.primary },
+    mapButtonSubtitle: { fontFamily: fonts.regular, fontSize: 10, color: colors.slate },
     sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     sectionTitle: { fontFamily: fonts.regular, fontSize: 17, lineHeight: 21, color: colors.ink },
     conceptList: { gap: 9 },

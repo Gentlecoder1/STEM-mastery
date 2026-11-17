@@ -30,6 +30,7 @@ import VerifyEmailScreen from './src/screens/VerifyEmailScreen';
 import OnboardingFlow from './src/screens/OnboardingFlow';
 import PlacementTestScreen from './src/screens/PlacementTestScreen';
 import HomeDashboardScreen from './src/screens/HomeDashboardScreen';
+import KnowledgeMapScreen from './src/screens/KnowledgeMapScreen';
 import SubjectsScreen from './src/screens/SubjectsScreen';
 import SubjectDashboardScreen from './src/screens/SubjectDashboardScreen';
 import TopicOverviewScreen from './src/screens/TopicOverviewScreen';
@@ -118,6 +119,7 @@ function AppShell() {
               <Stack.Screen name="Onboarding" component={OnboardingFlow} />
               <Stack.Screen name="PlacementTest" component={PlacementTestScreen} />
               <Stack.Screen name="Home" component={HomeDashboardScreen} />
+              <Stack.Screen name="KnowledgeMap" component={KnowledgeMapScreen} />
               <Stack.Screen name="Subjects" component={SubjectsScreen} />
               <Stack.Screen name="SubjectDashboard" component={SubjectDashboardScreen} />
               <Stack.Screen name="TopicOverview" component={TopicOverviewScreen} />

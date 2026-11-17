@@ -112,6 +112,34 @@ export type ApiConceptSearchResult = {
   shortDescription: string | null;
   contexts: ApiConceptContext[];
 };
+export type KnowledgeMapNode = {
+  id: string;
+  name: string;
+  type: 'concept' | 'ontology_only';
+  subjectIds: string[];
+  topicIds: string[];
+  conceptOrder: number | null;
+  contentPreview: string | null;
+  hasLesson: boolean;
+  prerequisiteCount: number | null;
+  dependentCount: number | null;
+};
+export type KnowledgeMapEdge = {
+  source: string;
+  target: string;
+  type: 'PREREQUISITE_OF';
+};
+export type KnowledgeMapResponse = {
+  focusId: string | null;
+  subjectId: string | null;
+  topicId: string | null;
+  nodes: KnowledgeMapNode[];
+  edges: KnowledgeMapEdge[];
+  mappingStatus: 'pending' | 'partial' | 'ready';
+  mappingMessage: string | null;
+  depth: number;
+  truncated: boolean;
+};
 export type ApiLearningContent = {
   id: string;
   conceptId: string;

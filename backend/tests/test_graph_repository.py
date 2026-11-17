@@ -1,9 +1,15 @@
 import asyncio
 from typing import Any
 
+from app.models.knowledge_map import KnowledgeMapResponse
 from app.repositories.graph import (
     _CONCEPT_EDGES,
     _CONCEPTS,
+    _KNOWLEDGE_MAP_DIRECT_ONTOLOGY_IDS,
+    _KNOWLEDGE_MAP_MAPPING_COUNTS,
+    _KNOWLEDGE_MAP_NODES,
+    _KNOWLEDGE_MAP_ONTOLOGY_CONCEPT_MAPPINGS,
+    _KNOWLEDGE_MAP_TOPIC,
     _PREREQUISITES,
     _SEARCH_CONCEPTS,
     _STRUCTURED_LESSON,
@@ -99,6 +105,284 @@ def test_search_concepts_uses_distinct_search_parameter_and_filters_empty_contex
     ]
     assert repository.queries == [_SEARCH_CONCEPTS]
     assert repository.params == [{"search_term": "exponent", "limit": 20}]
+
+
+def test_knowledge_map_keeps_prerequisite_paths_pending_without_explicit_mapping() -> None:
+    repository = StaticGraphRepository(
+        {
+            _KNOWLEDGE_MAP_TOPIC: [
+                {
+                    "id": "topic-vectors",
+                    "subjectId": "physics",
+                    "concepts": [{"id": "concept-vector", "name": "Vector", "order": 1}],
+                }
+            ],
+            _KNOWLEDGE_MAP_NODES: [
+                {
+                    "id": "concept-vector",
+                    "name": "Vector",
+                    "contexts": [
+                        {
+                            "subjectId": "physics",
+                            "topicId": "topic-vectors",
+                            "conceptOrder": 1,
+                        }
+                    ],
+                    "hasLesson": True,
+                }
+            ],
+            _KNOWLEDGE_MAP_MAPPING_COUNTS: [
+                {"id": "concept-vector", "mappingCount": 0}
+            ],
+        }
+    )
+
+    result = asyncio.run(repository.knowledge_map_topic("topic-vectors"))
+
+    assert result is not None
+    assert result["mappingStatus"] == "pending"
+    assert result["nodes"][0]["id"] == "concept-vector"
+    assert result["edges"] == []
+    assert "verified Concept" in result["mappingMessage"]
+    assert _KNOWLEDGE_MAP_DIRECT_ONTOLOGY_IDS not in repository.queries
+
+
+def test_knowledge_map_queries_only_verified_ontology_mappings() -> None:
+    assert "ONTOLOGY_MAPS_TO" in _KNOWLEDGE_MAP_MAPPING_COUNTS
+    assert "reviewStatus: 'VERIFIED_MAPPING_V1'" in _KNOWLEDGE_MAP_MAPPING_COUNTS
+    assert "ONTOLOGY_MAPS_TO" in _KNOWLEDGE_MAP_DIRECT_ONTOLOGY_IDS
+    assert "ONTOLOGY_EQUIVALENT" not in _KNOWLEDGE_MAP_DIRECT_ONTOLOGY_IDS
+
+
+def test_knowledge_map_maps_verified_endpoints_and_preserves_edge_direction() -> None:
+    repository = StaticGraphRepository(
+        {
+            _KNOWLEDGE_MAP_TOPIC: [
+                {
+                    "id": "topic-motion",
+                    "subjectId": "physics",
+                    "concepts": [
+                        {"id": "concept-distance", "name": "Distance", "order": 1},
+                        {"id": "concept-speed", "name": "Speed", "order": 2},
+                    ],
+                }
+            ],
+            _KNOWLEDGE_MAP_NODES: [
+                {
+                    "id": concept_id,
+                    "name": name,
+                    "contexts": [
+                        {
+                            "subjectId": "physics",
+                            "topicId": "topic-motion",
+                            "conceptOrder": order,
+                        }
+                    ],
+                    "hasLesson": True,
+                }
+                for concept_id, name, order in (
+                    ("concept-distance", "Distance", 1),
+                    ("concept-speed", "Speed", 2),
+                )
+            ],
+            _KNOWLEDGE_MAP_MAPPING_COUNTS: [
+                {"id": "concept-distance", "mappingCount": 1},
+                {"id": "concept-speed", "mappingCount": 1},
+            ],
+            _KNOWLEDGE_MAP_DIRECT_ONTOLOGY_IDS: [
+                {
+                    "focusId": "concept-speed",
+                    "focusOntologyId": "ontology-speed",
+                    "focusOntologyName": "Speed",
+                    "prerequisites": [{"id": "ontology-distance", "name": "Distance"}],
+                    "dependents": [],
+                }
+            ],
+            _KNOWLEDGE_MAP_ONTOLOGY_CONCEPT_MAPPINGS: [
+                {
+                    "ontologyId": "ontology-speed",
+                    "name": "Speed",
+                    "conceptIds": ["concept-speed"],
+                },
+                {
+                    "ontologyId": "ontology-distance",
+                    "name": "Distance",
+                    "conceptIds": ["concept-distance"],
+                },
+            ],
+        }
+    )
+
+    result = asyncio.run(
+        repository.knowledge_map_topic(
+            "topic-motion",
+            focus_id="concept-speed",
+            include_connected_topics=True,
+        )
+    )
+
+    assert result is not None
+    assert result["mappingStatus"] == "ready"
+    assert result["edges"] == [
+        {
+            "source": "concept-distance",
+            "target": "concept-speed",
+            "type": "PREREQUISITE_OF",
+        }
+    ]
+
+
+def test_knowledge_map_supports_multiple_verified_canonical_mappings() -> None:
+    repository = StaticGraphRepository(
+        {
+            _KNOWLEDGE_MAP_TOPIC: [
+                {
+                    "id": "topic-motion",
+                    "subjectId": "physics",
+                    "concepts": [
+                        {"id": "concept-distance", "name": "Distance", "order": 1},
+                        {"id": "concept-distance-alias", "name": "Distance variant", "order": 2},
+                        {"id": "concept-speed", "name": "Speed", "order": 3},
+                    ],
+                }
+            ],
+            _KNOWLEDGE_MAP_NODES: [
+                {
+                    "id": concept_id,
+                    "name": name,
+                    "contexts": [
+                        {
+                            "subjectId": "physics",
+                            "topicId": "topic-motion",
+                            "conceptOrder": order,
+                        }
+                    ],
+                    "hasLesson": True,
+                }
+                for concept_id, name, order in (
+                    ("concept-distance", "Distance", 1),
+                    ("concept-distance-alias", "Distance variant", 2),
+                    ("concept-speed", "Speed", 3),
+                )
+            ],
+            _KNOWLEDGE_MAP_MAPPING_COUNTS: [
+                {"id": "concept-distance", "mappingCount": 1},
+                {"id": "concept-distance-alias", "mappingCount": 1},
+                {"id": "concept-speed", "mappingCount": 1},
+            ],
+            _KNOWLEDGE_MAP_DIRECT_ONTOLOGY_IDS: [
+                {
+                    "focusId": "concept-speed",
+                    "focusOntologyId": "ontology-speed",
+                    "focusOntologyName": "Speed",
+                    "prerequisites": [{"id": "ontology-distance", "name": "Distance"}],
+                    "dependents": [],
+                }
+            ],
+            _KNOWLEDGE_MAP_ONTOLOGY_CONCEPT_MAPPINGS: [
+                {
+                    "ontologyId": "ontology-speed",
+                    "name": "Speed",
+                    "conceptIds": ["concept-speed"],
+                },
+                {
+                    "ontologyId": "ontology-distance",
+                    "name": "Distance",
+                    "conceptIds": ["concept-distance", "concept-distance-alias"],
+                }
+            ],
+        }
+    )
+
+    result = asyncio.run(
+        repository.knowledge_map_topic(
+            "topic-motion",
+            focus_id="concept-speed",
+            include_connected_topics=True,
+        )
+    )
+
+    assert result is not None
+    assert result["mappingStatus"] == "ready"
+    assert {(edge["source"], edge["target"]) for edge in result["edges"]} == {
+        ("concept-distance", "concept-speed"),
+        ("concept-distance-alias", "concept-speed"),
+    }
+
+
+def test_knowledge_map_returns_unmapped_ontology_nodes_without_app_content() -> None:
+    repository = StaticGraphRepository(
+        {
+            _KNOWLEDGE_MAP_TOPIC: [
+                {
+                    "id": "topic-motion",
+                    "subjectId": "physics",
+                    "concepts": [{"id": "concept-speed", "name": "Speed", "order": 1}],
+                }
+            ],
+            _KNOWLEDGE_MAP_NODES: [
+                {
+                    "id": "concept-speed",
+                    "name": "Speed",
+                    "contexts": [
+                        {
+                            "subjectId": "physics",
+                            "topicId": "topic-motion",
+                            "conceptOrder": 1,
+                        }
+                    ],
+                    "hasLesson": True,
+                }
+            ],
+            _KNOWLEDGE_MAP_MAPPING_COUNTS: [
+                {"id": "concept-speed", "mappingCount": 1},
+            ],
+            _KNOWLEDGE_MAP_DIRECT_ONTOLOGY_IDS: [
+                {
+                    "focusId": "concept-speed",
+                    "focusOntologyId": "ontology-speed",
+                    "focusOntologyName": "Speed",
+                    "prerequisites": [
+                        {"id": "ontology-unmapped", "name": "Ontology-only topic"}
+                    ],
+                    "dependents": [],
+                }
+            ],
+            _KNOWLEDGE_MAP_ONTOLOGY_CONCEPT_MAPPINGS: [
+                {
+                    "ontologyId": "ontology-speed",
+                    "name": "Speed",
+                    "conceptIds": ["concept-speed"],
+                },
+                {
+                    "ontologyId": "ontology-unmapped",
+                    "name": "Ontology-only topic",
+                    "conceptIds": [],
+                },
+            ],
+        }
+    )
+
+    result = asyncio.run(
+        repository.knowledge_map_topic("topic-motion", focus_id="concept-speed")
+    )
+
+    assert result is not None
+    ontology_node = next(node for node in result["nodes"] if node["type"] == "ontology_only")
+    assert ontology_node["id"] == "ontology:ontology-unmapped"
+    assert ontology_node["name"] == "Ontology-only topic"
+    assert ontology_node["hasLesson"] is False
+    assert result["edges"] == [
+        {
+            "source": "ontology:ontology-unmapped",
+            "target": "concept-speed",
+            "type": "PREREQUISITE_OF",
+        }
+    ]
+    response = KnowledgeMapResponse(**result)
+    assert next(
+        node for node in response.nodes if node.id == "ontology:ontology-unmapped"
+    ).type == "ontology_only"
 
 
 def test_structured_lesson_decodes_content_and_keeps_graph_relationships_separate() -> None:

@@ -41,6 +41,32 @@ def test_search_concepts_requires_two_characters(client: TestClient) -> None:
     assert response.status_code == 422
 
 
+def test_knowledge_map_reports_pending_mappings_without_edges(client: TestClient) -> None:
+    response = client.get("/api/v1/knowledge-map/topics/topic-speed-velocity")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["mappingStatus"] == "pending"
+    assert body["edges"] == []
+    assert body["nodes"][0]["id"] == "concept-displacement"
+    assert "verified Concept" in body["mappingMessage"]
+
+
+def test_knowledge_map_depth_is_bounded(client: TestClient) -> None:
+    response = client.get(
+        "/api/v1/knowledge-map/topics/topic-speed-velocity",
+        params={"depth": 4},
+    )
+    assert response.status_code == 422
+
+
+def test_knowledge_map_search_returns_catalog_contexts(client: TestClient) -> None:
+    response = client.get("/api/v1/knowledge-map/search", params={"q": "vector"})
+
+    assert response.status_code == 200
+    assert response.json()[0]["id"] == "concept-vector"
+
+
 def test_list_topics(client: TestClient) -> None:
     response = client.get("/api/v1/subjects/physics/topics")
     assert response.status_code == 200

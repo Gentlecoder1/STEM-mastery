@@ -145,11 +145,134 @@ RETURN c.id AS id, coalesce(c.name, c.prefLabel, c.id) AS name,
 ORDER BY tr.order ASC, cr.order ASC
 """
 
+_KNOWLEDGE_MAP_TOPIC = """
+MATCH (t:Topic {id: $topic_id})
+OPTIONAL MATCH (s:Subject)-[:HAS_TOPIC]->(t)
+OPTIONAL MATCH (t)-[r:HAS_CONCEPT]->(c:Concept)
+WITH t, s, r, c
+ORDER BY r.order ASC
+WITH t,
+     collect(DISTINCT CASE WHEN c IS NOT NULL THEN {
+         id: c.id,
+         name: coalesce(c.name, c.prefLabel, c.id),
+         order: r.order
+     } END) AS concepts,
+     collect(DISTINCT s.id) AS subjectIds
+RETURN t.id AS id, coalesce(t.name, t.prefLabel, t.id) AS name,
+       head(subjectIds) AS subjectId, concepts
+"""
+
+_KNOWLEDGE_MAP_NODES = """
+MATCH (c:Concept)
+WHERE c.id IN $concept_ids
+OPTIONAL MATCH (t:Topic)-[cr:HAS_CONCEPT]->(c)
+OPTIONAL MATCH (s:Subject)-[:HAS_TOPIC]->(t)
+WITH c, collect(DISTINCT CASE WHEN s IS NOT NULL AND t IS NOT NULL THEN {
+    subjectId: s.id,
+    topicId: t.id,
+    conceptOrder: cr.order
+} END) AS contexts
+OPTIONAL MATCH (c)-[:HAS_CONTENT]->(lc:LearningContent)
+WITH c, contexts, lc
+ORDER BY coalesce(lc.chapterOrder, lc.order, 0)
+WITH c, contexts, head(collect(lc)) AS firstContent, count(lc) > 0 AS hasLesson
+RETURN c.id AS id, coalesce(c.name, c.prefLabel, c.id) AS name,
+       contexts, substring(firstContent.contentText, 0, 180) AS contentPreview, hasLesson
+"""
+
+_KNOWLEDGE_MAP_MAPPING_COUNTS = """
+UNWIND $concept_ids AS concept_id
+MATCH (c:Concept {id: concept_id})
+OPTIONAL MATCH (c)
+             -[:ONTOLOGY_MAPS_TO {reviewStatus: 'VERIFIED_MAPPING_V1'}]->(o:OntologyConcept)
+RETURN c.id AS id, count(DISTINCT o) AS mappingCount
+"""
+
+# Ontology element IDs remain backend-only except for opaque IDs on ontology-only
+# map nodes, which cannot navigate into app content.
+_KNOWLEDGE_MAP_DIRECT_ONTOLOGY_IDS = """
+MATCH (focus:Concept)
+      -[:ONTOLOGY_MAPS_TO {reviewStatus: 'VERIFIED_MAPPING_V1'}]->(focusOntology:OntologyConcept)
+WHERE focus.id IN $concept_ids
+OPTIONAL MATCH (prerequisiteOntology:OntologyConcept)-[:PREREQUISITE_OF]->(focusOntology)
+OPTIONAL MATCH (focusOntology)-[:PREREQUISITE_OF]->(dependentOntology:OntologyConcept)
+RETURN focus.id AS focusId,
+       elementId(focusOntology) AS focusOntologyId,
+       collect(DISTINCT CASE WHEN prerequisiteOntology IS NOT NULL THEN {
+           id: elementId(prerequisiteOntology),
+           name: coalesce(prerequisiteOntology.name, prerequisiteOntology.prefLabel)
+       } END) AS prerequisites,
+       collect(DISTINCT CASE WHEN dependentOntology IS NOT NULL THEN {
+           id: elementId(dependentOntology),
+           name: coalesce(dependentOntology.name, dependentOntology.prefLabel)
+       } END) AS dependents
+"""
+
+_KNOWLEDGE_MAP_ONTOLOGY_CONCEPT_MAPPINGS = """
+UNWIND $ontology_ids AS ontology_id
+MATCH (o:OntologyConcept)
+WHERE elementId(o) = ontology_id
+OPTIONAL MATCH (c:Concept)
+             -[:ONTOLOGY_MAPS_TO {reviewStatus: 'VERIFIED_MAPPING_V1'}]->(o)
+RETURN ontology_id AS ontologyId,
+       coalesce(o.name, o.prefLabel, elementId(o)) AS name,
+       collect(DISTINCT c.id) AS conceptIds
+"""
+
+_STRUCTURED_LESSON = """
+MATCH (c:Concept {id: $concept_id})
+OPTIONAL MATCH (c)-[:BELONGS_TO_SUBJECT]->(s:Subject)
+OPTIONAL MATCH (t:Topic)-[:HAS_CONCEPT]->(c)
+OPTIONAL MATCH (p:Concept)-[:PREREQUISITE_OF]->(c)
+OPTIONAL MATCH (r:Concept)-[:RELATED_TO]-(c)
+OPTIONAL MATCH (lc:LearningContent)-[:HAS_CONTENT]->(c)
+WITH c, s, t, collect(DISTINCT CASE WHEN p IS NOT NULL THEN {
+    id: p.id,
+    name: coalesce(p.name, p.prefLabel, p.id)
+} END) AS prerequisites,
+collect(DISTINCT CASE WHEN r IS NOT NULL THEN {
+    id: r.id,
+    name: coalesce(r.name, r.prefLabel, r.id)
+} END) AS relatedConcepts,
+collect(DISTINCT CASE WHEN lc IS NOT NULL THEN {
+    id: lc.contentID,
+    type: lc.type,
+    title: lc.title,
+    contentText: lc.contentText,
+    contentData: lc.contentData,
+    chapterOrder: lc.chapterOrder,
+    order: lc.order
+} END) AS lessons,
+collect(DISTINCT CASE WHEN s IS NOT NULL AND t IS NOT NULL THEN {
+    subjectId: s.id,
+    topicId: t.id,
+    topicOrder: t.order
+} END) AS contexts
+RETURN c.id AS id,
+       coalesce(c.name, c.prefLabel, c.id) AS title,
+       s.id AS subjectId,
+       t.id AS topicId,
+       coalesce(c.conceptOrder, c.order, 0) AS conceptOrder,
+       coalesce(c.estimatedMinutes, 0) AS estimatedMinutes,
+       prerequisites,
+       relatedConcepts,
+       lessons,
+       contexts
+LIMIT 1
+"""
+
+_STRUCTURED_QUESTION_COUNT = """
+MATCH (q:Question)
+WHERE (q)-[:ASSESSES_CONCEPT]->(:Concept {id: $concept_id})
+   OR (q)-[:EXPECTS_CONCEPT]->(:Concept {id: $concept_id})
+RETURN count(DISTINCT q) AS questionCount
+"""
+
 _SEARCH_CONCEPTS = """
 MATCH (c:Concept)
-WHERE toLower(coalesce(c.name, '')) CONTAINS $query
-   OR toLower(coalesce(c.prefLabel, '')) CONTAINS $query
-   OR toLower(coalesce(c.id, '')) CONTAINS $query
+WHERE toLower(coalesce(c.name, '')) CONTAINS $search_term
+   OR toLower(coalesce(c.prefLabel, '')) CONTAINS $search_term
+   OR toLower(coalesce(c.id, '')) CONTAINS $search_term
 OPTIONAL MATCH (s:Subject)-[:HAS_TOPIC]->(t:Topic)-[:HAS_CONCEPT]->(c)
 WITH c, collect(DISTINCT CASE WHEN s IS NULL OR t IS NULL THEN null ELSE {
     subjectId: s.id,
@@ -169,6 +292,8 @@ MATCH (q:Question)-[:ASSESSES_CONCEPT]->(c)
 RETURN DISTINCT q.questionID AS id, q.type AS type, q.questionText AS prompt,
        q.difficultyLevel AS difficultyLevel, q.options AS options, c.id AS conceptId
 """
+
+_KNOWLEDGE_MAP_MAX_NODES = 40
 
 
 def _as_list(value: Any) -> list[Any]:
@@ -239,6 +364,19 @@ def _question_answer(row: dict[str, Any]) -> dict[str, Any]:
 def _normalize_match_text(value: Any) -> str:
     """Lowercase + collapse whitespace for conservative entity matching."""
     return " ".join(str(value or "").split()).strip().lower()
+
+
+def _decode_json_payload(value: Any) -> Any:
+    if value in (None, ""):
+        return None
+    if isinstance(value, (dict, list, int, float, bool)):
+        return value
+    if not isinstance(value, str):
+        return value
+    try:
+        return json.loads(value)
+    except json.JSONDecodeError:
+        return value
 
 
 # Exact normalized matches on identity fields only; alias matching is done in
@@ -337,10 +475,393 @@ class GraphRepository:
         return concepts
 
     async def search_concepts(self, query: str, limit: int = 20) -> list[dict[str, Any]]:
-        rows = await self._read(_SEARCH_CONCEPTS, query=query.strip().lower(), limit=limit)
+        rows = await self._read(_SEARCH_CONCEPTS, search_term=query.strip().lower(), limit=limit)
         for row in rows:
             row["contexts"] = [context for context in (row.get("contexts") or []) if context]
         return rows
+
+    async def _knowledge_map_nodes(self, concept_ids: list[str]) -> list[dict[str, Any]]:
+        if not concept_ids:
+            return []
+        rows = await self._read(_KNOWLEDGE_MAP_NODES, concept_ids=concept_ids)
+        nodes: list[dict[str, Any]] = []
+        for row in rows:
+            contexts = [context for context in (row.get("contexts") or []) if context]
+            nodes.append(
+                {
+                    "id": row["id"],
+                    "name": row.get("name") or row["id"],
+                    "type": "concept",
+                    "subjectIds": list(
+                        dict.fromkeys(
+                            context.get("subjectId")
+                            for context in contexts
+                            if context.get("subjectId")
+                        )
+                    ),
+                    "topicIds": list(
+                        dict.fromkeys(
+                            context.get("topicId")
+                            for context in contexts
+                            if context.get("topicId")
+                        )
+                    ),
+                    "conceptOrder": contexts[0].get("conceptOrder") if contexts else None,
+                    "contentPreview": row.get("contentPreview"),
+                    "hasLesson": bool(row.get("hasLesson")),
+                    "prerequisiteCount": None,
+                    "dependentCount": None,
+                }
+            )
+        return nodes
+
+    async def _knowledge_map_mapping_counts(self, concept_ids: list[str]) -> dict[str, int]:
+        if not concept_ids:
+            return {}
+        rows = await self._read(
+            _KNOWLEDGE_MAP_MAPPING_COUNTS,
+            concept_ids=list(dict.fromkeys(concept_ids)),
+        )
+        return {row["id"]: int(row.get("mappingCount") or 0) for row in rows}
+
+    async def _knowledge_map_neighborhood(
+        self,
+        focus_ids: list[str],
+        depth: int,
+        allowed_concept_ids: set[str] | None = None,
+        reserved_ids: set[str] | None = None,
+    ) -> tuple[list[dict[str, str]], set[str], str, bool, dict[str, dict[str, Any]]]:
+        visible_ids = set(focus_ids) | (reserved_ids or set())
+        frontier = list(dict.fromkeys(focus_ids))
+        visited: set[str] = set()
+        edges: dict[tuple[str, str], dict[str, str]] = {}
+        ontology_nodes: dict[str, dict[str, Any]] = {}
+        incomplete_mapping = False
+        mapped_any = False
+        mapping_exists = False
+        truncated = False
+
+        for _level in range(depth):
+            current = [concept_id for concept_id in frontier if concept_id not in visited]
+            if not current:
+                break
+            visited.update(current)
+
+            focus_mapping_counts = await self._knowledge_map_mapping_counts(current)
+            mapping_exists = mapping_exists or any(
+                count > 0 for count in focus_mapping_counts.values()
+            )
+            mapped_focus_ids = [
+                concept_id
+                for concept_id in current
+                if focus_mapping_counts.get(concept_id, 0) > 0
+            ]
+            if any(focus_mapping_counts.get(concept_id, 0) == 0 for concept_id in current):
+                incomplete_mapping = True
+            if not mapped_focus_ids:
+                continue
+            mapped_any = True
+
+            rows = await self._read(
+                _KNOWLEDGE_MAP_DIRECT_ONTOLOGY_IDS,
+                concept_ids=mapped_focus_ids,
+            )
+            ontology_ids = list(
+                dict.fromkeys(
+                    ontology_id
+                    for row in rows
+                    for ontology_id in (
+                        [row.get("focusOntologyId")]
+                        + [
+                            ontology.get("id")
+                            for ontology in (row.get("prerequisites") or [])
+                        ]
+                        + [
+                            ontology.get("id")
+                            for ontology in (row.get("dependents") or [])
+                        ]
+                    )
+                    if ontology_id
+                )
+            )
+            ontology_mappings: dict[str, list[str]] = {}
+            if ontology_ids:
+                mapping_rows = await self._read(
+                    _KNOWLEDGE_MAP_ONTOLOGY_CONCEPT_MAPPINGS,
+                    ontology_ids=ontology_ids,
+                )
+                ontology_mappings = {
+                    row["ontologyId"]: [
+                        concept_id for concept_id in (row.get("conceptIds") or []) if concept_id
+                    ]
+                    for row in mapping_rows
+                }
+                ontology_names = {
+                    row["ontologyId"]: row.get("name") or row["ontologyId"]
+                    for row in mapping_rows
+                }
+            else:
+                ontology_names = {}
+
+            def ontology_endpoint_ids(
+                ontology_id: str,
+                mappings: dict[str, list[str]] = ontology_mappings,
+                names: dict[str, str] = ontology_names,
+            ) -> list[str]:
+                concept_ids = mappings.get(ontology_id, [])
+                if concept_ids:
+                    return concept_ids
+                node_id = f"ontology:{ontology_id}"
+                ontology_nodes[node_id] = {
+                    "id": node_id,
+                    "name": names.get(ontology_id, ontology_id),
+                    "type": "ontology_only",
+                    "subjectIds": [],
+                    "topicIds": [],
+                    "conceptOrder": None,
+                    "contentPreview": None,
+                    "hasLesson": False,
+                    "prerequisiteCount": None,
+                    "dependentCount": None,
+                }
+                return [node_id]
+
+            def permitted_endpoint_ids(endpoint_ids: list[str]) -> list[str]:
+                if allowed_concept_ids is None:
+                    return endpoint_ids
+                return [
+                    endpoint_id
+                    for endpoint_id in endpoint_ids
+                    if endpoint_id.startswith("ontology:")
+                    or endpoint_id in allowed_concept_ids
+                ]
+
+            next_frontier: list[str] = []
+
+            def add_edges(
+                source_ids: list[str],
+                target_ids: list[str],
+                frontier_ids: list[str] = next_frontier,
+            ) -> None:
+                nonlocal truncated
+                for source in permitted_endpoint_ids(source_ids):
+                    for target in permitted_endpoint_ids(target_ids):
+                        if source == target:
+                            continue
+                        new_ids = {source, target} - visible_ids
+                        if len(visible_ids) + len(new_ids) > _KNOWLEDGE_MAP_MAX_NODES:
+                            truncated = True
+                            continue
+                        visible_ids.update((source, target))
+                        edges[(source, target)] = {
+                            "source": source,
+                            "target": target,
+                            "type": "PREREQUISITE_OF",
+                        }
+                        for endpoint_id in (source, target):
+                            if (
+                                not endpoint_id.startswith("ontology:")
+                                and endpoint_id not in visited
+                            ):
+                                frontier_ids.append(endpoint_id)
+
+            for row in rows:
+                focus_endpoints = ontology_endpoint_ids(row["focusOntologyId"])
+                for prerequisite in row.get("prerequisites") or []:
+                    add_edges(
+                        ontology_endpoint_ids(prerequisite["id"]),
+                        focus_endpoints,
+                    )
+                for dependent in row.get("dependents") or []:
+                    add_edges(
+                        focus_endpoints,
+                        ontology_endpoint_ids(dependent["id"]),
+                    )
+            frontier = list(dict.fromkeys(next_frontier))
+
+        if not mapping_exists:
+            status = "pending"
+        elif not mapped_any:
+            status = "partial"
+        elif incomplete_mapping:
+            status = "partial"
+        else:
+            status = "ready"
+        ontology_nodes = {
+            node_id: node
+            for node_id, node in ontology_nodes.items()
+            if node_id in visible_ids
+        }
+        return list(edges.values()), visible_ids, status, truncated, ontology_nodes
+
+    async def knowledge_map_topic(
+        self,
+        topic_id: str,
+        focus_id: str | None = None,
+        depth: int = 1,
+        include_connected_topics: bool = False,
+    ) -> dict[str, Any] | None:
+        rows = await self._read(_KNOWLEDGE_MAP_TOPIC, topic_id=topic_id)
+        if not rows:
+            return None
+        topic = rows[0]
+        concepts = [
+            concept
+            for concept in (topic.get("concepts") or [])
+            if concept and concept.get("id")
+        ]
+        concept_ids = [concept["id"] for concept in concepts]
+        if not concept_ids:
+            return {
+                "focusId": None,
+                "subjectId": topic.get("subjectId"),
+                "topicId": topic_id,
+                "nodes": [],
+                "edges": [],
+                "mappingStatus": "pending",
+                "mappingMessage": (
+                    "No verified Concept–Ontology mapping is available for this topic yet."
+                ),
+                "depth": depth,
+                "truncated": False,
+            }
+
+        truncated = len(concept_ids) > _KNOWLEDGE_MAP_MAX_NODES
+        visible_topic_ids = concept_ids[:_KNOWLEDGE_MAP_MAX_NODES]
+        if focus_id in concept_ids and focus_id not in visible_topic_ids:
+            visible_topic_ids[-1] = focus_id
+        selected_focus = focus_id if focus_id in visible_topic_ids else visible_topic_ids[0]
+        topic_node_rows = await self._knowledge_map_nodes(visible_topic_ids)
+        order_by_id = {concept["id"]: concept.get("order") for concept in concepts}
+        for node in topic_node_rows:
+            node["conceptOrder"] = order_by_id.get(node["id"], node["conceptOrder"])
+
+        allowed_ids = None if include_connected_topics else set(visible_topic_ids)
+        (
+            edge_rows,
+            neighborhood_ids,
+            neighborhood_status,
+            graph_truncated,
+            ontology_nodes,
+        ) = await self._knowledge_map_neighborhood(
+            [selected_focus],
+            depth,
+            allowed_ids,
+            set(visible_topic_ids),
+        )
+        graph_truncated = graph_truncated or truncated
+        merged_nodes = {node["id"]: node for node in topic_node_rows}
+        extra_ids = neighborhood_ids - set(merged_nodes)
+        extra_concept_ids = sorted(
+            node_id for node_id in extra_ids if not node_id.startswith("ontology:")
+        )
+        if include_connected_topics and extra_concept_ids:
+            remaining = max(0, _KNOWLEDGE_MAP_MAX_NODES - len(merged_nodes))
+            extra_nodes = await self._knowledge_map_nodes(extra_concept_ids[:remaining])
+            merged_nodes.update({node["id"]: node for node in extra_nodes})
+            remaining -= len(extra_nodes)
+            graph_truncated = graph_truncated or len(extra_concept_ids) > len(extra_nodes)
+        else:
+            remaining = max(0, _KNOWLEDGE_MAP_MAX_NODES - len(merged_nodes))
+        extra_ontology_ids = sorted(
+            node_id for node_id in extra_ids if node_id.startswith("ontology:")
+        )
+        for node_id in extra_ontology_ids[:remaining]:
+            merged_nodes[node_id] = ontology_nodes[node_id]
+        graph_truncated = graph_truncated or len(extra_ontology_ids) > remaining
+
+        edge_rows = [
+            edge
+            for edge in edge_rows
+            if edge["source"] in merged_nodes and edge["target"] in merged_nodes
+        ]
+        topic_mapping_counts = await self._knowledge_map_mapping_counts(visible_topic_ids)
+        mapped_count = sum(count > 0 for count in topic_mapping_counts.values())
+        mapping_found_count = sum(count > 0 for count in topic_mapping_counts.values())
+        if mapping_found_count == 0:
+            mapping_status = "pending"
+        elif (
+            mapped_count < len(visible_topic_ids)
+            or neighborhood_status != "ready"
+        ):
+            mapping_status = "partial"
+        else:
+            mapping_status = "ready"
+
+        return {
+            "focusId": selected_focus,
+            "subjectId": topic.get("subjectId"),
+            "topicId": topic_id,
+            "nodes": list(merged_nodes.values()),
+            "edges": edge_rows,
+            "mappingStatus": mapping_status,
+            "mappingMessage": self._knowledge_map_message(mapping_status),
+            "depth": depth,
+            "truncated": graph_truncated,
+        }
+
+    async def knowledge_map_concept(
+        self,
+        concept_id: str,
+        depth: int = 1,
+        topic_id: str | None = None,
+        include_connected_topics: bool = True,
+    ) -> dict[str, Any] | None:
+        focus_nodes = await self._knowledge_map_nodes([concept_id])
+        if not focus_nodes:
+            return None
+        focus = focus_nodes[0]
+        allowed_ids = None
+        if topic_id and not include_connected_topics:
+            topic_rows = await self._read(_KNOWLEDGE_MAP_TOPIC, topic_id=topic_id)
+            if topic_rows:
+                allowed_ids = {
+                    item["id"]
+                    for item in (topic_rows[0].get("concepts") or [])
+                    if item and item.get("id")
+                }
+            else:
+                allowed_ids = {concept_id}
+        edge_rows, visible_ids, mapping_status, truncated, ontology_nodes = (
+            await self._knowledge_map_neighborhood([concept_id], depth, allowed_ids)
+        )
+        node_ids = [node_id for node_id in visible_ids if not node_id.startswith("ontology:")]
+        nodes = await self._knowledge_map_nodes(node_ids)
+        nodes_by_id = {node["id"]: node for node in nodes}
+        nodes_by_id.update(ontology_nodes)
+        edge_rows = [
+            edge
+            for edge in edge_rows
+            if edge["source"] in nodes_by_id and edge["target"] in nodes_by_id
+        ]
+        if mapping_status == "ready":
+            focus["prerequisiteCount"] = sum(edge["target"] == concept_id for edge in edge_rows)
+            focus["dependentCount"] = sum(edge["source"] == concept_id for edge in edge_rows)
+            nodes_by_id[concept_id] = focus
+        return {
+            "focusId": concept_id,
+            "subjectId": focus["subjectIds"][0] if focus["subjectIds"] else None,
+            "topicId": topic_id
+            if topic_id and topic_id in focus["topicIds"]
+            else (focus["topicIds"][0] if focus["topicIds"] else None),
+            "nodes": list(nodes_by_id.values()),
+            "edges": edge_rows,
+            "mappingStatus": mapping_status,
+            "mappingMessage": self._knowledge_map_message(mapping_status),
+            "depth": depth,
+            "truncated": truncated,
+        }
+
+    @staticmethod
+    def _knowledge_map_message(mapping_status: str) -> str | None:
+        if mapping_status == "pending":
+            return "No verified Concept–Ontology mapping is available for this concept yet."
+        if mapping_status == "partial":
+            return (
+                "Some canonical Concepts in this map lack a verified ontology mapping. "
+                "Unmapped ontology nodes may still appear."
+            )
+        return None
 
     async def list_question_answers(self, concept_id: str) -> dict[str, dict[str, Any]]:
         """Questions with answer keys for server-side grading (never returned)."""
@@ -411,6 +932,89 @@ class GraphRepository:
             }
             for row in rows
         ]
+
+    async def get_structured_lesson(self, concept_id: str) -> dict[str, Any] | None:
+        """Return a v3 lesson payload assembled from graph content nodes."""
+        rows = await self._read(_STRUCTURED_LESSON, concept_id=concept_id)
+        if not rows:
+            return None
+
+        row = rows[0]
+        lessons = row.get("lessons") or []
+        if not lessons:
+            return None
+
+        contexts = row.get("contexts") or []
+        context = contexts[0] if contexts else {}
+        concept = {
+            "id": row.get("id") or concept_id,
+            "title": row.get("title"),
+            "subjectId": row.get("subjectId") or context.get("subjectId"),
+            "topicId": row.get("topicId") or context.get("topicId"),
+            "order": row.get("conceptOrder") or 0,
+            "estimatedMinutes": row.get("estimatedMinutes") or 0,
+        }
+
+        question_rows = await self._read(_STRUCTURED_QUESTION_COUNT, concept_id=concept_id)
+        question_count = int((question_rows[0] or {}).get("questionCount", 0) or 0)
+
+        lesson: dict[str, Any] = {
+            "concept": concept,
+            "contexts": contexts,
+            "prerequisites": row.get("prerequisites") or [],
+            "relatedConcepts": row.get("relatedConcepts") or [],
+            "practiceAvailable": question_count > 0,
+            "questionCount": question_count,
+        }
+
+        content_by_type: dict[str, list[Any]] = {
+            "learning_objective": [],
+            "prerequisite_note": [],
+            "definition": [],
+            "explanation": [],
+            "key_term": [],
+            "illustration": [],
+            "worked_example": [],
+            "real_world_application": [],
+            "common_mistake": [],
+            "summary": [],
+        }
+
+        for item in lessons:
+            item_type = str(item.get("type") or "").strip().lower()
+            if item_type not in content_by_type:
+                content_by_type.setdefault(item_type, [])
+            payload = _decode_json_payload(item.get("contentData"))
+            if item_type == "key_term":
+                if isinstance(payload, dict):
+                    content_by_type[item_type].append(
+                        {"term": payload.get("term") or item.get("title"), "definition": payload.get("definition") or item.get("contentText")}
+                    )
+                else:
+                    content_by_type[item_type].append(
+                        {"term": item.get("title"), "definition": item.get("contentText")}
+                    )
+            elif item_type in {"illustration", "worked_example"}:
+                if isinstance(payload, dict):
+                    content_by_type[item_type].append(payload)
+                elif item.get("contentText") is not None:
+                    content_by_type[item_type].append({"text": item.get("contentText")})
+            else:
+                if item.get("contentText"):
+                    content_by_type[item_type].append(item.get("contentText"))
+
+        lesson["learningObjectives"] = content_by_type["learning_objective"]
+        lesson["prerequisiteNotes"] = content_by_type["prerequisite_note"]
+        lesson["definitions"] = content_by_type["definition"]
+        lesson["explanations"] = content_by_type["explanation"]
+        lesson["keyTerms"] = content_by_type["key_term"]
+        lesson["illustrations"] = content_by_type["illustration"]
+        lesson["workedExamples"] = content_by_type["worked_example"]
+        lesson["realWorldApplications"] = content_by_type["real_world_application"]
+        lesson["commonMistakes"] = content_by_type["common_mistake"]
+        lesson["summary"] = content_by_type["summary"][0] if content_by_type["summary"] else None
+
+        return lesson
 
     async def find_entity(self, entity_type: str, text: str) -> list[dict[str, Any]]:
         """Conservatively resolve an extracted entity against graph nodes.
