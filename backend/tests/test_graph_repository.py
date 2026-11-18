@@ -137,11 +137,11 @@ def test_topic_packet_combines_overview_concepts_and_concept_content() -> None:
 
 def test_assessment_queries_use_current_batch_and_relationship() -> None:
     assert "(c:Concept {id: $concept_id})" in _CONCEPT_QUESTIONS
-    assert "[:ASSESSED_BY]->(q:AssessmentItem {batch: 'ASSESSMENT_V1'})" in _CONCEPT_QUESTIONS
+    assert "[:ASSESSED_BY]->(q:AssessmentItem {batch: 'ASSESSMENT_V2'})" in _CONCEPT_QUESTIONS
     assert "q.optionA AS optionA" in _CONCEPT_QUESTIONS
     assert "q.correctOption" not in _CONCEPT_QUESTIONS
     assert "(t)-[r:HAS_CONCEPT]->(c:Concept)" in _TOPIC_QUESTIONS
-    assert "[:ASSESSED_BY]->(q:AssessmentItem {batch: 'ASSESSMENT_V1'})" in _TOPIC_QUESTIONS
+    assert "[:ASSESSED_BY]->(q:AssessmentItem {batch: 'ASSESSMENT_V2'})" in _TOPIC_QUESTIONS
     assert "modelAnswer: q.modelAnswer" in _TOPIC_QUESTION_ANSWERS
     assert "q.correctAnswer AS correctAnswer" in _CONCEPT_QUESTION_ANSWERS
 
