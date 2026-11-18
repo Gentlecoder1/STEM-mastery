@@ -140,7 +140,7 @@ ORDER BY r.order ASC, c.order ASC
 _TOPIC_QUESTIONS = """
 MATCH (t:Topic {id: $topic_id})
 OPTIONAL MATCH (t)-[r:HAS_CONCEPT]->(c:Concept)
-              -[:ASSESSED_BY]->(q:AssessmentItem {batch: 'ASSESSMENT_V1'})
+              -[:ASSESSED_BY]->(q:AssessmentItem {batch: 'ASSESSMENT_V2'})
 WITH t, r, c, q
 ORDER BY coalesce(r.order, c.order, 0), q.id
 RETURN t.id AS topicId,
@@ -160,7 +160,7 @@ RETURN t.id AS topicId,
 
 _CONCEPT_QUESTIONS = """
 MATCH (c:Concept {id: $concept_id})
-      -[:ASSESSED_BY]->(q:AssessmentItem {batch: 'ASSESSMENT_V1'})
+      -[:ASSESSED_BY]->(q:AssessmentItem {batch: 'ASSESSMENT_V2'})
 RETURN c.id AS conceptId, q.id AS id, q.questionType AS type,
        q.question AS prompt, q.difficultyLevel AS difficultyLevel,
        q.optionA AS optionA, q.optionB AS optionB,
@@ -172,7 +172,7 @@ ORDER BY q.id
 # Questions with answer keys are used only by server-side grading.
 _CONCEPT_QUESTION_ANSWERS = """
 MATCH (c:Concept {id: $concept_id})
-      -[:ASSESSED_BY]->(q:AssessmentItem {batch: 'ASSESSMENT_V1'})
+      -[:ASSESSED_BY]->(q:AssessmentItem {batch: 'ASSESSMENT_V2'})
 RETURN c.id AS conceptId, q.id AS id, q.questionType AS type,
        q.question AS prompt, q.optionA AS optionA,
        q.optionB AS optionB, q.optionC AS optionC, q.optionD AS optionD,
@@ -183,7 +183,7 @@ RETURN c.id AS conceptId, q.id AS id, q.questionType AS type,
 _TOPIC_QUESTION_ANSWERS = """
 MATCH (t:Topic {id: $topic_id})
 OPTIONAL MATCH (t)-[r:HAS_CONCEPT]->(c:Concept)
-              -[:ASSESSED_BY]->(q:AssessmentItem {batch: 'ASSESSMENT_V1'})
+              -[:ASSESSED_BY]->(q:AssessmentItem {batch: 'ASSESSMENT_V2'})
 WITH t, r, c, q
 ORDER BY coalesce(r.order, c.order, 0), q.id
 RETURN t.id AS topicId,
@@ -204,7 +204,7 @@ RETURN t.id AS topicId,
 
 _QUESTION_ANSWER = """
 MATCH (c:Concept)-[:ASSESSED_BY]->(q:AssessmentItem {
-    id: $question_id, batch: 'ASSESSMENT_V1'
+    id: $question_id, batch: 'ASSESSMENT_V2'
 })
 OPTIONAL MATCH (s:Subject)-[:HAS_TOPIC]->(:Topic)-[:HAS_CONCEPT]->(c)
 RETURN c.id AS conceptId, head(collect(DISTINCT s.id)) AS subjectId,
@@ -263,7 +263,7 @@ CALL (c) {
 }
 CALL (c) {
     OPTIONAL MATCH (c)-[:ASSESSED_BY]->
-                  (q:AssessmentItem {batch: 'ASSESSMENT_V1'})
+                  (q:AssessmentItem {batch: 'ASSESSMENT_V2'})
     RETURN count(q) > 0 AS hasAssessment
 }
 RETURN c.id AS id, coalesce(c.name, c.prefLabel, c.id) AS name,
@@ -392,7 +392,7 @@ LIMIT 1
 
 _STRUCTURED_QUESTION_COUNT = """
 MATCH (:Concept {id: $concept_id})-[:ASSESSED_BY]->
-      (q:AssessmentItem {batch: 'ASSESSMENT_V1'})
+      (q:AssessmentItem {batch: 'ASSESSMENT_V2'})
 RETURN count(DISTINCT q) AS questionCount
 """
 
@@ -417,7 +417,7 @@ LIMIT $limit
 _PLACEMENT_CANDIDATES = """
 MATCH (:Subject {id: $subject_id})-[:HAS_TOPIC]->(:Topic)
       -[:HAS_CONCEPT]->(c:Concept)-[:ASSESSED_BY]->
-      (q:AssessmentItem {batch: 'ASSESSMENT_V1'})
+      (q:AssessmentItem {batch: 'ASSESSMENT_V2'})
 RETURN DISTINCT c.id AS conceptId, q.id AS id, q.questionType AS type,
        q.question AS prompt, q.difficultyLevel AS difficultyLevel,
        q.optionA AS optionA, q.optionB AS optionB,
@@ -495,7 +495,7 @@ def _assessment_type(value: Any) -> str | None:
     normalized = str(value).strip().lower()
     if normalized in {"mcq", "multiple-choice", "multiple choice"}:
         return "mcq"
-    if normalized in {"theory", "theoretical", "written", "essay"}:
+    if normalized in {"theory", "theoretical", "written", "essay", "short_answer", "short answer"}:
         return "written"
     return normalized
 
