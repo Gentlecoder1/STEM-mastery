@@ -9,6 +9,7 @@ import { useCatalog } from '../catalogContext';
 import { useOffline } from '../offlineContext';
 import { useProgress } from '../progressContext';
 import { checkAnswer, submitConceptQuiz, type CheckResult, type ConceptQuizSubmitResult } from '../lib/assessmentApi';
+import { prettyMath } from '../lib/mathText';
 import { colors, fonts } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
 import { type QuizQuestion } from '../types/catalog';
@@ -162,7 +163,7 @@ export default function ConceptQuizScreen({ navigation, route }: RootScreenProps
       <ProgressBar progress={((index + 1) / questions.length) * 100} />
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
         <Text style={styles.questionType}>{question.type === 'mcq' ? 'MULTIPLE CHOICE' : 'WRITTEN RESPONSE'}</Text>
-        <Text style={styles.question}>{question.prompt}</Text>
+        <Text style={styles.question}>{prettyMath(question.prompt)}</Text>
         {question.type === 'mcq' ? (
           <View style={styles.options}>
             {question.options?.map((option) => {
@@ -186,7 +187,7 @@ export default function ConceptQuizScreen({ navigation, route }: RootScreenProps
                   accessibilityState={{ checked: active, disabled: Boolean(checked) }}
                 >
                   <Text style={styles.optionLabel}>{option.label}</Text>
-                  <Text style={styles.optionText}>{option.text}</Text>
+                  <Text style={styles.optionText}>{prettyMath(option.text)}</Text>
                 </Pressable>
               );
             })}

@@ -12,6 +12,7 @@ import { useThemedStyles, useTheme } from '../themeContext';
 import { useProgress } from '../progressContext';
 import { useCatalog } from '../catalogContext';
 import { useOffline } from '../offlineContext';
+import { prettyMath, splitLessonLines } from '../lib/mathText';
 
 const TYPE_TINT: Record<ContentType, ColorToken> = {
   DEFINITION: 'blue',
@@ -24,10 +25,43 @@ const TYPE_TINT: Record<ContentType, ColorToken> = {
 
 function FormulaBlock({ text }: { text: string }) {
   const styles = useThemedStyles(createStyles);
+  const lines = prettyMath(text).split('\n').filter((line) => line.trim());
 
   return (
     <View style={styles.formula}>
-      <Text style={styles.formulaText}>{text}</Text>
+      {lines.map((line, index) => (
+        <Text key={index} style={styles.formulaText}>{line}</Text>
+      ))}
+    </View>
+  );
+}
+
+function LessonBody({ text }: { text: string }) {
+  const styles = useThemedStyles(createStyles);
+  const lines = splitLessonLines(text);
+
+  return (
+    <View style={styles.bodyBlock}>
+      {lines.map((line, index) => {
+        if (line.kind === 'gap') return <View key={index} style={styles.bodyGap} />;
+        if (line.kind === 'bullet') {
+          return (
+            <View key={index} style={styles.bulletRow}>
+              <Text style={styles.bulletDot}>•</Text>
+              <Text style={[styles.lessonBody, styles.bulletText]}>{line.text}</Text>
+            </View>
+          );
+        }
+        if (line.kind === 'label') {
+          return (
+            <Text key={index} style={styles.lessonBody}>
+              <Text style={styles.bodyLabel}>{line.label}: </Text>
+              {line.text}
+            </Text>
+          );
+        }
+        return <Text key={index} style={styles.lessonBody}>{line.text}</Text>;
+      })}
     </View>
   );
 }
@@ -55,26 +89,14 @@ function ContentCard({ item, conceptTitle }: { item: LearningContent; conceptTit
       {item.contentType === 'FORMULA' ? (
         <FormulaBlock text={item.contentText} />
       ) : (
-        <Text style={styles.lessonBody}>{item.contentText}</Text>
+        item.contentType === 'WORKED_EXAMPLE' ? (
+          <View style={styles.exampleNote}>
+            <LessonBody text={item.contentText} />
+          </View>
+        ) : (
+          <LessonBody text={item.contentText} />
+        )
       )}
-
-      {item.contentType === 'WORKED_EXAMPLE' ? (
-        <View style={styles.exampleNote}>
-          <Text style={styles.exampleNoteTitle}>Worked example</Text>
-          <Text style={styles.exampleNoteText}>
-            Identify the known values, choose the relationship, then calculate.
-          </Text>
-        </View>
-      ) : null}
-
-      {item.contentType === 'MEDIA' ? (
-        <View style={styles.mediaNote}>
-          <Text style={styles.mediaNoteTitle}>Look for the pattern</Text>
-          <Text style={styles.mediaNoteText}>
-            Use the graph to connect the written explanation to the motion.
-          </Text>
-        </View>
-      ) : null}
     </View>
   );
 }
@@ -140,7 +162,9 @@ export default function ConceptLearningScreen({
             {offline.isDownloaded(conceptId) ? 'Available offline' : 'Online lesson'}
           </Text>
         </View>
-          <Text style={styles.headerCounter}>{lessonItems.length} lessons</Text>
+        <Text style={styles.headerCounter}>
+          {lessonItems.length} {lessonItems.length === 1 ? 'section' : 'sections'}
+        </Text>
       </View>
 
       <ScrollView
@@ -150,9 +174,9 @@ export default function ConceptLearningScreen({
           { paddingBottom: insets.bottom + 104 },
         ]}
       >
-          {lessonItems.map((item) => (
-            <ContentCard key={item.id} item={item} conceptTitle={concept?.title ?? 'Concept'} />
-          ))}
+        {lessonItems.map((item) => (
+          <ContentCard key={item.id} item={item} conceptTitle={concept?.title ?? 'Concept'} />
+        ))}
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 14 }]}>
@@ -204,31 +228,47 @@ const createStyles = () => StyleSheet.create({
   headerCopy: { flex: 1, gap: 2 },
   headerTitle: { fontFamily: fonts.regular, fontSize: 20, lineHeight: 24, color: colors.ink },
   headerSubtitle: { fontFamily: fonts.medium, fontSize: 12, lineHeight: 15, color: colors.slate },
-  headerCounter: { fontFamily: fonts.medium, fontSize: 10, lineHeight: 12, color: colors.slate },
+  headerCounter: { fontFamily: fonts.medium, fontSize: 12, lineHeight: 15, color: colors.slate },
 
   scroll: { paddingHorizontal: 18, paddingTop: 22 },
 
-  lessonSection: { paddingBottom: 22, marginBottom: 22, gap: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
+  lessonSection: {
+    padding: 18,
+    marginBottom: 14,
+    gap: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
   lessonLabel: { fontFamily: fonts.bold, fontSize: 11, lineHeight: 14, letterSpacing: 0.4 },
-  lessonTitle: { fontFamily: fonts.extrabold, fontSize: 25, lineHeight: 30, color: colors.ink },
+  lessonTitle: { fontFamily: fonts.extrabold, fontSize: 21, lineHeight: 27, color: colors.ink },
   lessonBody: { fontFamily: fonts.regular, fontSize: 16, lineHeight: 25, color: colors.ink },
+  bodyBlock: { gap: 8 },
+  bodyGap: { height: 4 },
+  bodyLabel: { fontFamily: fonts.bold, color: colors.ink },
+  bulletRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
+  bulletDot: { fontFamily: fonts.bold, fontSize: 16, lineHeight: 25, color: colors.primary },
+  bulletText: { flex: 1 },
 
   formula: {
-    paddingVertical: 24,
-    paddingHorizontal: 18,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    gap: 8,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.blueBorder,
     backgroundColor: colors.blueSoft,
     alignItems: 'center',
   },
-  formulaText: { fontFamily: fonts.semibold, fontSize: 21, lineHeight: 29, color: colors.ink },
+  formulaText: {
+    fontFamily: fonts.semibold,
+    fontSize: 19,
+    lineHeight: 27,
+    color: colors.ink,
+    textAlign: 'center',
+  },
   exampleNote: { padding: 14, borderRadius: 12, backgroundColor: colors.greenSoft, gap: 4 },
-  exampleNoteTitle: { fontFamily: fonts.bold, fontSize: 12, lineHeight: 15, color: colors.teal },
-  exampleNoteText: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 19, color: colors.ink },
-  mediaNote: { padding: 14, borderRadius: 12, backgroundColor: colors.violetSoft, gap: 4 },
-  mediaNoteTitle: { fontFamily: fonts.bold, fontSize: 12, lineHeight: 15, color: colors.violet },
-  mediaNoteText: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 19, color: colors.ink },
 
   footer: {
     position: 'absolute',
