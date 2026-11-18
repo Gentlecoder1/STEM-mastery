@@ -1,6 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { loadLesson, loadQuestions, saveQuestions } from '../src/lib/offlineStore';
+import {
+  loadKnowledgeMap,
+  loadLesson,
+  loadQuestions,
+  saveKnowledgeMap,
+  saveQuestions,
+} from '../src/lib/offlineStore';
 import { CATALOG_STORAGE_KEY, loadCatalogSnapshot } from '../src/lib/catalogCache';
 import { mapConceptSummary, mapLesson, mapQuestions } from '../src/types/catalog';
 
@@ -116,6 +122,26 @@ it('persists client-safe quiz questions for offline use', async () => {
     conceptId: 'concept-velocity',
     questions,
   });
+});
+
+it('persists Knowledge Map responses for instant offline reuse', async () => {
+  const map = {
+    mode: 'overview' as const,
+    focusId: null,
+    subjectId: null,
+    topicId: null,
+    nodes: [],
+    edges: [],
+    mappingStatus: 'ready' as const,
+    mappingMessage: null,
+    depth: 1,
+    truncated: false,
+  };
+
+  await saveKnowledgeMap('root', map);
+
+  expect(await loadKnowledgeMap('root')).toEqual(map);
+  expect(await loadKnowledgeMap('concept:MATH_T01_C01')).toBeNull();
 });
 
 it('migrates embedded lesson sections from old catalog snapshots to the lesson store', async () => {

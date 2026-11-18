@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  PanResponder,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import Svg, { G, Line, Polygon, Rect, Text as SvgText } from 'react-native-svg';
+import Svg, { Circle, Line } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ArrowLeftIcon, ArrowRightIcon } from '../components/icons';
@@ -21,21 +21,22 @@ import {
   searchKnowledgeMapConcepts,
 } from '../lib/catalogApi';
 import { ApiError } from '../lib/api';
-import type { ApiConceptSearchResult, KnowledgeMapNode, KnowledgeMapResponse } from '../types/catalog';
-import { colors, fonts } from '../theme';
+import { loadKnowledgeMap, saveKnowledgeMap } from '../lib/offlineStore';
+import type {
+  ApiConceptSearchResult,
+  KnowledgeMapNode,
+  KnowledgeMapResponse,
+} from '../types/catalog';
+import { colors, fonts, shadow } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
-import { useCatalog } from '../catalogContext';
 import type { RootScreenProps } from '../navigation/types';
 
-const MAP_HEIGHT = 410;
-const NODE_HEIGHT = 58;
-const ROW_GAP = 28;
-const COLUMN_GAP = 14;
-const HORIZONTAL_PADDING = 10;
+const ROOT_CACHE_KEY = 'knowledge-map:root:v1';
+const ORBIT_PAGE_SIZE = 12;
+const ORBIT_NODE_WIDTH = 66;
+const ORBIT_NODE_HEIGHT = 48;
 
-type MapMode = 'overview' | 'concept';
-type Point = { x: number; y: number };
-type PositionedNode = { node: KnowledgeMapNode; x: number; y: number };
+type OrbitPosition = { node: KnowledgeMapNode; x: number; y: number };
 
 function shortLabel(value: string, limit: number): string {
   return value.length > limit ? `${value.slice(0, limit - 1)}…` : value;
@@ -54,6 +55,38 @@ function describeError(error: unknown): string {
   return 'The Knowledge Map could not be loaded. Please try again.';
 }
 
+function getConceptMapCacheKey(conceptId: string, topicId?: string): string {
+  return `knowledge-map:concept:${conceptId}:${topicId ?? ''}:depth:1`;
+}
+
+function getOrbitPositions(nodes: KnowledgeMapNode[], size: number): OrbitPosition[] {
+  const center = size / 2;
+  const innerAngles = [-90, 0, 90, 180];
+  const outerAngles = [22.5, 67.5, 112.5, 157.5, 202.5, 247.5, 292.5, 337.5];
+  const slots = [
+    ...innerAngles.map((angle) => ({ angle, radius: size * 0.235 })),
+    ...outerAngles.map((angle) => ({ angle, radius: size * 0.385 })),
+  ];
+
+  return nodes.slice(0, ORBIT_PAGE_SIZE).map((node, index) => {
+    const slot = slots[index];
+    const radians = (slot.angle * Math.PI) / 180;
+    return {
+      node,
+      x: center + Math.cos(radians) * slot.radius,
+      y: center + Math.sin(radians) * slot.radius,
+    };
+  });
+}
+
+function uniqueNodes(nodes: Array<KnowledgeMapNode | undefined>): KnowledgeMapNode[] {
+  const unique = new Map<string, KnowledgeMapNode>();
+  nodes.forEach((node) => {
+    if (node) unique.set(node.id, node);
+  });
+  return [...unique.values()];
+}
+
 export default function KnowledgeMapScreen({
   navigation,
   route,
@@ -62,116 +95,102 @@ export default function KnowledgeMapScreen({
   const { width: screenWidth } = useWindowDimensions();
   const { statusBarStyle } = useTheme();
   const styles = useThemedStyles(createStyles);
-  const { topics } = useCatalog();
-  const initialMode: MapMode = route.params?.conceptId ? 'concept' : 'overview';
-  const initialIncludeConnectedTopics = initialMode === 'concept';
-  const initialTopicId = route.params?.topicId ?? '';
-  const [mapData, setMapData] = useState<KnowledgeMapResponse | null>(null);
-  const [selectedNode, setSelectedNode] = useState<KnowledgeMapNode | null>(null);
-  const [mode, setMode] = useState<MapMode>(initialMode);
-  const [topicId, setTopicId] = useState(initialTopicId);
-  const [depth, setDepth] = useState(1);
-  const [includeConnectedTopics, setIncludeConnectedTopics] = useState(initialIncludeConnectedTopics);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [rootMap, setRootMap] = useState<KnowledgeMapResponse | null>(null);
+  const [conceptMap, setConceptMap] = useState<KnowledgeMapResponse | null>(null);
+  const [activeConceptId, setActiveConceptId] = useState<string | null>(
+    route.params?.conceptId ?? null,
+  );
+  const [conceptTrail, setConceptTrail] = useState<string[]>([]);
+  const [orbitPage, setOrbitPage] = useState(0);
+  const [rootLoading, setRootLoading] = useState(true);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [rootError, setRootError] = useState<string | null>(null);
+  const [detailError, setDetailError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [searchResults, setSearchResults] = useState<ApiConceptSearchResult[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState(false);
-  const [scale, setScale] = useState(1);
-  const [pan, setPan] = useState<Point>({ x: 0, y: 0 });
-  const panOrigin = useRef<Point>({ x: 0, y: 0 });
-  const panRef = useRef<Point>({ x: 0, y: 0 });
-  const graphWidth = Math.max(300, screenWidth - 36);
-  const nodeWidth = Math.floor((graphWidth - HORIZONTAL_PADDING * 2 - COLUMN_GAP) / 2);
-  const updatePan = useCallback((point: Point) => {
-    panRef.current = point;
-    setPan(point);
-  }, []);
+  const rootRequest = useRef(0);
+  const conceptRequest = useRef(0);
+  const conceptCache = useRef(new Map<string, KnowledgeMapResponse>());
+  const mapSize = Math.max(250, Math.min(380, screenWidth - 64));
 
   const loadRootMap = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+    const requestId = ++rootRequest.current;
+    setRootError(null);
+    const cached = await loadKnowledgeMap(ROOT_CACHE_KEY);
+    if (requestId !== rootRequest.current) return;
+    if (cached) {
+      setRootMap(cached);
+      setRootLoading(false);
+    } else {
+      setRootLoading(true);
+    }
+
     try {
       const result = await fetchKnowledgeMapRoot();
-      setMode('overview');
-      setTopicId('');
-      setMapData(result);
-      setSelectedNode(result.root ?? result.nodes.find((node) => node.type === 'root') ?? null);
-      setScale(1);
-      updatePan({ x: 0, y: 0 });
+      if (requestId !== rootRequest.current) return;
+      setRootMap(result);
+      setRootError(null);
+      void saveKnowledgeMap(ROOT_CACHE_KEY, result);
     } catch (cause) {
-      setError(describeError(cause));
+      if (requestId === rootRequest.current && !cached) {
+        setRootError(describeError(cause));
+      }
     } finally {
-      setLoading(false);
+      if (requestId === rootRequest.current) setRootLoading(false);
     }
-  }, [updatePan]);
+  }, []);
 
-  const loadConceptMap = useCallback(async (
-    conceptId: string,
-    requestedTopicId?: string,
-    requestedDepth = depth,
-    includeConnected = includeConnectedTopics,
-  ) => {
-    setLoading(true);
-    setError(null);
+  const loadConceptMap = useCallback(async (conceptId: string, topicId?: string) => {
+    const requestId = ++conceptRequest.current;
+    const cacheKey = getConceptMapCacheKey(conceptId, topicId);
+    let cached = conceptCache.current.get(cacheKey) ?? null;
+    setDetailError(null);
+    setConceptMap(cached);
+    setDetailLoading(!cached);
+
+    if (!cached) {
+      cached = await loadKnowledgeMap(cacheKey);
+      if (requestId !== conceptRequest.current) return;
+      if (cached) {
+        conceptCache.current.set(cacheKey, cached);
+        setConceptMap(cached);
+        setDetailLoading(false);
+      }
+    }
+
     try {
       const result = await fetchConceptKnowledgeMap(conceptId, {
-        topicId: requestedTopicId,
-        depth: requestedDepth,
-        includeConnectedTopics: includeConnected,
-      });
-      setMode('concept');
-      setTopicId(requestedTopicId ?? result.topicId ?? '');
-      setMapData(result);
-      setSelectedNode(result.nodes.find((node) => node.id === result.focusId) ?? null);
-      setIncludeConnectedTopics(includeConnected);
-      setScale(1);
-      updatePan({ x: 0, y: 0 });
-    } catch (cause) {
-      setError(describeError(cause));
-    } finally {
-      setLoading(false);
-    }
-  }, [depth, includeConnectedTopics, updatePan]);
-
-  useEffect(() => {
-    let active = true;
-    const request = route.params?.conceptId
-      ? fetchConceptKnowledgeMap(route.params.conceptId, {
-        topicId: route.params.topicId,
+        topicId,
         depth: 1,
         includeConnectedTopics: true,
-      })
-      : fetchKnowledgeMapRoot();
-    if (request) {
-      setLoading(true);
-      setError(null);
-      void request
-        .then((result) => {
-          if (!active) return;
-          const mode: MapMode = route.params?.conceptId ? 'concept' : 'overview';
-          setMode(mode);
-          setTopicId(mode === 'concept' ? route.params?.topicId ?? result.topicId ?? '' : '');
-          setMapData(result);
-          setSelectedNode(
-            mode === 'overview'
-              ? result.root ?? result.nodes.find((node) => node.type === 'root') ?? null
-              : result.nodes.find((node) => node.id === result.focusId) ?? null,
-          );
-          setIncludeConnectedTopics(mode === 'concept');
-          setScale(1);
-          updatePan({ x: 0, y: 0 });
-        })
-        .catch((cause: unknown) => {
-          if (active) setError(describeError(cause));
-        })
-        .finally(() => {
-          if (active) setLoading(false);
-        });
+      });
+      if (requestId !== conceptRequest.current) return;
+      conceptCache.current.set(cacheKey, result);
+      setConceptMap(result);
+      setDetailError(null);
+      void saveKnowledgeMap(cacheKey, result);
+    } catch (cause) {
+      if (requestId === conceptRequest.current && !cached) {
+        setDetailError(describeError(cause));
+      }
+    } finally {
+      if (requestId === conceptRequest.current) setDetailLoading(false);
     }
-    return () => { active = false; };
-  }, [route.params?.conceptId, route.params?.topicId, updatePan]);
+  }, []);
+
+  useEffect(() => {
+    void loadRootMap();
+  }, [loadRootMap]);
+
+  useEffect(() => {
+    const conceptId = route.params?.conceptId;
+    if (!conceptId) return;
+    setActiveConceptId(conceptId);
+    setConceptTrail([]);
+    void loadConceptMap(conceptId, route.params?.topicId);
+  }, [loadConceptMap, route.params?.conceptId, route.params?.topicId]);
 
   useEffect(() => {
     const normalized = query.trim();
@@ -208,547 +227,742 @@ export default function KnowledgeMapScreen({
     };
   }, [query]);
 
-  const visibleMapData = mapData;
+  const conceptNodes = useMemo(
+    () => (rootMap?.nodes ?? []).filter((node) => node.type === 'concept'),
+    [rootMap],
+  );
+  const pageCount = Math.max(1, Math.ceil(conceptNodes.length / ORBIT_PAGE_SIZE));
+  const pageNodes = conceptNodes.slice(
+    orbitPage * ORBIT_PAGE_SIZE,
+    (orbitPage + 1) * ORBIT_PAGE_SIZE,
+  );
+  const orbitPositions = useMemo(
+    () => getOrbitPositions(pageNodes, mapSize),
+    [mapSize, pageNodes],
+  );
+  const activeConcept = conceptMap?.nodes.find((node) => node.id === activeConceptId);
+  const prerequisites = useMemo(() => {
+    if (!conceptMap || !activeConceptId) return [];
+    return uniqueNodes(
+      conceptMap.edges
+        .filter((edge) => edge.type === 'PREREQUISITE_OF' && edge.target === activeConceptId)
+        .map((edge) => conceptMap.nodes.find((node) => node.id === edge.source)),
+    );
+  }, [activeConceptId, conceptMap]);
+  const relatedConcepts = useMemo(() => {
+    if (!conceptMap || !activeConceptId) return [];
+    return uniqueNodes(
+      conceptMap.edges
+        .filter(
+          (edge) =>
+            edge.type === 'RELATED_TO'
+            && (edge.source === activeConceptId || edge.target === activeConceptId),
+        )
+        .map((edge) => conceptMap.nodes.find(
+          (node) => node.id === (edge.source === activeConceptId ? edge.target : edge.source),
+        )),
+    );
+  }, [activeConceptId, conceptMap]);
 
-  const positionedNodes = useMemo<PositionedNode[]>(() => {
-    if (!visibleMapData) return [];
-    const ordered = [...visibleMapData.nodes].sort((a, b) => {
-      if (a.id === visibleMapData.focusId) return -1;
-      if (b.id === visibleMapData.focusId) return 1;
-      return (a.conceptOrder ?? Number.MAX_SAFE_INTEGER) - (b.conceptOrder ?? Number.MAX_SAFE_INTEGER)
-        || a.name.localeCompare(b.name);
-    });
-    if (visibleMapData.mode === 'overview') {
-      const root = ordered.find((node) => node.type === 'root');
-      const concepts = ordered.filter((node) => node.type !== 'root');
-      return [
-        ...(root
-          ? [{ node: root, x: (graphWidth - nodeWidth) / 2, y: 8 }]
-          : []),
-        ...concepts.map((node, index) => ({
-          node,
-          x: HORIZONTAL_PADDING + (index % 2) * (nodeWidth + COLUMN_GAP),
-          y: 8 + NODE_HEIGHT + ROW_GAP + Math.floor(index / 2) * (NODE_HEIGHT + ROW_GAP),
-        })),
-      ];
+  useEffect(() => {
+    if (orbitPage >= pageCount) setOrbitPage(Math.max(0, pageCount - 1));
+  }, [orbitPage, pageCount]);
+
+  const openConcept = (conceptId: string, topicId?: string) => {
+    if (activeConceptId && activeConceptId !== conceptId) {
+      setConceptTrail((trail) => [...trail, activeConceptId]);
     }
-    const focus = ordered.find((node) => node.id === visibleMapData.focusId);
-    const neighbors = ordered.filter((node) => node.id !== visibleMapData.focusId);
-    return [
-      ...(focus ? [{ node: focus, x: (graphWidth - nodeWidth) / 2, y: 8 }] : []),
-      ...neighbors.map((node, index) => ({
-        node,
-        x: HORIZONTAL_PADDING + (index % 2) * (nodeWidth + COLUMN_GAP),
-        y: 8 + NODE_HEIGHT + ROW_GAP + Math.floor(index / 2) * (NODE_HEIGHT + ROW_GAP),
-      })),
-    ];
-  }, [graphWidth, nodeWidth, visibleMapData]);
-
-  const byId = useMemo(
-    () => new Map(positionedNodes.map((positioned) => [positioned.node.id, positioned])),
-    [positionedNodes],
-  );
-  const svgHeight = Math.max(
-    MAP_HEIGHT,
-    ...positionedNodes.map(({ y }) => y + NODE_HEIGHT + ROW_GAP),
-  );
-
-  const panResponder = useMemo(() => PanResponder.create({
-    onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dx) > 5 || Math.abs(gesture.dy) > 5,
-    onPanResponderGrant: () => {
-      panOrigin.current = panRef.current;
-    },
-    onPanResponderMove: (_, gesture) => {
-      updatePan({ x: panOrigin.current.x + gesture.dx, y: panOrigin.current.y + gesture.dy });
-    },
-  }), [updatePan]);
-
-  const selectSearchResult = (result: ApiConceptSearchResult) => {
+    setActiveConceptId(conceptId);
     setQuery('');
     setSearchResults([]);
     setSearchError(false);
-    setIncludeConnectedTopics(true);
-    void loadConceptMap(result.id, result.contexts[0]?.topicId ?? undefined, depth, true);
+    void loadConceptMap(conceptId, topicId);
   };
 
-  const resetToOverview = () => {
-    setMode('overview');
-    setIncludeConnectedTopics(false);
-    setDepth(1);
-    setTopicId('');
-    void loadRootMap();
+  const goBack = () => {
+    const previousConceptId = conceptTrail[conceptTrail.length - 1];
+    if (previousConceptId) {
+      setConceptTrail((trail) => trail.slice(0, -1));
+      setActiveConceptId(previousConceptId);
+      const cachedMap = [...conceptCache.current.entries()].find(([key]) =>
+        key.startsWith(`knowledge-map:concept:${previousConceptId}:`),
+      )?.[1];
+      void loadConceptMap(previousConceptId, cachedMap?.topicId ?? undefined);
+      return;
+    }
+    setActiveConceptId(null);
+    setConceptMap(null);
+    setDetailError(null);
   };
 
-  const reloadWithFilters = (requestedDepth: number, includeConnected: boolean) => {
-    setDepth(requestedDepth);
-    setIncludeConnectedTopics(includeConnected);
-    const focusId = selectedNode?.id ?? mapData?.focusId ?? undefined;
-    if (mode === 'concept' && focusId && focusId !== 'STEM') {
-      void loadConceptMap(focusId, topicId || undefined, requestedDepth, includeConnected);
+  const selectSearchResult = (result: ApiConceptSearchResult) => {
+    openConcept(result.id, result.contexts[0]?.topicId ?? undefined);
+  };
+
+  const retry = () => {
+    if (activeConceptId) {
+      const selectedTopic = conceptMap?.topicId ?? route.params?.topicId;
+      void loadConceptMap(activeConceptId, selectedTopic ?? undefined);
+    } else {
+      void loadRootMap();
     }
   };
 
-  const expandSelected = () => {
-    if (selectedNode?.type === 'concept') {
-      void loadConceptMap(selectedNode.id, topicId || undefined, depth, includeConnectedTopics);
-    }
+  const learnConcept = (conceptId: string, returnToConceptId?: string) => {
+    navigation.navigate('ConceptLearning', {
+      conceptId,
+      returnToConceptId,
+    });
   };
 
-  const selectedPrerequisites =
-    selectedNode && mapData?.mode === 'concept'
-      ? mapData.edges
-          .filter((edge) => edge.type === 'PREREQUISITE_OF' && edge.target === selectedNode.id)
-          .map((edge) => mapData.nodes.find((node) => node.id === edge.source))
-          .filter((node): node is KnowledgeMapNode => Boolean(node))
-      : [];
-  const selectedRelated =
-    selectedNode && mapData?.mode === 'concept'
-      ? mapData.edges
-          .filter(
-            (edge) =>
-              edge.type === 'RELATED_TO'
-              && (edge.source === selectedNode.id || edge.target === selectedNode.id),
-          )
-          .map((edge) => mapData.nodes.find(
-            (node) => node.id === (edge.source === selectedNode.id ? edge.target : edge.source),
-          ))
-          .filter((node): node is KnowledgeMapNode => Boolean(node))
-      : [];
-  const selectedDependents =
-    selectedNode && mapData?.mode === 'concept'
-      ? mapData.edges
-          .filter((edge) => edge.type === 'PREREQUISITE_OF' && edge.source === selectedNode.id)
-          .map((edge) => mapData.nodes.find((node) => node.id === edge.target))
-          .filter((node): node is KnowledgeMapNode => Boolean(node))
-      : [];
-  const selectedTopics = selectedNode?.topicIds
-    .map((id) => topics.find((topic) => topic.id === id)?.name ?? id)
-    .filter((name, index, names) => names.indexOf(name) === index) ?? [];
-
-  const statusText = mapData
-    ? mapData.mappingStatus === 'not_applicable'
-      ? null
-      : mapData.mappingStatus === 'ready'
-        ? 'Prerequisite paths are verified.'
-        : mapData.mappingMessage ?? 'Prerequisite paths are pending verification.'
+  const firstLearnablePrerequisite = prerequisites.find((node) => node.type === 'concept');
+  const rootStatusMessage = rootMap?.mappingStatus && rootMap.mappingStatus !== 'ready'
+    ? rootMap.mappingMessage ?? 'Some learning connections are still being verified.'
     : null;
-
-  const handleNodePress = (node: KnowledgeMapNode) => {
-    if (node.type !== 'concept') {
-      setSelectedNode(node);
-      return;
-    }
-    if (mode === 'overview' || node.id !== mapData?.focusId) {
-      setIncludeConnectedTopics(true);
-      void loadConceptMap(node.id, node.topicIds[0], depth, true);
-      return;
-    }
-    setSelectedNode(node);
-  };
+  const detailStatusMessage = conceptMap && conceptMap.mappingStatus !== 'ready'
+    ? conceptMap.mappingMessage ?? 'Learning connections are still being verified.'
+    : null;
 
   return (
     <View style={styles.root}>
       <StatusBar style={statusBarStyle} />
-      <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
-        <Pressable
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-        >
-          <ArrowLeftIcon size={22} color={colors.ink} />
-        </Pressable>
-        <View style={styles.headerCopy}>
-          <Text style={styles.eyebrow}>EXPLORE CONNECTIONS</Text>
-          <Text style={styles.headerTitle}>Knowledge Map</Text>
-        </View>
-      </View>
-
-      <View style={styles.searchSection}>
-        <View style={styles.searchField}>
-          <SearchIcon size={18} color={colors.slate} />
-          <TextInput
-            style={styles.searchInput}
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Search a concept"
-            placeholderTextColor={colors.slate}
-            accessibilityLabel="Search concepts in the Knowledge Map"
-            returnKeyType="search"
-          />
-          {searchLoading ? <ActivityIndicator size="small" color={colors.primary} /> : null}
-        </View>
-        {searchError ? (
-          <View style={styles.searchResults}>
-            <Text style={styles.searchError}>Search is unavailable. Try again shortly.</Text>
-          </View>
-        ) : null}
-        {searchResults.length > 0 ? (
-          <View style={styles.searchResults}>
-            {searchResults.slice(0, 5).map((result) => (
-              <Pressable
-                key={result.id}
-                style={styles.searchResult}
-                onPress={() => selectSearchResult(result)}
-              >
-                <Text style={styles.searchResultTitle}>{result.name}</Text>
-                <Text style={styles.searchResultContext}>
-                  {[result.contexts[0]?.topicName]
-                    .filter(Boolean)
-                    .join(' · ') || 'Open concept map'}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        ) : null}
-      </View>
-
-      {mode === 'concept' ? (
-        <View style={styles.focusFilters}>
-          <Pressable style={styles.filterChip} onPress={resetToOverview} accessibilityRole="button">
-            <Text style={styles.filterText}>STEM tree</Text>
-          </Pressable>
-          <View style={styles.depthOptions}>
-            {[1, 2, 3].map((value) => (
-              <Pressable
-                key={value}
-                style={[styles.filterChip, depth === value && styles.filterChipActive]}
-                onPress={() => reloadWithFilters(value, includeConnectedTopics)}
-                accessibilityRole="button"
-                accessibilityLabel={`Show prerequisite depth ${value}`}
-              >
-                <Text style={[styles.filterText, depth === value && styles.filterTextActive]}>
-                  Depth {value}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-      ) : null}
-
-      {visibleMapData && statusText ? (
-        <View style={styles.mappingNotice}>
-          <View style={[styles.statusDot, visibleMapData.mappingStatus === 'ready' && styles.statusDotReady]} />
-          <Text style={styles.mappingNoticeText}>{statusText}</Text>
-        </View>
-      ) : null}
-
-      {error ? (
-        <View style={styles.messageState}>
-          <Text style={styles.messageText}>{error}</Text>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingTop: insets.top + 6, paddingBottom: activeConceptId ? 108 : insets.bottom + 24 },
+        ]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.header}>
           <Pressable
-            style={styles.retryButton}
-            onPress={() => {
-              if (route.params?.conceptId) void loadConceptMap(route.params.conceptId, route.params.topicId);
-              else void loadRootMap();
-            }}
+            style={styles.backButton}
+            onPress={activeConceptId ? goBack : () => navigation.goBack()}
+            accessibilityRole="button"
+            accessibilityLabel={activeConceptId ? 'Back to previous concept or map' : 'Go back'}
           >
-            <Text style={styles.retryText}>Try again</Text>
+            <ArrowLeftIcon size={21} color={colors.ink} />
+          </Pressable>
+          <View style={styles.headerCopy}>
+            <Text style={styles.eyebrow}>STEM · KNOWLEDGE ORBIT</Text>
+            <Text style={styles.headerTitle}>{activeConceptId ? 'Concept pathway' : 'Knowledge Map'}</Text>
+          </View>
+        </View>
+
+        <View style={styles.searchSection}>
+          <View style={styles.searchField}>
+            <SearchIcon size={18} color={colors.slate} />
+            <TextInput
+              style={styles.searchInput}
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Find any concept"
+              placeholderTextColor={colors.slate}
+              accessibilityLabel="Search concepts in the Knowledge Map"
+              returnKeyType="search"
+            />
+            {searchLoading ? <ActivityIndicator size="small" color={colors.primary} /> : null}
+          </View>
+          {searchError ? (
+            <View style={styles.searchResults}>
+              <Text style={styles.searchError}>Search is unavailable. Try again shortly.</Text>
+            </View>
+          ) : null}
+          {searchResults.length > 0 ? (
+            <View style={styles.searchResults}>
+              {searchResults.slice(0, 5).map((result) => (
+                <Pressable
+                  key={result.id}
+                  style={styles.searchResult}
+                  onPress={() => selectSearchResult(result)}
+                >
+                  <Text style={styles.searchResultTitle}>{result.name}</Text>
+                  <Text style={styles.searchResultContext}>
+                    {result.contexts[0]?.topicName ?? 'Open concept pathway'}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
+        </View>
+
+        {!activeConceptId ? (
+          <>
+            <View style={styles.intro}>
+              <Text style={styles.introTitle}>One universe.{'\n'}Endless ways to learn.</Text>
+              <Text style={styles.introText}>
+                Start anywhere. Every concept connects to a bigger STEM picture.
+              </Text>
+            </View>
+
+            {rootError && !rootMap ? (
+              <View style={styles.messageState}>
+                <Text style={styles.messageText}>{rootError}</Text>
+                <Pressable style={styles.retryButton} onPress={retry}>
+                  <Text style={styles.retryText}>Try again</Text>
+                </Pressable>
+              </View>
+            ) : null}
+
+            {rootLoading && !rootMap ? (
+              <View style={styles.loadingState}>
+                <ActivityIndicator color={colors.primary} />
+                <Text style={styles.loadingText}>Opening your STEM universe…</Text>
+              </View>
+            ) : null}
+
+            {rootMap ? (
+              <>
+                <View style={styles.orbitCard}>
+                  <View style={styles.orbitCardHeader}>
+                    <View>
+                      <Text style={styles.orbitEyebrow}>YOUR LEARNING UNIVERSE</Text>
+                      <Text style={styles.orbitTitle}>Explore the constellation</Text>
+                    </View>
+                    <View style={styles.conceptCount}>
+                      <Text style={styles.conceptCountValue}>{conceptNodes.length}</Text>
+                      <Text style={styles.conceptCountLabel}>nodes</Text>
+                    </View>
+                  </View>
+
+                  <View style={[styles.constellation, { width: mapSize, height: mapSize }]}>
+                    <Svg width={mapSize} height={mapSize} style={StyleSheet.absoluteFill}>
+                      <Circle
+                        cx={mapSize / 2}
+                        cy={mapSize / 2}
+                        r={mapSize * 0.235}
+                        fill="none"
+                        stroke="rgba(255,255,255,0.12)"
+                        strokeWidth={1}
+                      />
+                      <Circle
+                        cx={mapSize / 2}
+                        cy={mapSize / 2}
+                        r={mapSize * 0.385}
+                        fill="none"
+                        stroke="rgba(255,255,255,0.09)"
+                        strokeWidth={1}
+                        strokeDasharray="3 7"
+                      />
+                      {orbitPositions.map(({ node, x, y }) => (
+                        <Line
+                          key={`spoke:${node.id}`}
+                          x1={mapSize / 2}
+                          y1={mapSize / 2}
+                          x2={x}
+                          y2={y}
+                          stroke="rgba(255,255,255,0.26)"
+                          strokeWidth={1}
+                        />
+                      ))}
+                      {[
+                        [0.18, 0.27],
+                        [0.78, 0.18],
+                        [0.86, 0.72],
+                        [0.24, 0.81],
+                        [0.55, 0.09],
+                        [0.12, 0.62],
+                        [0.67, 0.9],
+                      ].map(([x, y], index) => (
+                        <Circle
+                          key={`star:${index}`}
+                          cx={mapSize * x}
+                          cy={mapSize * y}
+                          r={index % 2 === 0 ? 1.8 : 1.2}
+                          fill="rgba(255,255,255,0.62)"
+                        />
+                      ))}
+                    </Svg>
+
+                    <Pressable
+                      style={[
+                        styles.stemHub,
+                        { left: mapSize / 2 - 39, top: mapSize / 2 - 39 },
+                      ]}
+                      onPress={() => setOrbitPage(0)}
+                      accessibilityRole="button"
+                      accessibilityLabel="STEM learning hub"
+                    >
+                      <Text style={styles.stemHubTitle}>STEM</Text>
+                      <Text style={styles.stemHubSubtitle}>the big picture</Text>
+                    </Pressable>
+
+                    {orbitPositions.map(({ node, x, y }, index) => (
+                      <Pressable
+                        key={node.id}
+                        style={[
+                          styles.orbitNode,
+                          { left: x - ORBIT_NODE_WIDTH / 2, top: y - ORBIT_NODE_HEIGHT / 2 },
+                        ]}
+                        onPress={() => openConcept(node.id, node.topicIds[0])}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Open ${node.name}`}
+                      >
+                        <View style={[styles.nodeSpark, index % 3 === 1 && styles.nodeSparkAlt]} />
+                        <Text numberOfLines={2} style={styles.orbitNodeText}>
+                          {shortLabel(node.name, 10)}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+
+                  <View style={styles.orbitPager}>
+                    <Pressable
+                      style={[styles.pagerButton, orbitPage === 0 && styles.pagerButtonDisabled]}
+                      onPress={() => setOrbitPage((page) => Math.max(0, page - 1))}
+                      disabled={orbitPage === 0}
+                      accessibilityLabel="Previous orbit"
+                    >
+                      <ArrowLeftIcon size={17} color={orbitPage === 0 ? colors.slate : colors.onPrimary} />
+                    </Pressable>
+                    <View style={styles.pagerCopy}>
+                      <Text style={styles.pagerTitle}>Orbit {orbitPage + 1} of {pageCount}</Text>
+                      <Text style={styles.pagerSubtitle}>Choose an orbit or explore a node below</Text>
+                    </View>
+                    <Pressable
+                      style={[styles.pagerButton, orbitPage >= pageCount - 1 && styles.pagerButtonDisabled]}
+                      onPress={() => setOrbitPage((page) => Math.min(pageCount - 1, page + 1))}
+                      disabled={orbitPage >= pageCount - 1}
+                      accessibilityLabel="Next orbit"
+                    >
+                      <ArrowRightIcon size={17} color={orbitPage >= pageCount - 1 ? colors.slate : colors.onPrimary} />
+                    </Pressable>
+                  </View>
+                  <View style={styles.pageDots}>
+                    {Array.from({ length: pageCount }, (_, index) => (
+                      <Pressable
+                        key={index}
+                        style={[styles.pageDot, index === orbitPage && styles.pageDotActive]}
+                        onPress={() => setOrbitPage(index)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Show orbit ${index + 1}`}
+                      />
+                    ))}
+                  </View>
+                </View>
+
+                {rootStatusMessage ? (
+                  <View style={styles.mappingNotice}>
+                    <View style={styles.noticeDot} />
+                    <Text style={styles.mappingNoticeText}>{rootStatusMessage}</Text>
+                  </View>
+                ) : null}
+
+                <View style={styles.nodesHeading}>
+                  <View>
+                    <Text style={styles.sectionEyebrow}>PICK A PATH</Text>
+                    <Text style={styles.sectionTitle}>Concepts in this orbit</Text>
+                  </View>
+                  <Text style={styles.nodesRange}>
+                    {pageNodes.length ? `${orbitPage * ORBIT_PAGE_SIZE + 1}–${orbitPage * ORBIT_PAGE_SIZE + pageNodes.length}` : '0'}
+                  </Text>
+                </View>
+                <View style={styles.conceptList}>
+                  {pageNodes.map((node) => (
+                    <Pressable
+                      key={node.id}
+                      style={styles.conceptCard}
+                      onPress={() => openConcept(node.id, node.topicIds[0])}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Open ${node.name}`}
+                    >
+                      <View style={styles.conceptCardIcon}>
+                        <Text style={styles.conceptCardIndex}>
+                          {String(conceptNodes.findIndex((item) => item.id === node.id) + 1).padStart(2, '0')}
+                        </Text>
+                      </View>
+                      <View style={styles.conceptCardCopy}>
+                        <Text numberOfLines={2} style={styles.conceptCardTitle}>{node.name}</Text>
+                        <Text style={styles.conceptCardMeta}>
+                          {node.hasLesson ? 'Lesson ready' : 'Explore concept'}
+                          {node.hasAssessment ? ' · Practice' : ''}
+                        </Text>
+                      </View>
+                      <ArrowRightIcon size={17} color={colors.slate} />
+                    </Pressable>
+                  ))}
+                </View>
+              </>
+            ) : null}
+          </>
+        ) : (
+          <View style={styles.detailContent}>
+            {detailError && !conceptMap ? (
+              <View style={styles.messageState}>
+                <Text style={styles.messageText}>{detailError}</Text>
+                <Pressable style={styles.retryButton} onPress={retry}>
+                  <Text style={styles.retryText}>Try again</Text>
+                </Pressable>
+              </View>
+            ) : null}
+
+            {detailLoading && !conceptMap ? (
+              <View style={styles.loadingState}>
+                <ActivityIndicator color={colors.primary} />
+                <Text style={styles.loadingText}>Finding this concept’s connections…</Text>
+              </View>
+            ) : null}
+
+            {conceptMap ? (
+              <>
+                <View style={styles.focusHero}>
+                  <View style={styles.focusHeroTop}>
+                    <View style={styles.focusBadge}>
+                      <View style={styles.focusBadgeDot} />
+                      <Text style={styles.focusBadgeText}>CONCEPT NODE</Text>
+                    </View>
+                    {activeConcept?.hasAssessment ? (
+                      <Text style={styles.assessmentBadge}>PRACTICE READY</Text>
+                    ) : null}
+                  </View>
+                  <Text style={styles.focusTitle}>{activeConcept?.name ?? activeConceptId}</Text>
+                  <Text style={styles.focusDescription}>
+                    {activeConcept?.contentPreview?.trim()
+                      || 'A connected idea in the STEM universe. Choose your next step or explore what it builds on.'}
+                  </Text>
+                  <View style={styles.focusStats}>
+                    <View style={styles.focusStat}>
+                      <Text style={styles.focusStatValue}>{prerequisites.length}</Text>
+                      <Text style={styles.focusStatLabel}>prerequisites</Text>
+                    </View>
+                    <View style={styles.focusStatDivider} />
+                    <View style={styles.focusStat}>
+                      <Text style={styles.focusStatValue}>{relatedConcepts.length}</Text>
+                      <Text style={styles.focusStatLabel}>related ideas</Text>
+                    </View>
+                    <View style={styles.focusStatDivider} />
+                    <View style={styles.focusStat}>
+                      <Text style={styles.focusStatValue}>{activeConcept?.hasLesson ? 'Ready' : 'Open'}</Text>
+                      <Text style={styles.focusStatLabel}>learning</Text>
+                    </View>
+                  </View>
+                </View>
+
+                {detailStatusMessage ? (
+                  <View style={styles.mappingNotice}>
+                    <View style={styles.noticeDot} />
+                    <Text style={styles.mappingNoticeText}>{detailStatusMessage}</Text>
+                  </View>
+                ) : null}
+
+                <View style={styles.relationSection}>
+                  <View style={styles.sectionHeading}>
+                    <View style={styles.relationIconPrerequisite}>
+                      <Text style={styles.relationIconText}>1</Text>
+                    </View>
+                    <View style={styles.relationHeadingCopy}>
+                      <Text style={styles.sectionEyebrow}>BUILD YOUR FOUNDATION</Text>
+                      <Text style={styles.sectionTitle}>Prerequisites</Text>
+                    </View>
+                    <Text style={styles.relationCount}>{prerequisites.length}</Text>
+                  </View>
+                  {prerequisites.length ? (
+                    <View style={styles.relationList}>
+                      {prerequisites.map((node) => (
+                        <RelationCard
+                          key={node.id}
+                          node={node}
+                          label={node.type === 'concept' ? 'LEARN THIS FIRST' : 'FOUNDATION CONCEPT'}
+                          onPress={
+                            node.type === 'concept'
+                              ? () => learnConcept(node.id, activeConceptId)
+                              : undefined
+                          }
+                        />
+                      ))}
+                    </View>
+                  ) : (
+                    <View style={styles.emptyRelation}>
+                      <Text style={styles.emptyRelationTitle}>Start wherever you are</Text>
+                      <Text style={styles.emptyRelationText}>
+                        {conceptMap.mappingStatus === 'ready'
+                          ? 'No prerequisite has been mapped for this concept.'
+                          : 'Prerequisite links are still being verified. You can continue learning now.'}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                <View style={styles.relationSection}>
+                  <View style={styles.sectionHeading}>
+                    <View style={styles.relationIconRelated}>
+                      <Text style={styles.relationIconText}>↗</Text>
+                    </View>
+                    <View style={styles.relationHeadingCopy}>
+                      <Text style={styles.sectionEyebrow}>FOLLOW A CONNECTION</Text>
+                      <Text style={styles.sectionTitle}>Related concepts</Text>
+                    </View>
+                    <Text style={styles.relationCount}>{relatedConcepts.length}</Text>
+                  </View>
+                  {relatedConcepts.length ? (
+                    <View style={styles.relationList}>
+                      {relatedConcepts.map((node) => (
+                        <RelationCard
+                          key={node.id}
+                          node={node}
+                          label="RELATED IDEA"
+                          onPress={
+                            node.type === 'concept'
+                              ? () => openConcept(node.id, node.topicIds[0])
+                              : undefined
+                          }
+                        />
+                      ))}
+                    </View>
+                  ) : (
+                    <View style={styles.emptyRelation}>
+                      <Text style={styles.emptyRelationTitle}>More links are on the way</Text>
+                      <Text style={styles.emptyRelationText}>
+                        Related ideas will appear here as the concept network is verified.
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                {activeConcept?.hasAssessment ? (
+                  <Pressable
+                    style={styles.practiceLink}
+                    onPress={() => navigation.navigate('ConceptQuiz', { conceptId: activeConcept.id })}
+                  >
+                    <Text style={styles.practiceLinkText}>Practice this concept</Text>
+                    <ArrowRightIcon size={17} color={colors.primary} />
+                  </Pressable>
+                ) : null}
+              </>
+            ) : null}
+          </View>
+        )}
+      </ScrollView>
+
+      {activeConceptId && conceptMap ? (
+        <View style={[styles.stickyActions, { paddingBottom: Math.max(12, insets.bottom) }]}>
+          {firstLearnablePrerequisite ? (
+            <Pressable
+              style={styles.prerequisiteAction}
+              onPress={() => learnConcept(firstLearnablePrerequisite.id, activeConceptId)}
+              accessibilityRole="button"
+            >
+              <Text style={styles.prerequisiteActionText}>Learn prerequisite</Text>
+            </Pressable>
+          ) : null}
+          <Pressable
+            style={[styles.continueAction, !firstLearnablePrerequisite && styles.continueActionFull]}
+            onPress={() => learnConcept(activeConceptId)}
+            accessibilityRole="button"
+          >
+            <Text style={styles.continueActionText}>Continue learning</Text>
+            <ArrowRightIcon size={17} color={colors.onPrimary} />
           </Pressable>
         </View>
-      ) : null}
-
-      {loading && !mapData ? (
-        <View style={styles.loadingState}><ActivityIndicator color={colors.primary} /></View>
-      ) : null}
-
-      {visibleMapData ? (
-        <>
-          <View style={styles.graphToolbar}>
-            <Text style={styles.nodeCount}>
-              {visibleMapData.nodes.filter((node) => node.type === 'concept').length} concepts
-            </Text>
-            <View style={styles.zoomActions}>
-              <Pressable style={styles.zoomButton} onPress={() => setScale((value) => Math.max(0.65, value - 0.15))}>
-                <Text style={styles.zoomText}>−</Text>
-              </Pressable>
-              <Pressable
-                style={styles.zoomButton}
-                onPress={() => {
-                  setScale(Math.max(0.2, Math.min(1, MAP_HEIGHT / svgHeight)));
-                  updatePan({ x: 0, y: 0 });
-                }}
-              >
-                <Text style={styles.resetText}>Fit</Text>
-              </Pressable>
-              <Pressable style={styles.zoomButton} onPress={() => setScale((value) => Math.min(1.8, value + 0.15))}>
-                <Text style={styles.zoomText}>+</Text>
-              </Pressable>
-            </View>
-          </View>
-          {mode === 'concept' ? (
-            <View style={styles.relationshipLegend}>
-              <Text style={styles.prerequisiteLegend}>Prerequisite →</Text>
-              <Text style={styles.relatedLegend}>Related —</Text>
-            </View>
-          ) : null}
-          <View style={styles.graphViewport} {...panResponder.panHandlers}>
-            {loading ? (
-              <View style={styles.loadingOverlay}><ActivityIndicator color={colors.primary} /></View>
-            ) : null}
-            <Svg width={graphWidth} height={svgHeight} viewBox={`0 0 ${graphWidth} ${svgHeight}`}>
-              <G transform={`translate(${pan.x} ${pan.y}) scale(${scale})`}>
-                {visibleMapData.edges.map((edge) => {
-                  const source = byId.get(edge.source);
-                  const target = byId.get(edge.target);
-                  if (!source || !target) return null;
-                  const sourceCenter = { x: source.x + nodeWidth / 2, y: source.y + NODE_HEIGHT / 2 };
-                  const targetCenter = { x: target.x + nodeWidth / 2, y: target.y + NODE_HEIGHT / 2 };
-                  const dx = targetCenter.x - sourceCenter.x;
-                  const dy = targetCenter.y - sourceCenter.y;
-                  const distance = Math.max(1, Math.hypot(dx, dy));
-                  const ux = dx / distance;
-                  const uy = dy / distance;
-                  const sourceScale = Math.min(
-                    (nodeWidth / 2) / Math.max(0.001, Math.abs(ux)),
-                    (NODE_HEIGHT / 2) / Math.max(0.001, Math.abs(uy)),
-                  );
-                  const x1 = sourceCenter.x + ux * sourceScale;
-                  const y1 = sourceCenter.y + uy * sourceScale;
-                  const x2 = targetCenter.x - ux * sourceScale;
-                  const y2 = targetCenter.y - uy * sourceScale;
-                  const arrowLength = 7;
-                  const arrowHalfWidth = 4;
-                  const arrowPoints = [
-                    `${x2},${y2}`,
-                    `${x2 - ux * arrowLength - uy * arrowHalfWidth},${y2 - uy * arrowLength + ux * arrowHalfWidth}`,
-                    `${x2 - ux * arrowLength + uy * arrowHalfWidth},${y2 - uy * arrowLength - ux * arrowHalfWidth}`,
-                  ].join(' ');
-                  return (
-                    <G key={`${edge.type}:${edge.source}:${edge.target}`}>
-                      <Line
-                        x1={x1}
-                        y1={y1}
-                        x2={x2}
-                        y2={y2}
-                        stroke={
-                          edge.type === 'STEM_ROOT'
-                            ? colors.border
-                            : edge.type === 'RELATED_TO'
-                              ? colors.green
-                              : colors.primary
-                        }
-                        strokeWidth={edge.type === 'STEM_ROOT' ? 1.5 : 2}
-                      />
-                      {edge.type === 'PREREQUISITE_OF' ? (
-                        <Polygon points={arrowPoints} fill={colors.primary} />
-                      ) : null}
-                    </G>
-                  );
-                })}
-                {positionedNodes.map(({ node, x, y }) => {
-                  const isSelected = selectedNode?.id === node.id;
-                  const isFocus = visibleMapData.focusId === node.id;
-                  return (
-                    <G key={node.id} onPress={() => handleNodePress(node)}>
-                      <Rect
-                        x={x}
-                        y={y}
-                        width={nodeWidth}
-                        height={NODE_HEIGHT}
-                        rx={12}
-                        fill={isSelected || node.type === 'root' ? colors.primarySoft : node.type === 'ontology_only' ? colors.canvas : colors.surface}
-                        stroke={isSelected || isFocus ? colors.primary : node.type === 'ontology_only' ? colors.slate : colors.border}
-                        strokeWidth={isSelected || isFocus ? 2 : 1}
-                      />
-                      <SvgText
-                        x={x + 11}
-                        y={y + 23}
-                        fill={colors.ink}
-                        fontSize={12}
-                        fontWeight="600"
-                      >
-                        {shortLabel(node.name, Math.max(16, Math.floor(nodeWidth / 7)))}
-                      </SvgText>
-                      <SvgText x={x + 11} y={y + 43} fill={colors.slate} fontSize={10}>
-                        {node.type === 'root'
-                          ? 'All STEM concepts'
-                          : node.type === 'ontology_only'
-                            ? 'Ontology-only · no app content'
-                            : [
-                                node.hasLesson ? 'Lesson' : null,
-                                node.hasAssessment ? 'Assessment' : null,
-                              ].filter(Boolean).join(' · ') || 'Concept'}
-                      </SvgText>
-                    </G>
-                  );
-                })}
-              </G>
-            </Svg>
-            {visibleMapData.edges.length === 0 ? (
-              <View pointerEvents="none" style={styles.graphHint}>
-                <Text style={styles.graphHintText}>
-                  {visibleMapData.mappingStatus === 'ready'
-                    ? 'Select a concept to explore its connections.'
-                    : 'Concepts are shown; prerequisite links will appear after explicit mappings are verified.'}
-                </Text>
-              </View>
-            ) : null}
-          </View>
-          {selectedNode ? (
-            <View style={[styles.selectionCard, { paddingBottom: Math.max(12, insets.bottom) }]}>
-              <View style={styles.selectionCopy}>
-                <Text style={styles.selectionEyebrow}>
-                  {selectedNode.type === 'root'
-                    ? 'STEM NETWORK'
-                    : selectedNode.type === 'ontology_only'
-                      ? 'ONTOLOGY-ONLY NODE'
-                      : 'SELECTED CONCEPT'}
-                </Text>
-                <Text style={styles.selectionTitle}>{selectedNode.name}</Text>
-                <Text style={styles.selectionMeta}>
-                  {selectedNode.type === 'root'
-                    ? `${visibleMapData.nodes.filter((node) => node.type === 'concept').length} important concepts across STEM`
-                    : selectedNode.type === 'ontology_only'
-                      ? 'No matching app concept or lesson'
-                      : selectedTopics.join(', ') || 'STEM concept'}
-                </Text>
-                {selectedNode.type === 'concept' ? (
-                  <Text style={styles.selectionMeta}>
-                    Prerequisites {selectedPrerequisites.length} · Unlocks {selectedDependents.length}
-                    {' · '}Related {selectedRelated.length}
-                    {' · '}Learning content {selectedNode.hasLesson ? 'available' : 'unavailable'}
-                    {' · '}Assessment {selectedNode.hasAssessment ? 'available' : 'unavailable'}
-                  </Text>
-                ) : null}
-              </View>
-              {selectedNode.type === 'concept' ? (
-                <View style={styles.selectionActions}>
-                  <Pressable
-                    style={styles.secondaryAction}
-                    onPress={() => navigation.navigate('ConceptDetails', {
-                      conceptId: selectedNode.id,
-                      contextTopicId: topicId || undefined,
-                    })}
-                  >
-                    <Text style={styles.secondaryActionText}>Details</Text>
-                  </Pressable>
-                  <Pressable style={styles.expandAction} onPress={expandSelected}>
-                    <Text style={styles.expandActionText}>Open connections</Text>
-                    <ArrowRightIcon size={15} color={colors.onPrimary} />
-                  </Pressable>
-                  {selectedNode.hasLesson ? (
-                  <Pressable
-                    style={styles.learnAction}
-                    onPress={() => navigation.navigate('ConceptLearning', { conceptId: selectedNode.id })}
-                  >
-                    <Text style={styles.learnActionText}>Learn</Text>
-                  </Pressable>
-                  ) : null}
-                  {selectedNode.hasAssessment ? (
-                    <Pressable
-                      style={styles.secondaryAction}
-                      onPress={() => navigation.navigate('ConceptQuiz', {
-                        conceptId: selectedNode.id,
-                      })}
-                    >
-                      <Text style={styles.secondaryActionText}>Practice</Text>
-                    </Pressable>
-                  ) : null}
-                  {selectedPrerequisites[0] ? (
-                    <Pressable
-                      style={styles.secondaryAction}
-                      onPress={() => navigation.navigate('ConceptDetails', {
-                        conceptId: selectedPrerequisites[0].id,
-                        contextTopicId: selectedPrerequisites[0].topicIds[0],
-                        returnToConceptId: selectedNode.id,
-                      })}
-                    >
-                      <Text style={styles.secondaryActionText}>
-                        Learn {shortLabel(selectedPrerequisites[0].name, 20)} first
-                      </Text>
-                    </Pressable>
-                  ) : null}
-                  {selectedDependents.length > 0 ? (
-                    <Text style={styles.selectionMeta}>
-                      Unlocks: {selectedDependents.slice(0, 3).map((node) => node.name).join(', ')}
-                    </Text>
-                  ) : null}
-                  {selectedRelated.length > 0 ? (
-                    <Text style={styles.selectionMeta}>
-                      Related to: {selectedRelated.slice(0, 3).map((node) => node.name).join(', ')}
-                    </Text>
-                  ) : null}
-                </View>
-              ) : null}
-              {selectedNode.type === 'root' ? (
-                <Pressable style={styles.expandAction} onPress={resetToOverview}>
-                  <Text style={styles.expandActionText}>Reset overview</Text>
-                </Pressable>
-              ) : null}
-            </View>
-          ) : null}
-        </>
       ) : null}
     </View>
   );
 }
 
+function RelationCard({
+  node,
+  label,
+  onPress,
+}: {
+  node: KnowledgeMapNode;
+  label: string;
+  onPress?: () => void;
+}) {
+  const styles = useThemedStyles(createStyles);
+  const cardContent = (
+    <>
+      <View style={styles.relationCardMarker} />
+      <View style={styles.relationCardCopy}>
+        <Text style={styles.relationCardLabel}>{label}</Text>
+        <Text style={styles.relationCardTitle}>{node.name}</Text>
+        <Text style={styles.relationCardMeta}>
+          {node.type === 'ontology_only'
+            ? 'Not yet available as an app lesson'
+            : node.hasLesson
+              ? 'Lesson available'
+              : 'Concept in your STEM network'}
+        </Text>
+      </View>
+      {onPress ? (
+        <View style={styles.relationCardAction}>
+          <Text style={styles.relationCardActionText}>
+            {label === 'LEARN THIS FIRST' ? 'Start' : 'Open'}
+          </Text>
+          <ArrowRightIcon size={15} color={colors.primary} />
+        </View>
+      ) : null}
+    </>
+  );
+
+  if (!onPress) return <View style={styles.relationCard}>{cardContent}</View>;
+  return (
+    <Pressable
+      style={styles.relationCard}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${label.toLowerCase()}: ${node.name}`}
+    >
+      {cardContent}
+    </Pressable>
+  );
+}
+
 const createStyles = () => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.canvas },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingBottom: 13 },
+  scrollContent: { flexGrow: 1, paddingHorizontal: 18 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
   backButton: {
-    width: 40, height: 40, alignItems: 'center', justifyContent: 'center',
-    borderRadius: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
+    width: 42, height: 42, alignItems: 'center', justifyContent: 'center',
+    borderRadius: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
   },
   headerCopy: { gap: 2 },
-  eyebrow: { fontFamily: fonts.bold, fontSize: 9, color: colors.primary, letterSpacing: 0.8 },
+  eyebrow: { fontFamily: fonts.bold, fontSize: 9, color: colors.primary, letterSpacing: 1.05 },
   headerTitle: { fontFamily: fonts.extrabold, fontSize: 21, lineHeight: 26, color: colors.ink },
-  searchSection: { zIndex: 2, paddingHorizontal: 18 },
+  searchSection: { zIndex: 5, marginBottom: 16 },
   searchField: {
-    height: 48, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 12,
-    borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface,
+    height: 48, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 13,
+    borderRadius: 15, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface,
   },
   searchInput: { flex: 1, paddingVertical: 0, fontFamily: fonts.regular, fontSize: 13, color: colors.ink },
   searchResults: {
-    position: 'absolute', top: 52, left: 18, right: 18, borderRadius: 12, backgroundColor: colors.surface,
-    borderWidth: 1, borderColor: colors.border, overflow: 'hidden', elevation: 5,
+    position: 'absolute', top: 53, left: 0, right: 0, borderRadius: 14, backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: colors.border, overflow: 'hidden', elevation: 8, zIndex: 6,
   },
-  searchResult: { paddingHorizontal: 13, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
+  searchResult: { paddingHorizontal: 14, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: colors.border },
   searchResultTitle: { fontFamily: fonts.semibold, fontSize: 13, color: colors.ink },
-  searchResultContext: { marginTop: 2, fontFamily: fonts.regular, fontSize: 10, color: colors.slate },
-  searchError: { padding: 12, fontFamily: fonts.regular, fontSize: 11, color: colors.danger },
-  focusFilters: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6, paddingHorizontal: 18, paddingTop: 11 },
-  depthOptions: { flexDirection: 'row', gap: 5 },
-  filterChip: { paddingHorizontal: 9, height: 30, justifyContent: 'center', borderRadius: 999, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  filterChipActive: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
-  filterText: { fontFamily: fonts.medium, fontSize: 10, color: colors.slate },
-  filterTextActive: { color: colors.primary },
-  mappingNotice: { minHeight: 36, flexDirection: 'row', alignItems: 'center', gap: 7, marginHorizontal: 18, marginTop: 10, paddingHorizontal: 11, borderRadius: 10, backgroundColor: colors.yellowSoft },
-  statusDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.orange },
-  statusDotReady: { backgroundColor: colors.success },
-  mappingNoticeText: { flex: 1, fontFamily: fonts.medium, fontSize: 10, lineHeight: 14, color: colors.ink },
+  searchResultContext: { marginTop: 3, fontFamily: fonts.regular, fontSize: 10, color: colors.slate },
+  searchError: { padding: 13, fontFamily: fonts.regular, fontSize: 11, color: colors.danger },
+  intro: { gap: 6, marginBottom: 17 },
+  introTitle: { fontFamily: fonts.extrabold, fontSize: 26, lineHeight: 31, color: colors.ink, letterSpacing: -0.5 },
+  introText: { maxWidth: 320, fontFamily: fonts.regular, fontSize: 12, lineHeight: 18, color: colors.slate },
+  orbitCard: {
+    alignItems: 'center', paddingHorizontal: 14, paddingTop: 17, paddingBottom: 14,
+    borderRadius: 24, backgroundColor: colors.inkDeep, overflow: 'hidden', ...shadow.frame,
+  },
+  orbitCardHeader: {
+    width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginBottom: 6, paddingHorizontal: 3,
+  },
+  orbitEyebrow: { fontFamily: fonts.bold, fontSize: 8, letterSpacing: 1, color: colors.onPrimaryMuted },
+  orbitTitle: { marginTop: 4, fontFamily: fonts.bold, fontSize: 15, color: colors.onPrimary },
+  conceptCount: {
+    width: 42, height: 42, alignItems: 'center', justifyContent: 'center',
+    borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  conceptCountValue: { fontFamily: fonts.extrabold, fontSize: 15, lineHeight: 17, color: colors.onPrimary },
+  conceptCountLabel: { fontFamily: fonts.medium, fontSize: 8, color: colors.onPrimaryMuted },
+  constellation: { position: 'relative', alignSelf: 'center' },
+  stemHub: {
+    position: 'absolute', width: 78, height: 78, alignItems: 'center', justifyContent: 'center',
+    borderRadius: 39, borderWidth: 3, borderColor: 'rgba(255,255,255,0.28)', backgroundColor: colors.primary,
+    ...shadow.card,
+  },
+  stemHubTitle: { fontFamily: fonts.extrabold, fontSize: 17, lineHeight: 20, color: colors.onPrimary, letterSpacing: 0.5 },
+  stemHubSubtitle: { marginTop: 1, fontFamily: fonts.medium, fontSize: 7, color: colors.onPrimaryMuted },
+  orbitNode: {
+    position: 'absolute', width: ORBIT_NODE_WIDTH, height: ORBIT_NODE_HEIGHT, alignItems: 'center',
+    justifyContent: 'center', paddingHorizontal: 5, borderRadius: 15, borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.27)', backgroundColor: 'rgba(255,255,255,0.96)',
+    ...shadow.card,
+  },
+  nodeSpark: { width: 5, height: 5, position: 'absolute', top: 6, right: 7, borderRadius: 3, backgroundColor: colors.primary },
+  nodeSparkAlt: { backgroundColor: colors.teal },
+  orbitNodeText: { width: '100%', textAlign: 'center', fontFamily: fonts.semibold, fontSize: 8.5, lineHeight: 10, color: colors.ink },
+  orbitPager: { width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
+  pagerButton: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: colors.primary },
+  pagerButtonDisabled: { backgroundColor: 'rgba(255,255,255,0.1)' },
+  pagerCopy: { alignItems: 'center', gap: 2 },
+  pagerTitle: { fontFamily: fonts.semibold, fontSize: 11, color: colors.onPrimary },
+  pagerSubtitle: { fontFamily: fonts.regular, fontSize: 8, color: colors.onPrimaryMuted },
+  pageDots: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8 },
+  pageDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.3)' },
+  pageDotActive: { width: 16, backgroundColor: colors.onPrimary },
+  mappingNotice: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 12, padding: 12,
+    borderRadius: 14, backgroundColor: colors.yellowSoft,
+  },
+  noticeDot: { width: 7, height: 7, marginTop: 4, borderRadius: 4, backgroundColor: colors.orange },
+  mappingNoticeText: { flex: 1, fontFamily: fonts.medium, fontSize: 10, lineHeight: 15, color: colors.ink },
+  nodesHeading: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 23, marginBottom: 10 },
+  sectionEyebrow: { fontFamily: fonts.bold, fontSize: 8, letterSpacing: 0.9, color: colors.primary },
+  sectionTitle: { marginTop: 3, fontFamily: fonts.bold, fontSize: 16, color: colors.ink },
+  nodesRange: { fontFamily: fonts.semibold, fontSize: 10, color: colors.slate },
+  conceptList: { gap: 8 },
+  conceptCard: {
+    minHeight: 70, flexDirection: 'row', alignItems: 'center', gap: 11, paddingHorizontal: 12,
+    paddingVertical: 10, borderRadius: 16, borderWidth: 1, borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  conceptCardIcon: {
+    width: 38, height: 38, alignItems: 'center', justifyContent: 'center',
+    borderRadius: 13, backgroundColor: colors.primarySoft,
+  },
+  conceptCardIndex: { fontFamily: fonts.bold, fontSize: 11, color: colors.primary },
+  conceptCardCopy: { flex: 1, gap: 4 },
+  conceptCardTitle: { fontFamily: fonts.semibold, fontSize: 12, lineHeight: 16, color: colors.ink },
+  conceptCardMeta: { fontFamily: fonts.medium, fontSize: 9, color: colors.slate },
   messageState: { alignItems: 'center', gap: 12, padding: 28 },
   messageText: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 19, textAlign: 'center', color: colors.slate },
-  retryButton: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 10, backgroundColor: colors.primary },
+  retryButton: { paddingVertical: 9, paddingHorizontal: 17, borderRadius: 11, backgroundColor: colors.primary },
   retryText: { fontFamily: fonts.semibold, fontSize: 12, color: colors.onPrimary },
-  loadingState: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  graphToolbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingTop: 10, paddingBottom: 6 },
-  nodeCount: { fontFamily: fonts.semibold, fontSize: 11, color: colors.slate },
-  relationshipLegend: { flexDirection: 'row', gap: 12, paddingHorizontal: 22, paddingBottom: 6 },
-  prerequisiteLegend: { fontFamily: fonts.medium, fontSize: 10, color: colors.primary },
-  relatedLegend: { fontFamily: fonts.medium, fontSize: 10, color: colors.green },
-  zoomActions: { flexDirection: 'row', gap: 6 },
-  zoomButton: { minWidth: 32, height: 30, paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center', borderRadius: 9, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  zoomText: { fontFamily: fonts.medium, fontSize: 18, lineHeight: 21, color: colors.ink },
-  resetText: { fontFamily: fonts.medium, fontSize: 10, color: colors.ink },
-  graphViewport: { height: MAP_HEIGHT, marginHorizontal: 18, overflow: 'hidden', borderRadius: 15, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  loadingOverlay: { ...StyleSheet.absoluteFill, zIndex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.scrim },
-  graphHint: { position: 'absolute', left: 22, right: 22, bottom: 10, padding: 9, borderRadius: 9, backgroundColor: colors.canvas },
-  graphHintText: { fontFamily: fonts.regular, fontSize: 10, lineHeight: 14, color: colors.slate, textAlign: 'center' },
-  selectionCard: {
-    flexDirection: 'column', alignItems: 'stretch', gap: 8, marginTop: 10, paddingTop: 12,
-    paddingHorizontal: 18, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.canvas,
+  loadingState: { minHeight: 160, alignItems: 'center', justifyContent: 'center', gap: 10 },
+  loadingText: { fontFamily: fonts.medium, fontSize: 11, color: colors.slate },
+  detailContent: { gap: 18 },
+  focusHero: {
+    padding: 19, borderRadius: 24, backgroundColor: colors.inkDeep, ...shadow.frame,
   },
-  selectionCopy: { flex: 1, gap: 3 },
-  selectionEyebrow: { fontFamily: fonts.bold, fontSize: 8, color: colors.slate },
-  selectionTitle: { fontFamily: fonts.semibold, fontSize: 13, color: colors.ink },
-  selectionMeta: { fontFamily: fonts.regular, fontSize: 9, color: colors.slate },
-  selectionActions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 5 },
-  secondaryAction: { paddingHorizontal: 9, paddingVertical: 8, borderRadius: 9, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  secondaryActionText: { fontFamily: fonts.semibold, fontSize: 10, color: colors.ink },
-  expandAction: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 9, paddingVertical: 8, borderRadius: 9, backgroundColor: colors.primary },
-  expandActionText: { fontFamily: fonts.semibold, fontSize: 10, color: colors.onPrimary },
-  learnAction: { paddingHorizontal: 9, paddingVertical: 8, borderRadius: 9, backgroundColor: colors.green },
-  learnActionText: { fontFamily: fonts.semibold, fontSize: 10, color: colors.onPrimary },
+  focusHeroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  focusBadge: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  focusBadgeDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.teal },
+  focusBadgeText: { fontFamily: fonts.bold, fontSize: 8, letterSpacing: 0.9, color: colors.onPrimaryMuted },
+  assessmentBadge: {
+    paddingHorizontal: 8, paddingVertical: 5, borderRadius: 8, overflow: 'hidden',
+    backgroundColor: 'rgba(20,196,174,0.17)', fontFamily: fonts.bold, fontSize: 7, color: colors.teal,
+  },
+  focusTitle: { marginTop: 15, fontFamily: fonts.extrabold, fontSize: 24, lineHeight: 29, color: colors.onPrimary, letterSpacing: -0.35 },
+  focusDescription: { marginTop: 8, fontFamily: fonts.regular, fontSize: 11, lineHeight: 17, color: colors.onPrimaryMuted },
+  focusStats: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 18, paddingTop: 14, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.15)' },
+  focusStat: { flex: 1, alignItems: 'center', gap: 3 },
+  focusStatValue: { fontFamily: fonts.bold, fontSize: 13, color: colors.onPrimary },
+  focusStatLabel: { fontFamily: fonts.medium, fontSize: 8, color: colors.onPrimaryMuted },
+  focusStatDivider: { width: 1, height: 26, backgroundColor: 'rgba(255,255,255,0.15)' },
+  relationSection: { gap: 10 },
+  sectionHeading: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  relationIconPrerequisite: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: colors.primarySoft },
+  relationIconRelated: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: colors.greenSoft },
+  relationIconText: { fontFamily: fonts.bold, fontSize: 13, color: colors.primary },
+  relationHeadingCopy: { flex: 1 },
+  relationCount: { fontFamily: fonts.bold, fontSize: 12, color: colors.slate },
+  relationList: { gap: 8 },
+  relationCard: {
+    minHeight: 74, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12,
+    paddingVertical: 11, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface,
+  },
+  relationCardMarker: { width: 6, height: 34, borderRadius: 3, backgroundColor: colors.primary },
+  relationCardCopy: { flex: 1, gap: 3 },
+  relationCardLabel: { fontFamily: fonts.bold, fontSize: 7, letterSpacing: 0.65, color: colors.primary },
+  relationCardTitle: { fontFamily: fonts.semibold, fontSize: 12, lineHeight: 16, color: colors.ink },
+  relationCardMeta: { fontFamily: fonts.regular, fontSize: 9, color: colors.slate },
+  relationCardAction: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  relationCardActionText: { fontFamily: fonts.semibold, fontSize: 9, color: colors.primary },
+  emptyRelation: { padding: 14, borderRadius: 16, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  emptyRelationTitle: { fontFamily: fonts.semibold, fontSize: 11, color: colors.ink },
+  emptyRelationText: { marginTop: 4, fontFamily: fonts.regular, fontSize: 10, lineHeight: 15, color: colors.slate },
+  practiceLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, borderRadius: 15, backgroundColor: colors.primarySoft },
+  practiceLinkText: { fontFamily: fonts.semibold, fontSize: 11, color: colors.primary },
+  stickyActions: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 18, paddingTop: 11,
+    borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.canvas,
+  },
+  prerequisiteAction: {
+    minHeight: 46, flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10,
+    borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface,
+  },
+  prerequisiteActionText: { fontFamily: fonts.semibold, fontSize: 10, color: colors.ink, textAlign: 'center' },
+  continueAction: {
+    minHeight: 46, flex: 1.15, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 5, paddingHorizontal: 10, borderRadius: 14, backgroundColor: colors.primary,
+  },
+  continueActionFull: { flex: 1 },
+  continueActionText: { fontFamily: fonts.bold, fontSize: 10, color: colors.onPrimary },
 });

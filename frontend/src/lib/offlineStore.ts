@@ -1,10 +1,16 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import type { LearningContent, QuizQuestion, TopicPacket } from '../types/catalog';
+import type {
+  KnowledgeMapResponse,
+  LearningContent,
+  QuizQuestion,
+  TopicPacket,
+} from '../types/catalog';
 
 const LESSON_PREFIX = 'stem-mastery.lesson.v2.';
 const QUESTIONS_PREFIX = 'stem-mastery.questions.v1.';
 const TOPIC_PACKET_PREFIX = 'stem-mastery.topic-packet.v1.';
+const KNOWLEDGE_MAP_PREFIX = 'stem-mastery.knowledge-map.v1.';
 export const DOWNLOADS_STORAGE_KEY = 'stem-mastery.downloads.v2';
 export const READING_STORAGE_KEY = 'stem-mastery.reading.v1';
 export const PENDING_STORAGE_KEY = 'stem-mastery.pending.v1';
@@ -122,6 +128,24 @@ export function removeQuestions(conceptId: string): Promise<void> {
 
 export function removeTopicPacket(topicId: string): Promise<void> {
   return AsyncStorage.removeItem(topicPacketKey(topicId)).catch(() => {});
+}
+
+const knowledgeMapKey = (cacheKey: string) =>
+  `${KNOWLEDGE_MAP_PREFIX}${encodeURIComponent(cacheKey)}`;
+
+export async function loadKnowledgeMap(cacheKey: string): Promise<KnowledgeMapResponse | null> {
+  const cached = await readJson<{ map: KnowledgeMapResponse }>(knowledgeMapKey(cacheKey));
+  return cached?.map ?? null;
+}
+
+export function saveKnowledgeMap(
+  cacheKey: string,
+  map: KnowledgeMapResponse,
+): Promise<void> {
+  return writeJson(knowledgeMapKey(cacheKey), {
+    map,
+    savedAt: new Date().toISOString(),
+  });
 }
 
 export function loadDownloads(): Promise<string[] | null> {
