@@ -230,6 +230,7 @@ export default function SettingsScreen({ navigation }: RootScreenProps<'Settings
                 <Pressable
                   key={key}
                   style={styles.row}
+                  accessibilityLabel={title}
                   accessibilityRole={toggleKey ? 'switch' : 'button'}
                   accessibilityState={
                     toggleKey
@@ -288,6 +289,7 @@ export default function SettingsScreen({ navigation }: RootScreenProps<'Settings
       <BottomNav active="Profile" onSelect={navigateToTab(navigation, 'Profile')} />
       <BottomSheetDrawer
         visible={drawerKey !== null}
+        fullHeight={drawerKey === 'profile'}
         title={
           drawerKey === 'language'
             ? 'Language'

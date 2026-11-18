@@ -24,6 +24,7 @@ type BottomSheetDrawerProps = {
   title: string;
   description: string;
   items: readonly DrawerItem[];
+  fullHeight?: boolean;
   children?: ReactNode;
   onClose: () => void;
 };
@@ -33,6 +34,7 @@ export default function BottomSheetDrawer({
   title,
   description,
   items,
+  fullHeight = false,
   children,
   onClose,
 }: BottomSheetDrawerProps) {
@@ -53,7 +55,17 @@ export default function BottomSheetDrawer({
       >
         <View style={styles.overlay}>
           <Pressable style={styles.dismissArea} onPress={onClose} accessibilityLabel="Close drawer" />
-          <View style={[styles.sheet, { paddingBottom: insets.bottom + 18 }]}>
+          <View
+            testID="bottom-sheet-drawer"
+            style={[
+              styles.sheet,
+              fullHeight && styles.fullSheet,
+              {
+                paddingTop: fullHeight ? insets.top + 10 : 10,
+                paddingBottom: insets.bottom + 18,
+              },
+            ]}
+          >
             <View style={styles.handle} />
             <View style={styles.titleRow}>
               <View style={styles.titleCopy}>
@@ -103,6 +115,7 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     backgroundColor: c.canvas,
     ...shadow.card,
   },
+  fullSheet: { height: '100%', maxHeight: '100%' },
   handle: {
     alignSelf: 'center',
     width: 38,
