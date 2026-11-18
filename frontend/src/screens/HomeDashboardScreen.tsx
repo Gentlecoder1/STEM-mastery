@@ -26,7 +26,7 @@ export default function HomeDashboardScreen({ navigation }: RootScreenProps<'Hom
   const styles = useThemedStyles(createStyles);
   const { profile } = useProfile();
   const displayName = useDisplayName();
-  const { subjects, topics } = useCatalog();
+  const { subjects } = useCatalog();
   const [searchQuery, setSearchQuery] = useState('');
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -34,11 +34,7 @@ export default function HomeDashboardScreen({ navigation }: RootScreenProps<'Hom
     if (hour < 18) return 'Good afternoon';
     return 'Good evening';
   }, []);
-  const featuredTopics = topics.slice(0, 3);
-
-  const openKnowledgeMap = (topicId?: string) => {
-    navigation.navigate('KnowledgeMap', topicId ? { topicId } : undefined);
-  };
+  const openKnowledgeMap = () => navigation.navigate('KnowledgeMap');
 
   return (
     <View style={styles.root}>
@@ -133,34 +129,6 @@ export default function HomeDashboardScreen({ navigation }: RootScreenProps<'Hom
           })}
         </View>
 
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Start with a topic</Text>
-          <Pressable onPress={() => navigation.navigate('Subjects')}>
-            <Text style={styles.seeAll}>Browse</Text>
-          </Pressable>
-        </View>
-        <View style={styles.topicList}>
-          {featuredTopics.map((topic) => {
-            const subject = subjects.find((item) => String(item.id) === String(topic.subjectId));
-            return (
-              <Pressable
-                key={topic.id}
-                style={styles.topicRow}
-                onPress={() => openKnowledgeMap(topic.id)}
-                accessibilityRole="button"
-              >
-                <View style={styles.topicCopy}>
-                  <Text style={styles.topicTitle} numberOfLines={1}>{topic.name}</Text>
-                  <Text style={styles.topicSubject}>{subject?.name ?? 'Curriculum'}</Text>
-                </View>
-                <ArrowRightIcon size={17} color={colors.primary} />
-              </Pressable>
-            );
-          })}
-          {featuredTopics.length === 0 ? (
-            <Text style={styles.emptyTopics}>Topics will appear here when the curriculum is available.</Text>
-          ) : null}
-        </View>
       </ScrollView>
       <BottomNav active="Home" onSelect={navigateToTab(navigation, 'Home')} />
     </View>
@@ -199,10 +167,4 @@ const createStyles = () => StyleSheet.create({
   subjectIcon: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 11, marginBottom: 8 },
   subjectName: { fontFamily: fonts.semibold, fontSize: 11, color: colors.ink },
   subjectMeta: { marginTop: 3, fontFamily: fonts.regular, fontSize: 9, color: colors.slate },
-  topicList: { gap: 7 },
-  topicRow: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  topicCopy: { flex: 1, gap: 3 },
-  topicTitle: { fontFamily: fonts.semibold, fontSize: 12, color: colors.ink },
-  topicSubject: { fontFamily: fonts.regular, fontSize: 10, color: colors.slate },
-  emptyTopics: { padding: 14, fontFamily: fonts.regular, fontSize: 11, lineHeight: 16, color: colors.slate },
 });
