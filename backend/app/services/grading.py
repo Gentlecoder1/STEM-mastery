@@ -52,7 +52,7 @@ def is_multiple_choice(question: dict[str, Any]) -> bool:
     question_type = _normalise(question.get("type")).lower()
     if "mcq" in question_type or "multiple" in question_type or "choice" in question_type:
         return True
-    if question_type in {"theoretical", "written", "open", "essay"}:
+    if question_type in {"theoretical", "written", "open", "essay", "short_answer", "theory"}
         return False
     return bool(question.get("options")) and resolve_correct_option(question) is not None
 
