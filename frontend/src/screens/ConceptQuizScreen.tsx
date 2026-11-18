@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,8 +7,11 @@ import { ArrowLeftIcon, ArrowRightIcon, CheckCircleIcon } from '../components/ic
 import { ProgressBar } from '../components/PracticeUI';
 import { useCatalog } from '../catalogContext';
 import { useOffline } from '../offlineContext';
+import { answerHash, coverageFeedback, markOffline, summariseOffline, type OfflineMark } from '../lib/offlineGrading';
+import { useConnectivity } from '../connectivityContext';
 import { useProgress } from '../progressContext';
 import { checkAnswer, submitConceptQuiz, type CheckResult, type ConceptQuizSubmitResult } from '../lib/assessmentApi';
+import { nextTopicLesson } from '../lib/learningPath';
 import { prettyMath } from '../lib/mathText';
 import { colors, fonts } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
@@ -19,10 +22,12 @@ export default function ConceptQuizScreen({ navigation, route }: RootScreenProps
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
   const { statusBarStyle } = useTheme();
-  const { getConcept } = useCatalog();
-  const { refresh: refreshProgress } = useProgress();
+  const catalog = useCatalog();
+  const { getConcept } = catalog;
+  const { refresh: refreshProgress, isConceptCompleted } = useProgress();
   const offline = useOffline();
-  const { conceptId, returnToConceptId } = route.params;
+  const { isOnline } = useConnectivity();
+  const { conceptId, returnToConceptId, topicId: routeTopicId } = route.params;
   const concept = getConcept(conceptId);
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [responses, setResponses] = useState<Record<string, string>>({});
@@ -32,6 +37,8 @@ export default function ConceptQuizScreen({ navigation, route }: RootScreenProps
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [markedOffline, setMarkedOffline] = useState(false);
+  const marks = useRef<Record<string, OfflineMark>>({});
 
   useEffect(() => {
     let active = true;
@@ -49,14 +56,67 @@ export default function ConceptQuizScreen({ navigation, route }: RootScreenProps
   const response = question ? responses[question.id] ?? '' : '';
   const isLast = index === questions.length - 1;
 
+  const graphLinks = (ids: readonly string[] | undefined, names: readonly string[] | undefined) =>
+    (ids ?? []).map((id, i) => ({ id, name: names?.[i] ?? null }));
+
+  /** Mark one answer on the phone from its hashed key (no network needed). */
+  const checkLocally = (item: QuizQuestion, value: string): CheckResult => {
+    const mark = markOffline(item, value);
+    marks.current[item.id] = mark;
+    const key = item.offlineKey?.answerHash;
+    const correctOptionId = key
+      ? item.options?.find((option) => answerHash(item.id, option.id) === key)?.id ?? null
+      : null;
+    return {
+      questionId: item.id,
+      conceptId,
+      correct: mark.correct,
+      correctOptionId,
+      explanation: coverageFeedback(mark.coverage),
+      prerequisites: [],
+      relatedConcepts: [],
+    };
+  };
+
+  const finishLocally = (payload: { questionId: string; response: string | null }[]) => {
+    const all = questions.map((item) => marks.current[item.id] ?? markOffline(item, responses[item.id] ?? null));
+    const summary = summariseOffline(questions, all);
+    offline.queueQuizAttempt({
+      kind: 'concept',
+      targetId: conceptId,
+      responses: payload,
+      offlineScorePct: summary.scorePct,
+      offlinePassed: summary.passed,
+      markingMs: all.reduce((sum, mark) => sum + mark.ms, 0),
+    });
+    setMarkedOffline(true);
+    setResult({
+      conceptId,
+      correct: summary.correct,
+      total: summary.total,
+      scorePct: summary.scorePct,
+      passed: summary.passed,
+      // Recommendations come from the cached knowledge graph, so they work offline too.
+      prerequisites: graphLinks(concept?.prerequisiteIds, concept?.prerequisites),
+      relatedConcepts: graphLinks(concept?.relatedConceptIds, concept?.related),
+    });
+  };
+
   const advance = async () => {
     if (!question || !response.trim() || busy) return;
     setBusy(true);
     setError(null);
     try {
       if (!checked) {
-        const outcome = await checkAnswer(conceptId, question.id, response.trim());
-        setChecked(outcome);
+        if (!isOnline) {
+          setChecked(checkLocally(question, response.trim()));
+          return;
+        }
+        try {
+          setChecked(await checkAnswer(conceptId, question.id, response.trim()));
+        } catch {
+          setChecked(checkLocally(question, response.trim()));
+        }
         return;
       }
       if (!isLast) {
@@ -64,26 +124,47 @@ export default function ConceptQuizScreen({ navigation, route }: RootScreenProps
         setChecked(null);
         return;
       }
-      const submission = await submitConceptQuiz(
-        conceptId,
-        questions.map((item) => ({
-          questionId: item.id,
-          response: responses[item.id]?.trim() || null,
-        })),
-      );
-      setResult(submission);
-      if (submission.passed) await refreshProgress();
-    } catch {
-      setError('Connect to the curriculum service to check or submit this assessment. Your answers remain on this screen.');
+      const payload = questions.map((item) => ({
+        questionId: item.id,
+        response: responses[item.id]?.trim() || null,
+      }));
+      if (!isOnline) {
+        finishLocally(payload);
+        return;
+      }
+      try {
+        const submission = await submitConceptQuiz(conceptId, payload);
+        setResult(submission);
+        if (submission.passed) await refreshProgress();
+      } catch {
+        finishLocally(payload);
+      }
     } finally {
       setBusy(false);
     }
   };
 
-  const openConcept = (id: string) => {
-    navigation.push('ConceptDetails', {
-      conceptId: id,
-      returnToConceptId: result?.passed ? returnToConceptId : conceptId,
+  const topicId = routeTopicId ?? concept?.topicIds[0];
+  const canContinue = (id: string) =>
+    id !== conceptId && !isConceptCompleted(id) && (isOnline || offline.isDownloaded(id));
+  const assessmentIds = route.params.assessmentIds ?? [conceptId];
+  const remainingAssessments = assessmentIds.slice(assessmentIds.indexOf(conceptId) + 1);
+  const nextAssessment = remainingAssessments[0];
+  const continueAssessment = () => {
+    if (nextAssessment) navigation.replace('ConceptQuiz', {
+      conceptId: nextAssessment, topicId, assessmentIds, returnToConceptId,
+    });
+  };
+  const order = topicId ? catalog.getTopicConceptIds(topicId) : [];
+  const position = order.indexOf(assessmentIds[assessmentIds.length - 1] ?? conceptId);
+  const following = position < 0 ? undefined : order.slice(position + 1)
+    .find((id) => canContinue(id) && getConcept(id)?.hasLesson);
+  const next = following ? { conceptId: following, topicId } :
+    nextTopicLesson(catalog, catalog.topics, topicId, canContinue);
+  const openConcept = (id: string, reviewTarget?: string, contextTopicId?: string) => {
+    navigation.replace('ConceptLearning', {
+      conceptId: id, topicId: contextTopicId, returnToConceptId: reviewTarget,
+      lessonIds: reviewTarget ? [id] : undefined,
     });
   };
 
@@ -101,15 +182,21 @@ export default function ConceptQuizScreen({ navigation, route }: RootScreenProps
       <View style={[styles.root, styles.centered]}>
         <StatusBar style={statusBarStyle} />
         <Text style={styles.message}>No assessment questions are cached for this concept.</Text>
-        <Pressable style={styles.secondaryButton} onPress={() => navigation.goBack()}>
-          <Text style={styles.secondaryText}>Back to concept</Text>
+        <Pressable style={styles.secondaryButton} onPress={() => nextAssessment ? continueAssessment() : next ? openConcept(next.conceptId, undefined, next.topicId) : navigation.goBack()}>
+          <Text style={styles.secondaryText}>{nextAssessment ? "Next assessment" : next ? "Continue studying" : "Back to topic"}</Text>
         </Pressable>
       </View>
     );
   }
 
   if (result) {
-    const recommendations = result.passed ? result.relatedConcepts : result.prerequisites;
+    const recommendations = (result.passed ? result.relatedConcepts : result.prerequisites)
+      .filter((item) => canContinue(item.id) && getConcept(item.id)?.hasLesson);
+    const target = result.passed
+      ? (returnToConceptId ? { conceptId: returnToConceptId, topicId: undefined } :
+        next ?? (recommendations[0] ? { conceptId: recommendations[0].id, topicId: undefined } : undefined))
+      : { conceptId: recommendations[0]?.id ?? conceptId, topicId };
+    const targetTitle = target && getConcept(target.conceptId)?.title;
     return (
       <View style={styles.root}>
         <StatusBar style={statusBarStyle} />
@@ -125,20 +212,40 @@ export default function ConceptQuizScreen({ navigation, route }: RootScreenProps
           </Text>
           <Text style={styles.score}>{result.correct} / {result.total}</Text>
           <Text style={styles.message}>graded questions correct</Text>
-          {recommendations.map((item) => (
-            <Pressable key={item.id} style={styles.recommendation} onPress={() => openConcept(item.id)}>
-              <View style={styles.recommendationCopy}>
-                <Text style={styles.recommendationLabel}>{result.passed ? 'RELATED CONCEPT' : 'PREREQUISITE'}</Text>
-                <Text style={styles.recommendationTitle}>{item.name ?? item.id}</Text>
-              </View>
+          {markedOffline ? (
+            <Text style={styles.offlineNote}>
+              Marked on this phone. Your result will be confirmed and saved when you are back online.
+            </Text>
+          ) : null}
+          {result.passed && nextAssessment ? (
+            <Pressable style={styles.primaryButton} onPress={continueAssessment}>
+              <Text style={styles.primaryText}>Next concept check: {getConcept(nextAssessment)?.title ?? 'Continue'}</Text>
+            </Pressable>
+          ) : target ? (
+            <Pressable
+              style={styles.primaryButton}
+              onPress={() => {
+                if (!result.passed && target.conceptId === conceptId) {
+                  navigation.replace('ConceptLearning', {
+                    conceptId, topicId, lessonIds: [conceptId],
+                    assessmentIds: [conceptId, ...remainingAssessments], returnToConceptId,
+                  });
+                } else {
+                  openConcept(target.conceptId, result.passed ? undefined : conceptId, target.topicId);
+                }
+              }}
+            >
+              <Text style={styles.primaryText}>
+                {result.passed ? 'Continue' : 'Review'}{targetTitle ? `: ${targetTitle}` : ''}
+              </Text>
+            </Pressable>
+          ) : null}
+          {recommendations.filter((item) => item.id !== target?.conceptId).map((item) => (
+            <Pressable key={item.id} style={styles.recommendation} onPress={() => openConcept(item.id, result.passed ? undefined : conceptId)}>
+              <Text style={styles.recommendationTitle}>{item.name ?? getConcept(item.id)?.title ?? item.id}</Text>
               <ArrowRightIcon size={18} color={colors.primary} />
             </Pressable>
           ))}
-          {returnToConceptId && result.passed ? (
-            <Pressable style={styles.primaryButton} onPress={() => navigation.navigate('ConceptDetails', { conceptId: returnToConceptId })}>
-              <Text style={styles.primaryText}>Return to original concept</Text>
-            </Pressable>
-          ) : null}
           <Pressable style={styles.secondaryButton} onPress={() => navigation.goBack()}>
             <Text style={styles.secondaryText}>Back to learning</Text>
           </Pressable>
@@ -208,7 +315,13 @@ export default function ConceptQuizScreen({ navigation, route }: RootScreenProps
         )}
         {checked ? (
           <Text style={[styles.feedback, checked.correct ? styles.correct : styles.incorrect]}>
-            {checked.correct === true ? 'Correct' : checked.correct === false ? 'Not quite. The correct option is highlighted.' : 'Response recorded.'}
+            {checked.correct === true
+              ? 'Correct'
+              : checked.correct === false
+                ? checked.correctOptionId
+                  ? 'Not quite. The correct option is highlighted.'
+                  : checked.explanation ?? 'Not quite.'
+                : checked.explanation ?? 'Response recorded.'}
           </Text>
         ) : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -247,6 +360,7 @@ const createStyles = () => StyleSheet.create({
   feedback: { fontFamily: fonts.bold, fontSize: 14 },
   correct: { color: colors.success },
   incorrect: { color: colors.orange },
+  offlineNote: { fontFamily: fonts.medium, fontSize: 13, lineHeight: 18, color: colors.slate, textAlign: 'center' },
   error: { fontFamily: fonts.medium, fontSize: 13, lineHeight: 18, color: colors.orange },
   primaryButton: { minHeight: 52, borderRadius: 12, paddingHorizontal: 18, backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9 },
   primaryText: { fontFamily: fonts.bold, color: colors.onPrimary },

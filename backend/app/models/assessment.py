@@ -34,11 +34,13 @@ class QuizResponseItem(BaseModel):
 
 
 class TopicQuizSubmitRequest(BaseModel):
+    sampled: bool = False
     responses: list[QuizResponseItem] = Field(default_factory=list)
 
 
 class TopicQuizSubmitResponse(BaseModel):
     topicId: str
+    reviewConceptIds: list[str] = Field(default_factory=list)
     correct: int
     total: int
     scorePct: int

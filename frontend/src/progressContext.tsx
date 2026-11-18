@@ -117,6 +117,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
   const [topicAssessments, setTopicAssessments] = useState<Record<string, TopicAssessment>>({});
   const [lastConceptId, setLastConceptId] = useState<string | null>(null);
   const remote = !!user;
+  const lastLessonKey = user ? `${LAST_LESSON_STORAGE_KEY}.${user.id}` : LAST_LESSON_STORAGE_KEY;
 
   const load = useCallback(async () => {
     const supabase = getSupabase();
@@ -157,15 +158,15 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     void load();
   }, [load]);
 
-  // The "last lesson" pointer is device-local so it survives closing the app
-  // (and logging out) regardless of whether progress is synced remotely.
+  // Keep the resume pointer on this device, scoped to the current learner.
   useEffect(() => {
     let mounted = true;
+    setLastConceptId(null);
     (async () => {
       if (!STORAGE) return;
       try {
-        const raw = await STORAGE.getItem(LAST_LESSON_STORAGE_KEY);
-        if (mounted && raw) setLastConceptId(raw);
+        const raw = await STORAGE.getItem(lastLessonKey);
+        if (mounted) setLastConceptId(raw);
       } catch {
         // ignore
       }
@@ -173,7 +174,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [lastLessonKey]);
 
   const persist = useCallback(
     (nextCompleted: string[], nextPlacement: PlacementState) => {
@@ -207,8 +208,8 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
 
   const recordLastConcept = useCallback((conceptId: string) => {
     setLastConceptId(conceptId);
-    if (STORAGE) STORAGE.setItem(LAST_LESSON_STORAGE_KEY, conceptId).catch(() => {});
-  }, []);
+    if (STORAGE) STORAGE.setItem(lastLessonKey, conceptId).catch(() => {});
+  }, [lastLessonKey]);
 
   const lastConcept = lastConceptId ? getConcept(lastConceptId) : undefined;
 
@@ -246,7 +247,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     (subjectId?: SubjectId) => {
       if (placement.recommendedStartConceptId) {
         const recommended = getConcept(placement.recommendedStartConceptId);
-        if (recommended && (!subjectId || recommended.subjectIds.includes(subjectId))) {
+        if (recommended && !completedConcepts.includes(recommended.id) && (!subjectId || recommended.subjectIds.includes(subjectId))) {
           return recommended.id;
         }
       }

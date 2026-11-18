@@ -722,9 +722,9 @@ export default function KnowledgeMapScreen({
                 {activeConcept?.hasAssessment ? (
                   <Pressable
                     style={styles.practiceLink}
-                    onPress={() => navigation.navigate('ConceptQuiz', { conceptId: activeConcept.id })}
+                    onPress={() => navigation.navigate('ConceptLearning', { conceptId: activeConcept.id })}
                   >
-                    <Text style={styles.practiceLinkText}>Practice this concept</Text>
+                    <Text style={styles.practiceLinkText}>Study and practice this concept</Text>
                     <ArrowRightIcon size={17} color={colors.primary} />
                   </Pressable>
                 ) : null}

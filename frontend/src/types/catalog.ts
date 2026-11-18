@@ -41,13 +41,23 @@ export type QuizOption = {
   text: string;
 };
 
+/** Hashed answer key for provisional offline marking (see lib/offlineGrading.ts). */
+export type OfflineKey = {
+  v: number;
+  answerHash?: string | null;
+  keywordHashes?: string[] | null;
+  minCoverage?: number | null;
+};
+
 /** A quiz question as delivered to the client: answer keys are withheld. */
 export type QuizQuestion = {
   id: string;
+  conceptId?: string;
   type: 'mcq' | 'written';
   prompt: string;
   options?: readonly QuizOption[];
   hint?: string | null;
+  offlineKey?: OfflineKey | null;
 };
 
 /** App-facing concept shape used by the screens (mirrors the old mock type). */
@@ -92,6 +102,7 @@ export type ApiSubject = { id: string; name: string; iri: string | null };
 export type ApiTopic = { id: string; name: string; iri: string | null };
 export type ApiConceptSummary = {
   id: string;
+  hasLesson?: boolean;
   name: string | null;
   prefLabel: string | null;
   iri: string | null;
@@ -171,6 +182,7 @@ export type ApiQuestion = {
   reviewStatus?: string | null;
   hint?: string | null;
   explanation?: string | null;
+  offlineKey?: OfflineKey | null;
 };
 
 /**
@@ -294,7 +306,7 @@ export function mapConceptSummary(
     related: [],
     prerequisiteIds: api.prerequisites.map((item) => item.id),
     relatedConceptIds: [],
-    hasLesson: false,
+    hasLesson: api.hasLesson ?? false,
     tint: theme.tint,
     soft: theme.soft,
   };
@@ -336,6 +348,7 @@ export function mapLesson(
 export function mapQuestions(api: ApiQuestion[]): QuizQuestion[] {
   return api.map((question, index) => ({
     id: question.id,
+    conceptId: question.conceptId ?? undefined,
     type:
       question.type?.toLowerCase() === 'mcq' || question.options.length > 0
         ? 'mcq'
@@ -347,5 +360,6 @@ export function mapQuestions(api: ApiQuestion[]): QuizQuestion[] {
       text: option.text ?? '',
     })),
     hint: question.hint,
+    offlineKey: question.offlineKey ?? null,
   }));
 }

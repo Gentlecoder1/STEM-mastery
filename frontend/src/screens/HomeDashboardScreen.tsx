@@ -11,6 +11,9 @@ import { colors, fonts, shadow } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
 import { useProfile } from '../profileContext';
 import { useDisplayName } from '../displayName';
+import { useProgress } from '../progressContext';
+import { useOffline } from '../offlineContext';
+import { useConnectivity } from '../connectivityContext';
 import { useCatalog } from '../catalogContext';
 import type { RootScreenProps } from '../navigation/types';
 
@@ -26,7 +29,16 @@ export default function HomeDashboardScreen({ navigation }: RootScreenProps<'Hom
   const styles = useThemedStyles(createStyles);
   const { profile } = useProfile();
   const displayName = useDisplayName();
-  const { subjects } = useCatalog();
+  const { subjects, getConcept } = useCatalog();
+  const { lastConcept, isConceptCompleted, getRecommendedConceptId } = useProgress();
+  const offline = useOffline();
+  const { isOnline } = useConnectivity();
+  const recommendedId = getRecommendedConceptId();
+  const resume = lastConcept && !isConceptCompleted(lastConcept.id) &&
+      (isOnline || offline.isDownloaded(lastConcept.id)) ? lastConcept : undefined;
+  const suggested = recommendedId && (isOnline || offline.isDownloaded(recommendedId)) &&
+      !isConceptCompleted(recommendedId) ? getConcept(recommendedId) : undefined;
+  const studyTarget = resume ?? suggested;
   const [searchQuery, setSearchQuery] = useState('');
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -57,6 +69,19 @@ export default function HomeDashboardScreen({ navigation }: RootScreenProps<'Hom
             <Text style={styles.streakText}>{profile?.streak ?? 0} day streak</Text>
           </View>
         </View>
+
+        {studyTarget ? (
+          <Pressable
+            accessibilityRole="button"
+            style={styles.searchField}
+            onPress={() => navigation.navigate('ConceptDetails', { conceptId: studyTarget.id })}
+          >
+            <Text style={styles.searchInput}>
+              {resume ? 'Resume' : 'Recommended'}: {studyTarget.title}
+            </Text>
+            <ArrowRightIcon size={18} color={colors.primary} />
+          </Pressable>
+        ) : null}
 
         <Text style={styles.prompt}>Where would you like to explore?</Text>
         <View style={styles.searchField}>

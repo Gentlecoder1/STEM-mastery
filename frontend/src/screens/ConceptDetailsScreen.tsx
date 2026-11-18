@@ -38,7 +38,7 @@ export default function ConceptDetailsScreen({ navigation, route }: RootScreenPr
 
   const itemCount = lessonContent.length;
   const beginLesson = (conceptId: string, returnToConceptId?: string) => {
-    navigation.navigate('ConceptLearning', { conceptId, returnToConceptId });
+    navigation.navigate('ConceptLearning', { conceptId, returnToConceptId, topicId: route.params.contextTopicId });
   };
   const startLearning = () => {
     const prerequisiteIndex = concept.prerequisiteIds.findIndex((id) =>

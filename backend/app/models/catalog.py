@@ -33,6 +33,7 @@ class ConceptRef(BaseModel):
 
 class ConceptSummary(BaseModel):
     id: str
+    hasLesson: bool = False
     name: str | None = None
     prefLabel: str | None = None
     iri: str | None = None
@@ -83,6 +84,15 @@ class QuestionOption(BaseModel):
     text: str | None = None
 
 
+class OfflineKey(BaseModel):
+    """Hashed answer key for provisional on-device marking (see services.grading)."""
+
+    v: int = 1
+    answerHash: str | None = None
+    keywordHashes: list[str] | None = None
+    minCoverage: float | None = None
+
+
 class Question(BaseModel):
     """A catalog question with answers withheld (graded server-side)."""
 
@@ -96,6 +106,7 @@ class Question(BaseModel):
     # Not yet sourced from the graph; kept for frontend type compatibility.
     explanation: str | None = None
     hint: str | None = None
+    offlineKey: OfflineKey | None = None
 
 
 class Concept(BaseModel):

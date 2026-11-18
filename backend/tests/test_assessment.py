@@ -73,13 +73,14 @@ def test_concept_quiz_failure_returns_graph_remediation(client: TestClient) -> N
     ]
 
 
-def test_check_theory_is_ungraded(client: TestClient) -> None:
+def test_check_theory_matches_reference_keywords(client: TestClient) -> None:
     response = client.post(
         "/api/v1/concepts/concept-velocity/quiz/check",
         json={"questionId": "q-velocity-3", "response": "Velocity is a vector."},
     )
     assert response.status_code == 200
-    assert response.json()["correct"] is None
+    assert response.json()["correct"] is True
+    assert response.json()["correctOptionId"] is None
 
 
 def test_check_unknown_question(client: TestClient) -> None:
@@ -108,8 +109,9 @@ def test_submit_topic_quiz_grades_questions_across_topic_and_persists_only_topic
     assert response.status_code == 200
     assert response.json() == {
         "topicId": "topic-speed-velocity",
-        "correct": 3,
-        "total": 3,
+        "reviewConceptIds": [],
+        "correct": 4,
+        "total": 4,
         "scorePct": 100,
         "passed": True,
     }
@@ -151,6 +153,21 @@ def test_topic_quiz_requires_sixty_percent_for_the_whole_topic(
     assert failed.json()["passed"] is False
     assert learner_state.completed == []
     assert learner_state.topic_assessments["topic-speed-velocity"]["passed"] is False
+
+
+def test_sampled_topic_quiz_rejects_two_questions(client: TestClient, learner_state: FakeLearnerState) -> None:
+    response = client.post(
+        "/api/v1/topics/topic-speed-velocity/quiz/submit",
+        json={
+            "sampled": True,
+            "responses": [
+                {"questionId": "q-velocity-1", "response": "b"},
+                {"questionId": "q-velocity-2", "response": "a"},
+            ],
+        },
+    )
+    assert response.status_code == 422
+    assert learner_state.topic_assessments == {}
 
 
 def test_submit_requires_auth(monkeypatch) -> None:

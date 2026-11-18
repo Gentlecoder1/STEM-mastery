@@ -7,7 +7,7 @@ const deps = (): BenchDeps => {
     cachedIds: Object.keys(graph),
     getConcept: (id) => ({ id, prerequisiteIds: graph[id] ?? [], relatedConceptIds: [], topicIds: ['T1'] }),
     conceptsInTopic: () => Object.keys(graph),
-    loadLocal: async () => {},
+    loadLocal: async () => [],
     cloud: { concept: async (id) => ({ prerequisiteIds: graph[id] ?? [], topicIds: ['T1'] }), topicConcepts: async () => [], bundle: async () => {} },
     now: () => (t += 1),
     sleep: async () => {},

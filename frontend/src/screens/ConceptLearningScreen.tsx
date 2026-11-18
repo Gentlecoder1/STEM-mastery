@@ -1,5 +1,7 @@
-import { useEffect, useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useConnectivity } from '../connectivityContext';
+import { MIN_STUDY_SECONDS, studyBatch } from '../lib/learningPath';
+import { useEffect, useMemo, useState } from 'react';
+import { AppState, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -108,11 +110,21 @@ export default function ConceptLearningScreen({
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
   const { statusBarStyle } = useTheme();
-  const { recordLastConcept } = useProgress();
-  const { getConcept, loadConcept } = useCatalog();
+  const { recordLastConcept, isConceptCompleted } = useProgress();
+  const catalog = useCatalog();
+  const { getConcept, loadConcept } = catalog;
+  const { isOnline } = useConnectivity();
   const offline = useOffline();
   const { conceptId, returnToConceptId } = route.params;
   const concept = getConcept(conceptId);
+  const topicId = route.params.topicId ?? concept?.topicIds[0];
+  const lessonIds = route.params.lessonIds ?? (returnToConceptId ? [conceptId] : studyBatch(
+    catalog, conceptId, topicId, (id) => !isConceptCompleted(id) && (isOnline || offline.isDownloaded(id)),
+  ));
+  const nextLesson = lessonIds[lessonIds.indexOf(conceptId) + 1];
+  const [studySeconds, setStudySeconds] = useState(route.params.studySeconds ?? 0);
+  const ready = studySeconds >= MIN_STUDY_SECONDS;
+  const remaining = Math.max(0, MIN_STUDY_SECONDS - studySeconds);
   const cachedContent = offline.getLessonContent(conceptId);
   useEffect(() => {
     void loadConcept(conceptId);
@@ -126,6 +138,37 @@ export default function ConceptLearningScreen({
       (cachedContent ?? []).filter((item) => item.contentType !== 'QUESTION'),
     [cachedContent],
   );
+  const hasContent = lessonItems.length > 0;
+  useEffect(() => {
+    if (!hasContent || ready) return;
+    const timer = setInterval(() => {
+      if (AppState.currentState === 'active' && navigation.isFocused()) {
+        setStudySeconds((seconds) => Math.min(MIN_STUDY_SECONDS, seconds + 1));
+      }
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [hasContent, navigation, ready]);
+
+  const continueStudy = () => {
+    if (!nextLesson && (!ready || !hasContent)) return;
+    if (hasContent) offline.markLessonComplete(conceptId);
+    if (nextLesson) {
+      navigation.replace('ConceptLearning', {
+        ...route.params, conceptId: nextLesson, topicId, lessonIds, studySeconds,
+      });
+      return;
+    }
+    if (topicId) {
+      const topicTitle = catalog.topics.find((topic) => topic.id === topicId)?.name ?? 'Topic';
+      navigation.replace('TopicQuiz', { topicId, topicTitle, studiedIds: lessonIds, returnToConceptId });
+      return;
+    }
+    const assessmentIds = route.params.assessmentIds ?? lessonIds;
+    navigation.replace('ConceptQuiz', {
+      conceptId: assessmentIds[0] ?? conceptId, returnToConceptId, topicId, assessmentIds,
+    });
+  };
+
   if (!concept && !cachedContent) {
     return (
       <View style={[styles.root, styles.missing]}>
@@ -140,6 +183,9 @@ export default function ConceptLearningScreen({
         <Text style={styles.missingText}>
           This lesson has not been loaded yet. Connect to the internet to open it.
         </Text>
+        <Pressable onPress={nextLesson ? continueStudy : () => navigation.goBack()}>
+          <Text style={styles.secondaryText}>{nextLesson ? 'Open next lesson' : 'Go back'}</Text>
+        </Pressable>
       </View>
     );
   }
@@ -150,7 +196,7 @@ export default function ConceptLearningScreen({
       <View style={[styles.header, { paddingTop: insets.top + 4 }]}>
         <Pressable
           style={styles.closeButton}
-          onPress={() => navigation.pop(2)}
+          onPress={() => navigation.goBack()}
           accessibilityRole="button"
           accessibilityLabel="Close lesson"
         >
@@ -163,7 +209,7 @@ export default function ConceptLearningScreen({
           </Text>
         </View>
         <Text style={styles.headerCounter}>
-          {lessonItems.length} {lessonItems.length === 1 ? 'section' : 'sections'}
+          Lesson {lessonIds.indexOf(conceptId) + 1} of {lessonIds.length}
         </Text>
       </View>
 
@@ -174,6 +220,9 @@ export default function ConceptLearningScreen({
           { paddingBottom: insets.bottom + 104 },
         ]}
       >
+        <Text style={styles.missingText}>
+          {ready ? 'Study time complete' : `Study time left before assessment: ${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')}`}
+        </Text>
         {lessonItems.map((item) => (
           <ContentCard key={item.id} item={item} conceptTitle={concept?.title ?? 'Concept'} />
         ))}
@@ -188,14 +237,12 @@ export default function ConceptLearningScreen({
           <Text style={styles.secondaryText}>Exit lesson</Text>
         </Pressable>
         <Pressable
-          style={styles.primaryButton}
-          onPress={() => {
-            offline.markLessonComplete(conceptId);
-            navigation.navigate('ConceptQuiz', { conceptId, returnToConceptId });
-          }}
+          style={[styles.primaryButton, !nextLesson && !ready && { opacity: 0.5 }]}
+          onPress={continueStudy}
+          disabled={!nextLesson && !ready}
           accessibilityRole="button"
         >
-          <Text style={styles.primaryText}>Finish lesson</Text>
+          <Text style={styles.primaryText}>{nextLesson ? 'Next lesson' : 'Start assessment'}</Text>
           <ArrowRightIcon size={18} color={colors.onPrimary} />
         </Pressable>
       </View>

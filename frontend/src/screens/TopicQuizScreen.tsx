@@ -1,3 +1,5 @@
+import { useCatalog } from '../catalogContext';
+import { nextTopicLesson } from '../lib/learningPath';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -22,6 +24,8 @@ import {
   type TopicQuizSubmitResult,
 } from '../lib/assessmentApi';
 import { QUIZ_PASS_RATIO, type QuizQuestion } from '../types/catalog';
+import { markOffline, summariseOffline } from '../lib/offlineGrading';
+import { useConnectivity } from '../connectivityContext';
 import type { RootScreenProps } from '../navigation/types';
 
 export default function TopicQuizScreen({ navigation, route }: RootScreenProps<'TopicQuiz'>) {
@@ -29,8 +33,11 @@ export default function TopicQuizScreen({ navigation, route }: RootScreenProps<'
   const styles = useThemedStyles(createStyles);
   const { statusBarStyle } = useTheme();
   const offline = useOffline();
-  const { recordTopicAssessment, refresh } = useProgress();
-  const { topicId, topicTitle } = route.params;
+  const catalog = useCatalog();
+  const { isOnline } = useConnectivity();
+  const [markedOffline, setMarkedOffline] = useState(false);
+  const { recordTopicAssessment, refresh, isConceptCompleted } = useProgress();
+  const { topicId, topicTitle, studiedIds, returnToConceptId } = route.params;
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [responses, setResponses] = useState<Record<string, string>>({});
   const [index, setIndex] = useState(0);
@@ -51,7 +58,13 @@ export default function TopicQuizScreen({ navigation, route }: RootScreenProps<'
           setError('We could not load this topic quiz. Check your connection and try again.');
           return;
         }
-        setQuestions(topicQuestions);
+        const gradable = topicQuestions.filter((item) =>
+          item.offlineKey?.answerHash || item.offlineKey?.keywordHashes?.length,
+        );
+        const studied = new Set(studiedIds);
+        const preferred = gradable.filter((item) => item.conceptId && studied.has(item.conceptId));
+        const supplemental = gradable.filter((item) => !item.conceptId || !studied.has(item.conceptId));
+        setQuestions([...preferred, ...supplemental.slice(0, Math.max(0, 5 - preferred.length))].slice(0, 10));
       })
       .catch(() => {
         if (mounted) setError('We could not load this topic quiz. Check your connection and try again.');
@@ -62,7 +75,7 @@ export default function TopicQuizScreen({ navigation, route }: RootScreenProps<'
     return () => {
       mounted = false;
     };
-  }, [loadAttempt, offline.ensureTopicQuestions, topicId]);
+  }, [loadAttempt, offline.ensureTopicQuestions, studiedIds, topicId]);
 
   const question = questions[index];
   const response = question ? responses[question.id] ?? '' : '';
@@ -85,13 +98,42 @@ export default function TopicQuizScreen({ navigation, route }: RootScreenProps<'
     }));
     setBusy(true);
     setError(null);
+    const finishLocally = () => {
+      const marks = questions.map((item) =>
+        markOffline(item, completeResponses.find((entry) => entry.questionId === item.id)?.response ?? null),
+      );
+      const summary = summariseOffline(questions, marks);
+      offline.queueQuizAttempt({
+        kind: 'topic',
+        sampled: true,
+        targetId: topicId,
+        responses: completeResponses,
+        offlineScorePct: summary.scorePct,
+        offlinePassed: summary.passed,
+        markingMs: marks.reduce((sum, mark) => sum + mark.ms, 0),
+      });
+      setMarkedOffline(true);
+      const missed = new Map<string, number>();
+      questions.forEach((item, index) => {
+        if (item.conceptId && marks[index].correct === false) {
+          missed.set(item.conceptId, (missed.get(item.conceptId) ?? 0) + 1);
+        }
+      });
+      const reviewConceptIds = [...missed.keys()].sort((a, b) => (missed.get(b) ?? 0) - (missed.get(a) ?? 0));
+      setResult({ topicId, reviewConceptIds, correct: summary.correct, total: summary.total, scorePct: summary.scorePct, passed: summary.passed });
+    };
     try {
-      const submission = await submitTopicQuiz(topicId, completeResponses);
+      if (!isOnline) {
+        finishLocally();
+        return;
+      }
+      const submission = await submitTopicQuiz(topicId, completeResponses, undefined, true);
+      setMarkedOffline(false);
       setResult(submission);
       recordTopicAssessment(topicId, submission.scorePct, submission.passed);
       await refresh();
     } catch {
-      setError('We could not save your topic quiz result. Please try again.');
+      finishLocally();
     } finally {
       setBusy(false);
     }
@@ -125,11 +167,11 @@ export default function TopicQuizScreen({ navigation, route }: RootScreenProps<'
     );
   }
 
-  if (questions.length === 0) {
+  if (questions.length < 5) {
     return (
       <View style={[styles.root, styles.centered, styles.messageScreen]}>
         <StatusBar style={statusBarStyle} />
-        <Text style={styles.message}>There are no quiz questions for this topic yet.</Text>
+        <Text style={styles.message}>An assessment needs at least five gradable questions. Connect to refresh this topic’s question bank.</Text>
         <Pressable style={styles.secondaryButton} onPress={() => navigation.goBack()}>
           <Text style={styles.secondaryText}>Back to topic</Text>
         </Pressable>
@@ -138,6 +180,19 @@ export default function TopicQuizScreen({ navigation, route }: RootScreenProps<'
   }
 
   if (result) {
+    const available = (id: string) => isOnline || offline.isDownloaded(id);
+    const lessonIds = catalog.getTopicConceptIds(topicId)
+      .filter((id) => available(id) && catalog.getConcept(id)?.hasLesson);
+    const reviewId = result.reviewConceptIds?.find((id) => lessonIds.includes(id)) ?? lessonIds.find((id) => !isConceptCompleted(id)) ?? lessonIds[0];
+    const lastStudied = studiedIds?.[studiedIds.length - 1];
+    const position = lastStudied ? lessonIds.indexOf(lastStudied) : -1;
+    const nextInTopic = position >= 0 ? lessonIds.slice(position + 1).find((id) => !isConceptCompleted(id)) : undefined;
+    const nextId = returnToConceptId ?? nextInTopic;
+    const target = result.passed
+      ? (nextId
+          ? { conceptId: nextId, topicId }
+          : nextTopicLesson(catalog, catalog.topics, topicId, (id) => available(id) && !isConceptCompleted(id)))
+      : (reviewId ? { conceptId: reviewId, topicId } : undefined);
     return (
       <View style={styles.root}>
         <StatusBar style={statusBarStyle} />
@@ -159,13 +214,28 @@ export default function TopicQuizScreen({ navigation, route }: RootScreenProps<'
               {result.correct} of {result.total} graded questions correct
             </Text>
           </View>
-          <Pressable style={styles.primaryButton} onPress={() => navigation.goBack()}>
-            <Text style={styles.primaryText}>Back to topic</Text>
+          {markedOffline ? (
+            <Text style={styles.resultCount}>
+              Marked on this phone. Your result will be confirmed and saved when you are back online.
+            </Text>
+          ) : null}
+          <Pressable style={styles.primaryButton} onPress={() => {
+            if (target) navigation.replace('ConceptLearning', {
+              ...target, assessTopic: !result.passed,
+              lessonIds: result.passed ? undefined : [
+                target.conceptId, ...(result.reviewConceptIds ?? []).filter((id) => id !== target.conceptId && lessonIds.includes(id)),
+              ].slice(0, 3),
+            });
+            else navigation.goBack();
+          }}>
+            <Text style={styles.primaryText}>
+              {target ? `${result.passed ? 'Continue' : 'Review'}: ${catalog.getConcept(target.conceptId)?.title ?? topicTitle}` : 'Back to topic'}
+            </Text>
             <ArrowRightIcon size={18} color={colors.onPrimary} />
           </Pressable>
           {!result.passed ? (
-            <Pressable style={styles.secondaryButton} onPress={retry}>
-              <Text style={styles.secondaryText}>Retake quiz</Text>
+            <Pressable style={styles.secondaryButton} onPress={target ? () => navigation.goBack() : retry}>
+              <Text style={styles.secondaryText}>{target ? "Back to topic" : "Retake quiz"}</Text>
             </Pressable>
           ) : null}
         </View>

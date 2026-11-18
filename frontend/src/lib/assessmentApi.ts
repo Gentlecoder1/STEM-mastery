@@ -23,6 +23,7 @@ export type ConceptQuizSubmitResult = {
 
 export type TopicQuizSubmitResult = {
   topicId: string;
+  reviewConceptIds?: string[];
   correct: number;
   total: number;
   scorePct: number;
@@ -94,23 +95,27 @@ export function checkAnswer(
 export function submitConceptQuiz(
   conceptId: string,
   responses: { questionId: string; response: string | null }[],
+  accessToken?: string,
 ): Promise<ConceptQuizSubmitResult> {
   return apiFetch<ConceptQuizSubmitResult>(
     `/api/v1/concepts/${encodeURIComponent(conceptId)}/quiz/submit`,
-    { method: 'POST', auth: true, body: { responses } },
+    { method: 'POST', auth: true, accessToken, body: { responses } },
   );
 }
 
 export function submitTopicQuiz(
   topicId: string,
   responses: { questionId: string; response: string | null }[],
+  accessToken?: string,
+  sampled = false,
 ): Promise<TopicQuizSubmitResult> {
   return apiFetch<TopicQuizSubmitResult>(
     `/api/v1/topics/${encodeURIComponent(topicId)}/quiz/submit`,
     {
       method: 'POST',
       auth: true,
-      body: { responses },
+      accessToken,
+      body: { responses, sampled },
     },
   );
 }

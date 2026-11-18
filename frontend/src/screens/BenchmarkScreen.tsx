@@ -49,7 +49,8 @@ export default function BenchmarkScreen({ route }: RootScreenProps<'Benchmark'>)
         getConcept,
         conceptsInTopic: getTopicConceptIds,
         loadLocal: async (id) => {
-          await Promise.all([loadLesson(id), loadQuestions(id)]);
+          const [, questions] = await Promise.all([loadLesson(id), loadQuestions(id)]);
+          return questions?.questions ?? [];
         },
         cloud: !offline ? {
           concept: (id) => fetchConcept(id),

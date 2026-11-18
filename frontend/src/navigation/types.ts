@@ -14,9 +14,9 @@ export type RootStackParamList = {
   SubjectDashboard: { subjectId: SubjectId };
   TopicOverview: { topicId?: string } | undefined;
   ConceptDetails: { conceptId: string; contextTopicId?: string; returnToConceptId?: string };
-  ConceptLearning: { conceptId: string; startAt?: number; returnToConceptId?: string };
-  ConceptQuiz: { conceptId: string; returnToConceptId?: string };
-  TopicQuiz: { topicId: string; topicTitle: string };
+  ConceptLearning: { conceptId: string; startAt?: number; returnToConceptId?: string; topicId?: string; lessonIds?: string[]; studySeconds?: number; assessTopic?: boolean; assessmentIds?: string[] };
+  ConceptQuiz: { conceptId: string; returnToConceptId?: string; topicId?: string; assessmentIds?: string[] };
+  TopicQuiz: { topicId: string; topicTitle: string; studiedIds?: string[]; returnToConceptId?: string };
   Progress: undefined;
   TopicProgress: undefined;
   Challenge: undefined;

@@ -43,14 +43,17 @@ async def check_question(
 
     response = request.selectedOption if request.selectedOption is not None else request.response
     correct = grading.grade_response(question, response)
-    correct_option = grading.resolve_correct_option(question) if correct is not None else None
+    correct_option = grading.resolve_correct_option(question) if grading.is_multiple_choice(question) else None
     concept = await repo.get_concept(concept_id) if correct is False else None
     return CheckResponse(
         questionId=request.questionId,
         conceptId=concept_id,
         correct=correct,
         correctOptionId=correct_option,
-        explanation=None,
+        explanation=(
+            "Written responses are marked using the reference answer."
+            if correct is not None and not grading.is_multiple_choice(question) else None
+        ),
         prerequisites=concept.get("prerequisites", []) if concept else [],
         relatedConcepts=concept.get("related", []) if concept else [],
     )
@@ -84,7 +87,7 @@ async def submit_concept_quiz(
     if total == 0:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="This concept has no auto-gradable questions.",
+            detail="This concept has no marked answers.",
         )
     correct = int(summary["correct"])
     score_pct = int(summary["scorePct"])
@@ -146,12 +149,28 @@ async def submit_topic_quiz(
         )
 
     responses = {item.questionId: item.response for item in request.responses}
+    if request.sampled:
+        if (
+            not 5 <= len(responses) <= 10
+            or len(request.responses) != len(responses)
+            or not responses.keys() <= answers.keys()
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Submit answers to 5–10 distinct questions from this topic.",
+            )
+        answers = {question_id: answers[question_id] for question_id in responses}
     results = [
         grading.grade_response(question, responses.get(question_id))
         for question_id, question in answers.items()
     ]
     summary = grading.summarise(results)
     total = int(summary["total"])
+    if request.sampled and total < 5:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="At least five answers must be gradable.",
+        )
     score_pct = int(summary["scorePct"]) if total else 0
     correct = int(summary["correct"])
     passed = total > 0 and correct / total >= grading.QUIZ_PASS_RATIO
@@ -170,8 +189,15 @@ async def submit_topic_quiz(
             detail="Could not persist progress.",
         ) from exc
 
+    missed: dict[str, int] = {}
+    for question, correct_answer in zip(answers.values(), results, strict=True):
+        concept_id = question.get("conceptId")
+        if concept_id and correct_answer is False:
+            missed[concept_id] = missed.get(concept_id, 0) + 1
+
     return TopicQuizSubmitResponse(
         topicId=topic_id,
+        reviewConceptIds=sorted(missed, key=lambda concept_id: -missed[concept_id]),
         correct=correct,
         total=total,
         scorePct=score_pct,

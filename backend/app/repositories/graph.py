@@ -51,6 +51,7 @@ MATCH (:Topic {id: $topic_id})-[r:HAS_CONCEPT]->(c:Concept)
 OPTIONAL MATCH (p:Concept)-[:PREREQUISITE_OF]->(c)
 RETURN c.id AS id, coalesce(c.name, c.prefLabel, c.id) AS name,
        c.prefLabel AS prefLabel, c.iri AS iri, r.order AS order,
+       EXISTS { MATCH (c)-[:HAS_CONTENT]->(:LearningContent) } AS hasLesson,
        collect(DISTINCT CASE
            WHEN p IS NOT NULL
            THEN {id: p.id, name: coalesce(p.name, p.prefLabel, p.id)}

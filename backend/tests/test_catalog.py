@@ -207,3 +207,36 @@ def test_catalog_returns_503_without_database(monkeypatch) -> None:
     with TestClient(app) as bare_client:
         response = bare_client.get("/api/v1/subjects")
     assert response.status_code == 503
+
+
+def test_questions_carry_hashed_offline_keys_not_answers(client: TestClient) -> None:
+    """Offline marking: the app gets one-way hashes, never the answer text."""
+    import hashlib
+
+    def h(question_id: str, value: str) -> str:
+        return hashlib.sha256(f"{question_id}:{value}".encode()).hexdigest()
+
+    questions = client.get("/api/v1/concepts/concept-velocity/questions").json()
+    mcq = next(question for question in questions if question["id"] == "q-velocity-1")
+    assert mcq["offlineKey"]["answerHash"] == h("q-velocity-1", "b")
+    assert mcq["offlineKey"]["answerHash"] != h("q-velocity-1", "a")
+
+    theory = next(question for question in questions if question["id"] == "q-velocity-3")
+    assert theory["offlineKey"]["keywordHashes"] == [
+        h("q-velocity-3", "velocity"),
+        h("q-velocity-3", "vector"),
+    ]
+    assert theory["offlineKey"]["minCoverage"] == 0.5
+    assert "Velocity is a vector" not in str(theory)
+
+
+def test_keyword_stems_match_frontend_rules() -> None:
+    from app.services.grading import keyword_stems
+
+    assert keyword_stems("The forces acting on a body: Forces, mass and acceleration") == [
+        "force",
+        "acting",
+        "body",
+        "mass",
+        "acceleration",
+    ]

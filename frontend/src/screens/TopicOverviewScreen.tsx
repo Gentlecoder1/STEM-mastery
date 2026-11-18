@@ -172,7 +172,11 @@ export default function TopicOverviewScreen({ navigation, route }: RootScreenPro
 
         <Pressable
           style={styles.quizRow}
-          onPress={() => navigation.navigate('TopicQuiz', { topicId, topicTitle })}
+          onPress={() => {
+            const conceptId = concepts.find((item) => item.hasLesson)?.id;
+            if (conceptId) navigation.navigate('ConceptLearning', { conceptId, topicId, assessTopic: true });
+          }}
+          disabled={!concepts.some((item) => item.hasLesson)}
           accessibilityRole="button"
         >
           <View style={styles.quizIcon}>

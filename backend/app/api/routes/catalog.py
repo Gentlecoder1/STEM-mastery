@@ -1,7 +1,9 @@
 from fastapi import APIRouter, HTTPException, Query, status
 
 from app.api.deps import RepositoryDep
+from app.services import grading
 from app.models.catalog import (
+    OfflineKey,
     Concept,
     ConceptSearchResult,
     ConceptRef,
@@ -17,10 +19,13 @@ from app.models.catalog import (
 router = APIRouter(tags=["catalog"])
 
 
-def _question(row: dict) -> Question:
+def _question(row: dict, answers: dict[str, dict] | None = None) -> Question:
     data = dict(row)
     options = [QuestionOption(**option) for option in data.pop("options", [])]
-    return Question(**data, options=options)
+    data.pop("offlineKey", None)
+    answer = (answers or {}).get(str(data.get("id")))
+    key = grading.offline_key(str(data["id"]), answer) if answer else None
+    return Question(**data, options=options, offlineKey=OfflineKey(**key) if key else None)
 
 
 @router.get("/subjects", response_model=list[Subject])
@@ -60,7 +65,8 @@ async def list_topic_questions(topic_id: str, repo: RepositoryDep) -> list[Quest
     questions = await repo.list_topic_questions(topic_id)
     if questions is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Topic not found.")
-    return [_question(row) for row in questions]
+    answers = await repo.list_topic_question_answers(topic_id)
+    return [_question(row, answers) for row in questions]
 
 
 @router.get("/concepts/{concept_id}", response_model=Concept)
@@ -93,4 +99,5 @@ async def get_lesson(concept_id: str, repo: RepositoryDep) -> list[LearningConte
 
 @router.get("/concepts/{concept_id}/questions", response_model=list[Question])
 async def list_questions(concept_id: str, repo: RepositoryDep) -> list[Question]:
-    return [_question(row) for row in await repo.list_questions(concept_id)]
+    answers = await repo.list_question_answers(concept_id)
+    return [_question(row, answers) for row in await repo.list_questions(concept_id)]

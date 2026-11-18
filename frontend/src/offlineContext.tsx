@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from 'react';
 
+import { useAuth } from './auth/AuthContext';
 import { isApiConfigured } from './lib/api';
 import { fetchLesson, fetchTopicPacket } from './lib/catalogApi';
 import {
@@ -35,11 +36,16 @@ import {
   saveLesson,
   savePending,
   saveQuestions,
+  loadQuizQueue,
+  saveQuizQueue,
+  type QueuedQuizAttempt,
   type ReadingProgress,
 } from './lib/offlineStore';
 import {
   fetchConceptQuestions,
   fetchTopicQuestions,
+  submitConceptQuiz,
+  submitTopicQuiz,
   syncProgress,
   type LessonProgressItem,
 } from './lib/assessmentApi';
@@ -74,6 +80,9 @@ type OfflineContextValue = {
   markLessonComplete: (conceptId: string) => void;
   queuedCount: number;
   pendingQuizCount: number;
+  /** Quizzes marked on the phone while offline, waiting for server re-grading. */
+  queuedQuizCount: number;
+  queueQuizAttempt: (attempt: Omit<QueuedQuizAttempt, 'id' | 'takenAt' | 'ownerId'>) => void;
   isSyncing: boolean;
   lastSyncedAt: string | null;
   syncNow: () => Promise<void>;
@@ -100,6 +109,9 @@ const nowIso = () => new Date().toISOString();
 
 export function OfflineProvider({ children }: { children: ReactNode }) {
   const { isOnline } = useConnectivity();
+  const { session } = useAuth();
+  const ownerId = session?.user.id;
+  const accessToken = session?.access_token;
   const { getTopicConceptIds } = useCatalog();
 
   const [downloads, setDownloads] = useState<string[]>([]);
@@ -108,6 +120,9 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   const [questions, setQuestions] = useState<Record<string, QuizQuestion[]>>({});
   const [reading, setReading] = useState<Record<string, ReadingProgress>>({});
   const [pending, setPending] = useState<Record<string, ReadingProgress>>({});
+  const [quizQueue, setQuizQueue] = useState<QueuedQuizAttempt[]>([]);
+  const quizQueueRef = useRef(quizQueue);
+  quizQueueRef.current = quizQueue;
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
 
@@ -124,22 +139,24 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   readingRef.current = reading;
   const pendingRef = useRef(pending);
   pendingRef.current = pending;
-  const hydrated = useRef(false);
+  const [hydrated, setHydrated] = useState(false);
   const syncing = useRef(false);
 
   useEffect(() => {
     let mounted = true;
     (async () => {
-      const [storedDownloads, storedReading, storedPending] = await Promise.all([
+      const [storedDownloads, storedReading, storedPending, storedQuizQueue] = await Promise.all([
         loadDownloads(),
         loadAllReading(),
         loadPending(),
+        loadQuizQueue(),
       ]);
       if (!mounted) return;
+      if (storedQuizQueue) setQuizQueue(storedQuizQueue);
       if (storedDownloads) setDownloads(storedDownloads);
       if (storedReading) setReading(storedReading);
       if (storedPending) setPending(storedPending);
-      hydrated.current = true;
+      setHydrated(true);
     })();
     return () => {
       mounted = false;
@@ -422,13 +439,54 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     [isOnline, updateReading],
   );
 
+  const queueQuizAttempt = useCallback(
+    (attempt: Omit<QueuedQuizAttempt, 'id' | 'takenAt' | 'ownerId'>) => {
+      if (!ownerId) return;
+      const takenAt = nowIso();
+      const entry: QueuedQuizAttempt = { ...attempt, ownerId, id: `${ownerId}:${attempt.kind}:${attempt.targetId}:${takenAt}`, takenAt };
+      setQuizQueue((current) => {
+        const next = [...current, entry];
+        void saveQuizQueue(next);
+        return next;
+      });
+    },
+    [ownerId],
+  );
+
+  /** Replay offline quiz attempts; the server re-grades them and stores the result. */
+  const flushQuizQueue = useCallback(async () => {
+    if (!ownerId || !accessToken) return;
+    const sent: string[] = [];
+    for (const attempt of quizQueueRef.current) {
+      if (attempt.ownerId !== ownerId) continue;
+      try {
+        if (attempt.kind === 'concept') await submitConceptQuiz(attempt.targetId, attempt.responses, accessToken);
+        else await submitTopicQuiz(attempt.targetId, attempt.responses, accessToken, attempt.sampled);
+        sent.push(attempt.id);
+      } catch {
+        break; // still offline or server busy: keep the rest for the next attempt
+      }
+    }
+    if (sent.length === 0) return;
+    setQuizQueue((current) => {
+      const next = current.filter((item) => !sent.includes(item.id));
+      void saveQuizQueue(next);
+      return next;
+    });
+  }, [ownerId, accessToken]);
+
   const syncNow = useCallback(async () => {
     if (!isApiConfigured || !isOnline || syncing.current) return;
     const items = Object.values(pendingRef.current);
-    if (items.length === 0) return;
+    if (items.length === 0 && !quizQueueRef.current.some((attempt) => attempt.ownerId === ownerId)) return;
     syncing.current = true;
     setIsSyncing(true);
     try {
+      await flushQuizQueue();
+      if (items.length === 0) {
+        setLastSyncedAt(nowIso());
+        return;
+      }
       const result = await syncProgress(items.map(toSyncItem));
       const serverByConcept = new Map(result.serverState.map((item) => [item.conceptId, item]));
       setReading((current) => {
@@ -465,13 +523,14 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       syncing.current = false;
       setIsSyncing(false);
     }
-  }, [isOnline, persistPending, persistReading]);
+  }, [flushQuizQueue, isOnline, ownerId, persistPending, persistReading]);
 
   useEffect(() => {
-    if (isOnline && hydrated.current) void syncNow();
-  }, [isOnline, syncNow]);
+    if (isOnline && hydrated) void syncNow();
+  }, [hydrated, isOnline, syncNow]);
 
   const queuedCount = useMemo(() => Object.keys(pending).length, [pending]);
+  const queuedQuizCount = quizQueue.filter((attempt) => attempt.ownerId === ownerId).length;
   const pendingQuizCount = useMemo(
     () => Object.values(reading).filter((record) => record.quizPending).length,
     [reading],
@@ -498,6 +557,8 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       markLessonComplete,
       queuedCount,
       pendingQuizCount,
+      queuedQuizCount,
+      queueQuizAttempt,
       isSyncing,
       lastSyncedAt,
       syncNow,
@@ -525,6 +586,8 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       reading,
       queuedCount,
       pendingQuizCount,
+      queuedQuizCount,
+      queueQuizAttempt,
       isSyncing,
       lastSyncedAt,
       syncNow,

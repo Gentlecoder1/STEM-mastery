@@ -195,6 +195,11 @@ def main():
                     f"{key}: local {result.get('QL_local_ms')} ms, "
                     f"cloud {result.get('QL_cloud_ms')} ms, latency reduction {result.get('LR_percent')}%"
                 )
+        offline = res.get('latency_offline', {})
+        if offline.get('mode') == 'latency':
+            marks = offline.get('offline_marking_per_answer')
+            lines.append(f'Offline MCQ marking per answer: {marks}' if marks else
+                         'Offline MCQ marking: no cached questions with answer keys. Redownload topics after backend deployment.')
         for key in ('energy_offline', 'energy_online'):
             if key in res:
                 lines.append(f"{key} (Android estimate): {res[key]}")

@@ -14,6 +14,7 @@ const KNOWLEDGE_MAP_PREFIX = 'stem-mastery.knowledge-map.v1.';
 export const DOWNLOADS_STORAGE_KEY = 'stem-mastery.downloads.v2';
 export const READING_STORAGE_KEY = 'stem-mastery.reading.v1';
 export const PENDING_STORAGE_KEY = 'stem-mastery.pending.v1';
+export const QUIZ_QUEUE_STORAGE_KEY = 'stem-mastery.quiz-queue.v1';
 
 export type ReadingProgress = {
   conceptId: string;
@@ -167,3 +168,24 @@ export function loadPending(): Promise<Record<string, ReadingProgress> | null> {
 
 export const savePending = (records: Record<string, ReadingProgress>) =>
   writeJson('stem-mastery.pending.v1', records);
+
+/** A quiz marked on the phone while offline, waiting to be re-graded by the server. */
+export type QueuedQuizAttempt = {
+  ownerId: string;
+  sampled?: boolean;
+  id: string;
+  kind: 'concept' | 'topic';
+  targetId: string;
+  responses: { questionId: string; response: string | null }[];
+  offlineScorePct: number;
+  offlinePassed: boolean;
+  /** Total on-device marking time for the attempt, in milliseconds. */
+  markingMs: number;
+  takenAt: string;
+};
+
+export function loadQuizQueue(): Promise<QueuedQuizAttempt[] | null> {
+  return readJson<QueuedQuizAttempt[]>(QUIZ_QUEUE_STORAGE_KEY);
+}
+
+export const saveQuizQueue = (items: QueuedQuizAttempt[]) => writeJson(QUIZ_QUEUE_STORAGE_KEY, items);

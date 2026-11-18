@@ -32,6 +32,7 @@ export type ApiRequestOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
   auth?: boolean;
+  accessToken?: string;
   signal?: AbortSignal;
 };
 
@@ -47,7 +48,7 @@ export async function apiFetch<T>(path: string, options: ApiRequestOptions = {})
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (options.body !== undefined) headers['Content-Type'] = 'application/json';
   if (options.auth) {
-    const token = await getAccessToken();
+    const token = options.accessToken ?? await getAccessToken();
     if (token) headers.Authorization = `Bearer ${token}`;
   }
 

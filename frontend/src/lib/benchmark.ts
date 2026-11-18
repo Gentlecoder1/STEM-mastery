@@ -5,6 +5,9 @@
  * Results are printed to the device log as one line starting with BENCH_TAG, so the laptop
  * script (tools/phone_test.py) can read them with `adb logcat`.
  */
+import { markOffline } from './offlineGrading';
+import type { QuizQuestion } from '../types/catalog';
+
 export const BENCH_TAG = 'STEM_BENCH';
 
 export type BenchConcept = {
@@ -19,7 +22,7 @@ export type BenchDeps = {
   cachedIds: string[];
   getConcept: (id: string) => BenchConcept | undefined;
   conceptsInTopic: (topicId: string) => string[];
-  loadLocal: (id: string) => Promise<void>;
+  loadLocal: (id: string) => Promise<readonly QuizQuestion[]>;
   /** Cloud versions of the same lookups; omit to skip the cloud baseline. */
   cloud?: {
     concept: (id: string) => Promise<{ prerequisiteIds: string[]; topicIds?: string[] }>;
@@ -67,6 +70,7 @@ export async function runLatency(deps: BenchDeps, k = 20) {
   const cached = new Set(deps.cachedIds);
   const getCachedConcept = (id: string) => cached.has(id) ? deps.getConcept(id) : undefined;
   const t: Record<string, number[]> = { prerequisite_lookup: [], related_topic_search: [], learning_path: [], remediation_bundle: [] };
+  const markingTimes: number[] = [];
   for (const id of ids) {
     let t0 = now(); deps.getConcept(id)?.prerequisiteIds; t.prerequisite_lookup.push(now() - t0);
     t0 = now();
@@ -77,8 +81,14 @@ export async function runLatency(deps: BenchDeps, k = 20) {
     const path = learningPath(id, getCachedConcept, 15, cached);
     t.learning_path.push(now() - t0);
     t0 = now();
-    await Promise.all(path.map(deps.loadLocal));
+    const [questions] = await Promise.all(path.map(deps.loadLocal));
     t.remediation_bundle.push(now() - t0);
+    for (const question of questions) {
+      const option = question.options?.[0];
+      if (question.type === 'mcq' && question.offlineKey?.answerHash && option) {
+        markingTimes.push(markOffline(question, option.id).ms);
+      }
+    }
   }
   const local = Object.fromEntries(Object.entries(t).map(([name, xs]) => [name, stats(xs)]));
   const queryNames = ['prerequisite_lookup', 'related_topic_search', 'learning_path', 'remediation_bundle'];
@@ -106,6 +116,7 @@ export async function runLatency(deps: BenchDeps, k = 20) {
   }
   return {
     mode: 'latency', cached_concepts: deps.cachedIds.length, k_local: ids.length, k_cloud: deps.cloud ? ids.length : 0,
+    offline_marking_per_answer: markingTimes.length ? stats(markingTimes) : null,
     local, QL_local_ms: QL_local, cloud, QL_cloud_ms: QL_cloud,
     LR_percent: QL_cloud ? +(((QL_cloud - QL_local) / QL_cloud) * 100).toFixed(2) : null,
   };
