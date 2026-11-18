@@ -52,6 +52,23 @@ def test_knowledge_map_reports_pending_mappings_without_edges(client: TestClient
     assert "verified Concept" in body["mappingMessage"]
 
 
+def test_knowledge_map_root_starts_with_cross_subject_concepts(client: TestClient) -> None:
+    response = client.get("/api/v1/knowledge-map/root")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["root"]["id"] == "STEM"
+    assert body["mode"] == "overview"
+    assert body["mappingStatus"] == "not_applicable"
+    assert {subject for node in body["nodes"] for subject in node["subjectIds"]} == {
+        "mathematics",
+        "physics",
+        "chemistry",
+    }
+    assert {edge["type"] for edge in body["edges"]} == {"STEM_ROOT"}
+    assert all(edge["source"] == "STEM" for edge in body["edges"])
+
+
 def test_knowledge_map_depth_is_bounded(client: TestClient) -> None:
     response = client.get(
         "/api/v1/knowledge-map/topics/topic-speed-velocity",
@@ -84,6 +101,48 @@ def test_list_concepts_ordered_with_prerequisites(client: TestClient) -> None:
     assert body[1]["prerequisites"] == [
         {"id": "concept-displacement", "name": "Distance and displacement"}
     ]
+
+
+def test_topic_packet_includes_concept_content_and_optional_overview(client: TestClient) -> None:
+    response = client.get("/api/v1/topics/topic-speed-velocity/packet")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["topic"]["id"] == "topic-speed-velocity"
+    assert body["overviewContent"] == []
+    assert [concept["id"] for concept in body["concepts"]] == [
+        "concept-displacement",
+        "concept-velocity",
+    ]
+    assert body["concepts"][0]["learningContent"][0]["contentText"] == (
+        "Velocity is a vector quantity."
+    )
+
+
+def test_topic_packet_returns_not_found_for_unknown_topic(client: TestClient) -> None:
+    response = client.get("/api/v1/topics/missing/packet")
+    assert response.status_code == 404
+
+
+def test_topic_questions_include_mcq_and_theory_without_answer_keys(client: TestClient) -> None:
+    response = client.get("/api/v1/topics/topic-speed-velocity/questions")
+
+    assert response.status_code == 200
+    questions = response.json()
+    assert len(questions) == 4
+    mcq = next(question for question in questions if question["id"] == "q-velocity-1")
+    assert mcq["type"] == "mcq"
+    assert mcq["options"][0] == {
+        "id": "a",
+        "label": "A",
+        "text": "How far an object travels",
+    }
+    theory = next(question for question in questions if question["type"] == "theoretical")
+    assert theory["prompt"] == "Which statement best describes velocity?"
+    assert theory["options"] == []
+    for question in questions:
+        for leaked in ("correctOption", "correctAnswer", "modelAnswer"):
+            assert leaked not in question
 
 
 def test_get_concept(client: TestClient) -> None:

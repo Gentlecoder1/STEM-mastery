@@ -10,6 +10,7 @@ from app.models.catalog import (
     Question,
     QuestionOption,
     Subject,
+    TopicPacket,
     Topic,
 )
 
@@ -44,6 +45,22 @@ async def search_concepts(
 @router.get("/topics/{topic_id}/concepts", response_model=list[ConceptSummary])
 async def list_concepts(topic_id: str, repo: RepositoryDep) -> list[ConceptSummary]:
     return [ConceptSummary(**row) for row in await repo.list_concepts(topic_id)]
+
+
+@router.get("/topics/{topic_id}/packet", response_model=TopicPacket)
+async def get_topic_packet(topic_id: str, repo: RepositoryDep) -> TopicPacket:
+    packet = await repo.get_topic_packet(topic_id)
+    if packet is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Topic not found.")
+    return TopicPacket(**packet)
+
+
+@router.get("/topics/{topic_id}/questions", response_model=list[Question])
+async def list_topic_questions(topic_id: str, repo: RepositoryDep) -> list[Question]:
+    questions = await repo.list_topic_questions(topic_id)
+    if questions is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Topic not found.")
+    return [_question(row) for row in questions]
 
 
 @router.get("/concepts/{concept_id}", response_model=Concept)

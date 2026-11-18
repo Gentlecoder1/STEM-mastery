@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,6 +15,7 @@ import { useCatalog } from '../catalogContext';
 import { useOffline } from '../offlineContext';
 import type { RootScreenProps } from '../navigation/types';
 import { usePreferences } from '../preferencesContext';
+import type { TopicPacket } from '../types/catalog';
 
 export default function TopicOverviewScreen({ navigation, route }: RootScreenProps<'TopicOverview'>) {
   const insets = useSafeAreaInsets();
@@ -23,7 +24,8 @@ export default function TopicOverviewScreen({ navigation, route }: RootScreenPro
   const { downloadedLessons, downloadsEnabled, toggleTopicDownload } = usePreferences();
   const { topicAssessments } = useProgress();
   const { topics, subjects, getConcept, getTopicConceptIds } = useCatalog();
-  const { downloadTopic } = useOffline();
+  const { downloadTopic, ensureTopicPacket } = useOffline();
+  const [packet, setPacket] = useState<TopicPacket | null>(null);
   const requestedTopicId = route.params?.topicId;
   const topic =
     (requestedTopicId ? topics.find((item) => item.id === requestedTopicId) : undefined) ??
@@ -39,12 +41,23 @@ export default function TopicOverviewScreen({ navigation, route }: RootScreenPro
     conceptIds.length > 0 && conceptIds.every((id) => downloadedLessons.includes(id));
 
   useEffect(() => {
-    if (topicId) void downloadTopic(topicId);
-  }, [downloadTopic, topicId]);
+    if (!topicId) return;
+    let active = true;
+    void ensureTopicPacket(topicId).then((result) => {
+      if (active) setPacket(result);
+    });
+    void downloadTopic(topicId);
+    return () => {
+      active = false;
+    };
+  }, [downloadTopic, ensureTopicPacket, topicId]);
 
   const concepts = conceptIds
     .map((id) => getConcept(id))
     .filter((concept): concept is NonNullable<typeof concept> => Boolean(concept));
+  const packetConcepts = new Map(
+    (packet?.concepts ?? []).map((concept) => [concept.id, concept]),
+  );
 
   return (
     <View style={styles.root}>
@@ -101,27 +114,60 @@ export default function TopicOverviewScreen({ navigation, route }: RootScreenPro
           <ArrowRightIcon size={17} color={colors.primary} />
         </Pressable>
 
+        {packet?.overviewContent.length ? (
+          <View style={styles.overviewCard}>
+            <Text style={styles.sectionTitle}>Topic overview</Text>
+            {packet.overviewContent.map((item) => (
+              <View key={item.id} style={styles.contentPreview}>
+                {item.title ? <Text style={styles.previewTitle}>{item.title}</Text> : null}
+                {item.contentText ? (
+                  <Text style={styles.previewBody}>{item.contentText}</Text>
+                ) : null}
+              </View>
+            ))}
+          </View>
+        ) : null}
+
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Concepts</Text>
         </View>
         <View style={styles.conceptList}>
-          {concepts.map((concept, index) => (
-            <Pressable
-              key={concept.id}
-              style={styles.conceptRow}
-              onPress={() => navigation.navigate('ConceptDetails', { conceptId: concept.id })}
-              accessibilityRole="button"
-            >
-              <View style={[styles.orderBadge, { backgroundColor: colors[concept.soft] }]}>
-                <Text style={[styles.orderText, { color: colors[concept.tint] }]}>{index + 1}</Text>
+          {concepts.map((concept, index) => {
+            const learningContent =
+              packetConcepts.get(concept.id)?.learningContent ?? [];
+            return (
+              <View key={concept.id} style={styles.conceptBlock}>
+                <Pressable
+                  style={styles.conceptRow}
+                  onPress={() => navigation.navigate('ConceptDetails', { conceptId: concept.id })}
+                  accessibilityRole="button"
+                >
+                  <View style={[styles.orderBadge, { backgroundColor: colors[concept.soft] }]}>
+                    <Text style={[styles.orderText, { color: colors[concept.tint] }]}>{index + 1}</Text>
+                  </View>
+                  <View style={styles.conceptCopy}>
+                    <Text style={styles.conceptTitle}>{concept.title}</Text>
+                    <Text style={styles.conceptSubtitle}>
+                      {learningContent.length
+                        ? `${learningContent.length} learning ${
+                            learningContent.length === 1 ? 'item' : 'items'
+                          } · Open concept`
+                        : 'Open concept'}
+                    </Text>
+                  </View>
+                  <ArrowRightIcon size={18} color={colors.primary} />
+                </Pressable>
+                {learningContent.map((item) => (
+                  <View key={item.id} style={styles.contentPreview}>
+                    {item.title ? <Text style={styles.previewTitle}>{item.title}</Text> : null}
+                    {item.contentText ? (
+                      <Text style={styles.previewBody}>{item.contentText}</Text>
+                    ) : null}
+                  </View>
+                ))}
               </View>
-              <View style={styles.conceptCopy}>
-                <Text style={styles.conceptTitle}>{concept.title}</Text>
-                <Text style={styles.conceptSubtitle}>Open concept</Text>
-              </View>
-              <ArrowRightIcon size={18} color={colors.primary} />
-            </Pressable>
-          ))}
+            );
+          })}
         </View>
 
         <Pressable
@@ -216,6 +262,7 @@ const createStyles = () =>
     sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     sectionTitle: { fontFamily: fonts.regular, fontSize: 17, lineHeight: 21, color: colors.ink },
     conceptList: { gap: 9 },
+    conceptBlock: { gap: 8 },
     conceptRow: {
       minHeight: 70,
       padding: 11,
@@ -232,6 +279,25 @@ const createStyles = () =>
     conceptCopy: { flex: 1, gap: 3 },
     conceptTitle: { fontFamily: fonts.medium, fontSize: 14, lineHeight: 18, color: colors.ink },
     conceptSubtitle: { fontFamily: fonts.regular, fontSize: 11, lineHeight: 15, color: colors.slate },
+    overviewCard: {
+      padding: 14,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      gap: 10,
+    },
+    contentPreview: {
+      paddingHorizontal: 13,
+      paddingVertical: 11,
+      borderRadius: 12,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      gap: 5,
+    },
+    previewTitle: { fontFamily: fonts.semibold, fontSize: 12, color: colors.ink },
+    previewBody: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 18, color: colors.slate },
     quizRow: {
       minHeight: 76,
       padding: 13,

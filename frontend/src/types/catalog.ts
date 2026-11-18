@@ -31,6 +31,7 @@ export type LearningContent = {
   contentType: ContentType;
   chapterOrder: number;
   mediaURI: string | null;
+  reviewStatus?: string | null;
 };
 
 export type QuizOption = {
@@ -95,9 +96,14 @@ export type ApiConceptSummary = {
   iri: string | null;
   prerequisites: { id: string; name: string | null }[];
 };
+export type TopicPacketConcept = ApiConceptSummary & {
+  order: number | null;
+  learningContent: ApiLearningContent[];
+};
 export type TopicPacket = {
   topic: ApiTopic;
-  concepts: ApiConceptSummary[];
+  overviewContent: ApiLearningContent[];
+  concepts: TopicPacketConcept[];
   prerequisiteConcepts: { id: string; name: string | null }[];
 };
 export type ApiConceptContext = {
@@ -115,39 +121,43 @@ export type ApiConceptSearchResult = {
 export type KnowledgeMapNode = {
   id: string;
   name: string;
-  type: 'concept' | 'ontology_only';
+  type: 'root' | 'concept' | 'ontology_only';
   subjectIds: string[];
   topicIds: string[];
   conceptOrder: number | null;
   contentPreview: string | null;
   hasLesson: boolean;
+  hasAssessment: boolean;
   prerequisiteCount: number | null;
   dependentCount: number | null;
 };
 export type KnowledgeMapEdge = {
   source: string;
   target: string;
-  type: 'PREREQUISITE_OF';
+  type: 'PREREQUISITE_OF' | 'STEM_ROOT' | 'RELATED_TO';
 };
 export type KnowledgeMapResponse = {
+  root?: KnowledgeMapNode | null;
+  mode?: 'overview' | 'topic' | 'concept';
   focusId: string | null;
   subjectId: string | null;
   topicId: string | null;
   nodes: KnowledgeMapNode[];
   edges: KnowledgeMapEdge[];
-  mappingStatus: 'pending' | 'partial' | 'ready';
+  mappingStatus: 'not_applicable' | 'pending' | 'partial' | 'ready';
   mappingMessage: string | null;
   depth: number;
   truncated: boolean;
 };
 export type ApiLearningContent = {
   id: string;
-  conceptId: string;
+  conceptId: string | null;
   title: string | null;
   contentText: string | null;
   contentType: string | null;
   chapterOrder: number | null;
   mediaURI: string | null;
+  reviewStatus?: string | null;
 };
 export type ApiQuestion = {
   id: string;
@@ -155,6 +165,8 @@ export type ApiQuestion = {
   prompt: string | null;
   difficultyLevel?: string | null;
   options: { id: string; label: string | null; text: string | null }[];
+  conceptId?: string | null;
+  reviewStatus?: string | null;
   hint?: string | null;
   explanation?: string | null;
 };
@@ -257,6 +269,7 @@ export function mapContent(api: ApiLearningContent, conceptId: string): Learning
     contentType: mapContentType(api.contentType),
     chapterOrder: api.chapterOrder ?? 0,
     mediaURI: api.mediaURI ?? null,
+    reviewStatus: api.reviewStatus ?? null,
   };
 }
 
@@ -319,7 +332,10 @@ export function mapLesson(
 export function mapQuestions(api: ApiQuestion[]): QuizQuestion[] {
   return api.map((question, index) => ({
     id: question.id,
-    type: question.type === 'mcq' ? 'mcq' : question.options.length > 0 ? 'mcq' : 'written',
+    type:
+      question.type?.toLowerCase() === 'mcq' || question.options.length > 0
+        ? 'mcq'
+        : 'written',
     prompt: question.prompt ?? `Question ${index + 1}`,
     options: question.options.map((option) => ({
       id: option.id,

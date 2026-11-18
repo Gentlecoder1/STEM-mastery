@@ -75,6 +75,10 @@ export function fetchConceptQuestions(conceptId: string): Promise<ApiQuestion[]>
   return apiFetch<ApiQuestion[]>(`/api/v1/concepts/${encodeURIComponent(conceptId)}/questions`);
 }
 
+export function fetchTopicQuestions(topicId: string): Promise<ApiQuestion[]> {
+  return apiFetch<ApiQuestion[]>(`/api/v1/topics/${encodeURIComponent(topicId)}/questions`);
+}
+
 export function checkAnswer(
   conceptId: string,
   questionId: string,

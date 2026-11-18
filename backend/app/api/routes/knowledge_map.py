@@ -8,6 +8,14 @@ router = APIRouter(tags=["knowledge-map"])
 
 
 @router.get(
+    "/knowledge-map/root",
+    response_model=KnowledgeMapResponse,
+)
+async def get_root_knowledge_map(repo: RepositoryDep) -> KnowledgeMapResponse:
+    return KnowledgeMapResponse(**await repo.knowledge_map_root())
+
+
+@router.get(
     "/knowledge-map/topics/{topic_id}",
     response_model=KnowledgeMapResponse,
 )

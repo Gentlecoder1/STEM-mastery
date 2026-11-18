@@ -81,6 +81,69 @@ class FakeGraphRepository:
             },
         }
 
+    async def knowledge_map_root(self) -> dict:
+        root = {
+            "id": "STEM",
+            "name": "STEM",
+            "type": "root",
+            "subjectIds": [],
+            "topicIds": [],
+            "conceptOrder": None,
+            "contentPreview": None,
+            "hasLesson": False,
+            "hasAssessment": False,
+            "prerequisiteCount": None,
+            "dependentCount": None,
+        }
+        concepts = [
+            {
+                "id": "math-concept",
+                "name": "Set",
+                "type": "concept",
+                "subjectIds": ["mathematics"],
+                "topicIds": ["math-topic"],
+                "conceptOrder": 1,
+                "hasLesson": True,
+                "hasAssessment": True,
+            },
+            {
+                "id": "concept-velocity",
+                "name": "Velocity",
+                "type": "concept",
+                "subjectIds": ["physics"],
+                "topicIds": ["topic-speed-velocity"],
+                "conceptOrder": 2,
+                "hasLesson": True,
+                "hasAssessment": True,
+            },
+            {
+                "id": "chem-concept",
+                "name": "Atom",
+                "type": "concept",
+                "subjectIds": ["chemistry"],
+                "topicIds": ["chem-topic"],
+                "conceptOrder": 3,
+                "hasLesson": True,
+                "hasAssessment": True,
+            },
+        ]
+        return {
+            "root": root,
+            "mode": "overview",
+            "focusId": "STEM",
+            "subjectId": None,
+            "topicId": None,
+            "nodes": [root, *concepts],
+            "edges": [
+                {"source": "STEM", "target": node["id"], "type": "STEM_ROOT"}
+                for node in concepts
+            ],
+            "mappingStatus": "not_applicable",
+            "mappingMessage": None,
+            "depth": 0,
+            "truncated": False,
+        }
+
     async def list_subjects(self) -> list[dict]:
         return [
             {"id": "physics", "name": "Physics", "iri": "iri://physics"},
@@ -193,6 +256,34 @@ class FakeGraphRepository:
             },
         ]
 
+    async def get_topic_packet(self, topic_id: str) -> dict | None:
+        if topic_id != "topic-speed-velocity":
+            return None
+        concepts = await self.list_concepts(topic_id)
+        for concept in concepts:
+            concept["order"] = concept["id"] == "concept-velocity" and 2 or 1
+            concept["learningContent"] = await self.list_content(concept["id"])
+        return {
+            "topic": {
+                "id": topic_id,
+                "name": "Speed and velocity",
+                "iri": None,
+            },
+            "overviewContent": [],
+            "concepts": concepts,
+            "prerequisiteConcepts": concepts[1]["prerequisites"],
+        }
+
+    async def list_topic_questions(self, topic_id: str) -> list[dict] | None:
+        if topic_id != "topic-speed-velocity":
+            return None
+        concept_ids = await self.ordered_concept_ids(topic_id)
+        return [
+            question
+            for concept_id in concept_ids
+            for question in await self.list_questions(concept_id)
+        ]
+
     async def ordered_concept_ids(self, topic_id: str) -> list[str]:
         return [row["id"] for row in await self.list_concepts(topic_id)]
 
@@ -244,8 +335,10 @@ class FakeGraphRepository:
                 "prompt": "Which statement best describes velocity?",
                 "difficultyLevel": "easy",
                 "options": question["options"],
+                "conceptId": question["conceptId"],
             }
             for question in self._questions.values()
+            if question["conceptId"] == concept_id
         ]
 
     async def list_question_answers(self, concept_id: str) -> dict[str, dict]:
@@ -253,6 +346,16 @@ class FakeGraphRepository:
             qid: dict(question)
             for qid, question in self._questions.items()
             if question["conceptId"] == concept_id
+        }
+
+    async def list_topic_question_answers(self, topic_id: str) -> dict[str, dict] | None:
+        concept_ids = await self.ordered_concept_ids(topic_id)
+        if not concept_ids:
+            return None
+        return {
+            question_id: question
+            for concept_id in concept_ids
+            for question_id, question in (await self.list_question_answers(concept_id)).items()
         }
 
     async def get_question_answer(self, question_id: str) -> dict | None:

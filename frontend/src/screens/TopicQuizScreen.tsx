@@ -15,7 +15,6 @@ import { ArrowLeftIcon, ArrowRightIcon, CheckCircleIcon, SparklesIcon } from '..
 import { ProgressBar } from '../components/PracticeUI';
 import { colors, fonts } from '../theme';
 import { useTheme, useThemedStyles } from '../themeContext';
-import { useCatalog } from '../catalogContext';
 import { useOffline } from '../offlineContext';
 import { useProgress } from '../progressContext';
 import {
@@ -29,7 +28,6 @@ export default function TopicQuizScreen({ navigation, route }: RootScreenProps<'
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
   const { statusBarStyle } = useTheme();
-  const { getTopicConceptIds } = useCatalog();
   const offline = useOffline();
   const { recordTopicAssessment, refresh } = useProgress();
   const { topicId, topicTitle } = route.params;
@@ -46,22 +44,14 @@ export default function TopicQuizScreen({ navigation, route }: RootScreenProps<'
     let mounted = true;
     setLoading(true);
     setError(null);
-    const conceptIds = getTopicConceptIds(topicId);
-    if (conceptIds.length === 0) {
-      setQuestions([]);
-      setLoading(false);
-      return () => {
-        mounted = false;
-      };
-    }
-    void Promise.all(conceptIds.map((conceptId) => offline.ensureQuestions(conceptId)))
-      .then((groups) => {
+    void offline.ensureTopicQuestions(topicId)
+      .then((topicQuestions) => {
         if (!mounted) return;
-        const uniqueQuestions = new Map<string, QuizQuestion>();
-        groups.flatMap((group) => group ?? []).forEach((question) => {
-          if (!uniqueQuestions.has(question.id)) uniqueQuestions.set(question.id, question);
-        });
-        setQuestions(Array.from(uniqueQuestions.values()));
+        if (topicQuestions === null) {
+          setError('We could not load this topic quiz. Check your connection and try again.');
+          return;
+        }
+        setQuestions(topicQuestions);
       })
       .catch(() => {
         if (mounted) setError('We could not load this topic quiz. Check your connection and try again.');
@@ -72,7 +62,7 @@ export default function TopicQuizScreen({ navigation, route }: RootScreenProps<'
     return () => {
       mounted = false;
     };
-  }, [getTopicConceptIds, loadAttempt, offline.ensureQuestions, topicId]);
+  }, [loadAttempt, offline.ensureTopicQuestions, topicId]);
 
   const question = questions[index];
   const response = question ? responses[question.id] ?? '' : '';

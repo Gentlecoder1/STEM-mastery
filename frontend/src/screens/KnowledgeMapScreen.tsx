@@ -15,7 +15,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ArrowLeftIcon, ArrowRightIcon } from '../components/icons';
 import { SearchIcon } from '../components/glyphs';
-import { fetchConceptKnowledgeMap, fetchTopicKnowledgeMap, searchKnowledgeMapConcepts } from '../lib/catalogApi';
+import {
+  fetchConceptKnowledgeMap,
+  fetchKnowledgeMapRoot,
+  searchKnowledgeMapConcepts,
+} from '../lib/catalogApi';
 import { ApiError } from '../lib/api';
 import type { ApiConceptSearchResult, KnowledgeMapNode, KnowledgeMapResponse } from '../types/catalog';
 import { colors, fonts } from '../theme';
@@ -27,9 +31,9 @@ const MAP_HEIGHT = 410;
 const NODE_HEIGHT = 58;
 const ROW_GAP = 28;
 const COLUMN_GAP = 14;
-const HORIZONTAL_PADDING = 16;
+const HORIZONTAL_PADDING = 10;
 
-type MapMode = 'topic' | 'concept';
+type MapMode = 'overview' | 'concept';
 type Point = { x: number; y: number };
 type PositionedNode = { node: KnowledgeMapNode; x: number; y: number };
 
@@ -59,9 +63,9 @@ export default function KnowledgeMapScreen({
   const { statusBarStyle } = useTheme();
   const styles = useThemedStyles(createStyles);
   const { topics } = useCatalog();
-  const initialMode: MapMode = route.params?.conceptId ? 'concept' : 'topic';
+  const initialMode: MapMode = route.params?.conceptId ? 'concept' : 'overview';
   const initialIncludeConnectedTopics = initialMode === 'concept';
-  const initialTopicId = route.params?.topicId ?? topics[0]?.id ?? '';
+  const initialTopicId = route.params?.topicId ?? '';
   const [mapData, setMapData] = useState<KnowledgeMapResponse | null>(null);
   const [selectedNode, setSelectedNode] = useState<KnowledgeMapNode | null>(null);
   const [mode, setMode] = useState<MapMode>(initialMode);
@@ -85,24 +89,15 @@ export default function KnowledgeMapScreen({
     setPan(point);
   }, []);
 
-  const loadTopicMap = useCallback(async (
-    requestedTopicId: string,
-    focusId?: string,
-    requestedDepth = depth,
-    includeConnected = includeConnectedTopics,
-  ) => {
+  const loadRootMap = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const result = await fetchTopicKnowledgeMap(requestedTopicId, {
-        focusId,
-        depth: requestedDepth,
-        includeConnectedTopics: includeConnected,
-      });
-      setMode('topic');
-      setTopicId(requestedTopicId);
+      const result = await fetchKnowledgeMapRoot();
+      setMode('overview');
+      setTopicId('');
       setMapData(result);
-      setSelectedNode(result.nodes.find((node) => node.id === result.focusId) ?? null);
+      setSelectedNode(result.root ?? result.nodes.find((node) => node.type === 'root') ?? null);
       setScale(1);
       updatePan({ x: 0, y: 0 });
     } catch (cause) {
@@ -110,7 +105,7 @@ export default function KnowledgeMapScreen({
     } finally {
       setLoading(false);
     }
-  }, [depth, includeConnectedTopics, updatePan]);
+  }, [updatePan]);
 
   const loadConceptMap = useCallback(async (
     conceptId: string,
@@ -130,6 +125,7 @@ export default function KnowledgeMapScreen({
       setTopicId(requestedTopicId ?? result.topicId ?? '');
       setMapData(result);
       setSelectedNode(result.nodes.find((node) => node.id === result.focusId) ?? null);
+      setIncludeConnectedTopics(includeConnected);
       setScale(1);
       updatePan({ x: 0, y: 0 });
     } catch (cause) {
@@ -147,27 +143,23 @@ export default function KnowledgeMapScreen({
         depth: 1,
         includeConnectedTopics: true,
       })
-      : (() => {
-        const requestedTopicId = route.params?.topicId ?? topics[0]?.id;
-        if (!requestedTopicId) {
-          setError('Choose a topic from Subjects to explore its concepts.');
-          return null;
-        }
-        return fetchTopicKnowledgeMap(requestedTopicId, {
-          depth: 1,
-          includeConnectedTopics: false,
-        });
-      })();
+      : fetchKnowledgeMapRoot();
     if (request) {
       setLoading(true);
       setError(null);
       void request
         .then((result) => {
           if (!active) return;
-          setMode(route.params?.conceptId ? 'concept' : 'topic');
-          setTopicId(route.params?.topicId ?? result.topicId ?? '');
+          const mode: MapMode = route.params?.conceptId ? 'concept' : 'overview';
+          setMode(mode);
+          setTopicId(mode === 'concept' ? route.params?.topicId ?? result.topicId ?? '' : '');
           setMapData(result);
-          setSelectedNode(result.nodes.find((node) => node.id === result.focusId) ?? null);
+          setSelectedNode(
+            mode === 'overview'
+              ? result.root ?? result.nodes.find((node) => node.type === 'root') ?? null
+              : result.nodes.find((node) => node.id === result.focusId) ?? null,
+          );
+          setIncludeConnectedTopics(mode === 'concept');
           setScale(1);
           updatePan({ x: 0, y: 0 });
         })
@@ -179,7 +171,7 @@ export default function KnowledgeMapScreen({
         });
     }
     return () => { active = false; };
-  }, [route.params?.conceptId, route.params?.topicId, topics, updatePan]);
+  }, [route.params?.conceptId, route.params?.topicId, updatePan]);
 
   useEffect(() => {
     const normalized = query.trim();
@@ -216,20 +208,41 @@ export default function KnowledgeMapScreen({
     };
   }, [query]);
 
+  const visibleMapData = mapData;
+
   const positionedNodes = useMemo<PositionedNode[]>(() => {
-    if (!mapData) return [];
-    const ordered = [...mapData.nodes].sort((a, b) => {
-      if (a.id === mapData.focusId) return -1;
-      if (b.id === mapData.focusId) return 1;
+    if (!visibleMapData) return [];
+    const ordered = [...visibleMapData.nodes].sort((a, b) => {
+      if (a.id === visibleMapData.focusId) return -1;
+      if (b.id === visibleMapData.focusId) return 1;
       return (a.conceptOrder ?? Number.MAX_SAFE_INTEGER) - (b.conceptOrder ?? Number.MAX_SAFE_INTEGER)
         || a.name.localeCompare(b.name);
     });
-    return ordered.map((node, index) => ({
-      node,
-      x: HORIZONTAL_PADDING + (index % 2) * (nodeWidth + COLUMN_GAP),
-      y: 14 + Math.floor(index / 2) * (NODE_HEIGHT + ROW_GAP),
-    }));
-  }, [mapData, nodeWidth]);
+    if (visibleMapData.mode === 'overview') {
+      const root = ordered.find((node) => node.type === 'root');
+      const concepts = ordered.filter((node) => node.type !== 'root');
+      return [
+        ...(root
+          ? [{ node: root, x: (graphWidth - nodeWidth) / 2, y: 8 }]
+          : []),
+        ...concepts.map((node, index) => ({
+          node,
+          x: HORIZONTAL_PADDING + (index % 2) * (nodeWidth + COLUMN_GAP),
+          y: 8 + NODE_HEIGHT + ROW_GAP + Math.floor(index / 2) * (NODE_HEIGHT + ROW_GAP),
+        })),
+      ];
+    }
+    const focus = ordered.find((node) => node.id === visibleMapData.focusId);
+    const neighbors = ordered.filter((node) => node.id !== visibleMapData.focusId);
+    return [
+      ...(focus ? [{ node: focus, x: (graphWidth - nodeWidth) / 2, y: 8 }] : []),
+      ...neighbors.map((node, index) => ({
+        node,
+        x: HORIZONTAL_PADDING + (index % 2) * (nodeWidth + COLUMN_GAP),
+        y: 8 + NODE_HEIGHT + ROW_GAP + Math.floor(index / 2) * (NODE_HEIGHT + ROW_GAP),
+      })),
+    ];
+  }, [graphWidth, nodeWidth, visibleMapData]);
 
   const byId = useMemo(
     () => new Map(positionedNodes.map((positioned) => [positioned.node.id, positioned])),
@@ -237,7 +250,7 @@ export default function KnowledgeMapScreen({
   );
   const svgHeight = Math.max(
     MAP_HEIGHT,
-    28 + Math.ceil(positionedNodes.length / 2) * (NODE_HEIGHT + ROW_GAP),
+    ...positionedNodes.map(({ y }) => y + NODE_HEIGHT + ROW_GAP),
   );
 
   const panResponder = useMemo(() => PanResponder.create({
@@ -254,31 +267,84 @@ export default function KnowledgeMapScreen({
     setQuery('');
     setSearchResults([]);
     setSearchError(false);
-    void loadConceptMap(result.id, result.contexts[0]?.topicId ?? undefined);
+    setIncludeConnectedTopics(true);
+    void loadConceptMap(result.id, result.contexts[0]?.topicId ?? undefined, depth, true);
+  };
+
+  const resetToOverview = () => {
+    setMode('overview');
+    setIncludeConnectedTopics(false);
+    setDepth(1);
+    setTopicId('');
+    void loadRootMap();
   };
 
   const reloadWithFilters = (requestedDepth: number, includeConnected: boolean) => {
     setDepth(requestedDepth);
     setIncludeConnectedTopics(includeConnected);
     const focusId = selectedNode?.id ?? mapData?.focusId ?? undefined;
-    if (mode === 'topic' && topicId) {
-      void loadTopicMap(topicId, focusId, requestedDepth, includeConnected);
-    } else if (focusId) {
+    if (mode === 'concept' && focusId && focusId !== 'STEM') {
       void loadConceptMap(focusId, topicId || undefined, requestedDepth, includeConnected);
     }
   };
 
   const expandSelected = () => {
-    if (selectedNode) {
+    if (selectedNode?.type === 'concept') {
       void loadConceptMap(selectedNode.id, topicId || undefined, depth, includeConnectedTopics);
     }
   };
 
+  const selectedPrerequisites =
+    selectedNode && mapData?.mode === 'concept'
+      ? mapData.edges
+          .filter((edge) => edge.type === 'PREREQUISITE_OF' && edge.target === selectedNode.id)
+          .map((edge) => mapData.nodes.find((node) => node.id === edge.source))
+          .filter((node): node is KnowledgeMapNode => Boolean(node))
+      : [];
+  const selectedRelated =
+    selectedNode && mapData?.mode === 'concept'
+      ? mapData.edges
+          .filter(
+            (edge) =>
+              edge.type === 'RELATED_TO'
+              && (edge.source === selectedNode.id || edge.target === selectedNode.id),
+          )
+          .map((edge) => mapData.nodes.find(
+            (node) => node.id === (edge.source === selectedNode.id ? edge.target : edge.source),
+          ))
+          .filter((node): node is KnowledgeMapNode => Boolean(node))
+      : [];
+  const selectedDependents =
+    selectedNode && mapData?.mode === 'concept'
+      ? mapData.edges
+          .filter((edge) => edge.type === 'PREREQUISITE_OF' && edge.source === selectedNode.id)
+          .map((edge) => mapData.nodes.find((node) => node.id === edge.target))
+          .filter((node): node is KnowledgeMapNode => Boolean(node))
+      : [];
+  const selectedTopics = selectedNode?.topicIds
+    .map((id) => topics.find((topic) => topic.id === id)?.name ?? id)
+    .filter((name, index, names) => names.indexOf(name) === index) ?? [];
+
   const statusText = mapData
-    ? mapData.mappingStatus === 'ready'
-      ? 'Prerequisite paths are verified.'
-      : mapData.mappingMessage ?? 'Prerequisite paths are pending verification.'
+    ? mapData.mappingStatus === 'not_applicable'
+      ? null
+      : mapData.mappingStatus === 'ready'
+        ? 'Prerequisite paths are verified.'
+        : mapData.mappingMessage ?? 'Prerequisite paths are pending verification.'
     : null;
+
+  const handleNodePress = (node: KnowledgeMapNode) => {
+    if (node.type !== 'concept') {
+      setSelectedNode(node);
+      return;
+    }
+    if (mode === 'overview' || node.id !== mapData?.focusId) {
+      setIncludeConnectedTopics(true);
+      void loadConceptMap(node.id, node.topicIds[0], depth, true);
+      return;
+    }
+    setSelectedNode(node);
+  };
 
   return (
     <View style={styles.root}>
@@ -327,7 +393,9 @@ export default function KnowledgeMapScreen({
               >
                 <Text style={styles.searchResultTitle}>{result.name}</Text>
                 <Text style={styles.searchResultContext}>
-                  {result.contexts[0]?.topicName ?? 'Open concept map'}
+                  [result.contexts[0]?.topicName]
+                    .filter(Boolean)
+                    .join(' · ') || 'Open concept map'}
                 </Text>
               </Pressable>
             ))}
@@ -335,36 +403,32 @@ export default function KnowledgeMapScreen({
         ) : null}
       </View>
 
-      <View style={styles.filterRow}>
-        <View style={styles.depthOptions}>
-          {[1, 2, 3].map((value) => (
-            <Pressable
-              key={value}
-              style={[styles.filterChip, depth === value && styles.filterChipActive]}
-              onPress={() => reloadWithFilters(value, includeConnectedTopics)}
-              accessibilityRole="button"
-              accessibilityLabel={`Show prerequisite depth ${value}`}
-            >
-              <Text style={[styles.filterText, depth === value && styles.filterTextActive]}>
-                Depth {value}
-              </Text>
-            </Pressable>
-          ))}
+      {mode === 'concept' ? (
+        <View style={styles.focusFilters}>
+          <Pressable style={styles.filterChip} onPress={resetToOverview} accessibilityRole="button">
+            <Text style={styles.filterText}>STEM tree</Text>
+          </Pressable>
+          <View style={styles.depthOptions}>
+            {[1, 2, 3].map((value) => (
+              <Pressable
+                key={value}
+                style={[styles.filterChip, depth === value && styles.filterChipActive]}
+                onPress={() => reloadWithFilters(value, includeConnectedTopics)}
+                accessibilityRole="button"
+                accessibilityLabel={`Show prerequisite depth ${value}`}
+              >
+                <Text style={[styles.filterText, depth === value && styles.filterTextActive]}>
+                  Depth {value}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
         </View>
-        <Pressable
-          style={[styles.filterChip, includeConnectedTopics && styles.filterChipActive]}
-          onPress={() => reloadWithFilters(depth, !includeConnectedTopics)}
-          accessibilityRole="button"
-        >
-          <Text style={[styles.filterText, includeConnectedTopics && styles.filterTextActive]}>
-            {includeConnectedTopics ? 'Connected topics' : 'This topic'}
-          </Text>
-        </Pressable>
-      </View>
+      ) : null}
 
-      {mapData && statusText ? (
+      {visibleMapData && statusText ? (
         <View style={styles.mappingNotice}>
-          <View style={[styles.statusDot, mapData.mappingStatus === 'ready' && styles.statusDotReady]} />
+          <View style={[styles.statusDot, visibleMapData.mappingStatus === 'ready' && styles.statusDotReady]} />
           <Text style={styles.mappingNoticeText}>{statusText}</Text>
         </View>
       ) : null}
@@ -376,7 +440,7 @@ export default function KnowledgeMapScreen({
             style={styles.retryButton}
             onPress={() => {
               if (route.params?.conceptId) void loadConceptMap(route.params.conceptId, route.params.topicId);
-              else if (topicId) void loadTopicMap(topicId);
+              else void loadRootMap();
             }}
           >
             <Text style={styles.retryText}>Try again</Text>
@@ -388,10 +452,12 @@ export default function KnowledgeMapScreen({
         <View style={styles.loadingState}><ActivityIndicator color={colors.primary} /></View>
       ) : null}
 
-      {mapData ? (
+      {visibleMapData ? (
         <>
           <View style={styles.graphToolbar}>
-            <Text style={styles.nodeCount}>{mapData.nodes.length} concepts</Text>
+            <Text style={styles.nodeCount}>
+              {visibleMapData.nodes.filter((node) => node.type === 'concept').length} concepts
+            </Text>
             <View style={styles.zoomActions}>
               <Pressable style={styles.zoomButton} onPress={() => setScale((value) => Math.max(0.65, value - 0.15))}>
                 <Text style={styles.zoomText}>−</Text>
@@ -410,13 +476,19 @@ export default function KnowledgeMapScreen({
               </Pressable>
             </View>
           </View>
+          {mode === 'concept' ? (
+            <View style={styles.relationshipLegend}>
+              <Text style={styles.prerequisiteLegend}>Prerequisite →</Text>
+              <Text style={styles.relatedLegend}>Related —</Text>
+            </View>
+          ) : null}
           <View style={styles.graphViewport} {...panResponder.panHandlers}>
             {loading ? (
               <View style={styles.loadingOverlay}><ActivityIndicator color={colors.primary} /></View>
             ) : null}
-            <Svg width={graphWidth} height={MAP_HEIGHT} viewBox={`0 0 ${graphWidth} ${MAP_HEIGHT}`}>
+            <Svg width={graphWidth} height={svgHeight} viewBox={`0 0 ${graphWidth} ${svgHeight}`}>
               <G transform={`translate(${pan.x} ${pan.y}) scale(${scale})`}>
-                {mapData.edges.map((edge) => {
+                {visibleMapData.edges.map((edge) => {
                   const source = byId.get(edge.source);
                   const target = byId.get(edge.target);
                   if (!source || !target) return null;
@@ -443,24 +515,39 @@ export default function KnowledgeMapScreen({
                     `${x2 - ux * arrowLength + uy * arrowHalfWidth},${y2 - uy * arrowLength - ux * arrowHalfWidth}`,
                   ].join(' ');
                   return (
-                    <G key={`${edge.source}:${edge.target}`}>
-                      <Line x1={x1} y1={y1} x2={x2} y2={y2} stroke={colors.primary} strokeWidth={2} />
-                      <Polygon points={arrowPoints} fill={colors.primary} />
+                    <G key={`${edge.type}:${edge.source}:${edge.target}`}>
+                      <Line
+                        x1={x1}
+                        y1={y1}
+                        x2={x2}
+                        y2={y2}
+                        stroke={
+                          edge.type === 'STEM_ROOT'
+                            ? colors.border
+                            : edge.type === 'RELATED_TO'
+                              ? colors.green
+                              : colors.primary
+                        }
+                        strokeWidth={edge.type === 'STEM_ROOT' ? 1.5 : 2}
+                      />
+                      {edge.type === 'PREREQUISITE_OF' ? (
+                        <Polygon points={arrowPoints} fill={colors.primary} />
+                      ) : null}
                     </G>
                   );
                 })}
                 {positionedNodes.map(({ node, x, y }) => {
                   const isSelected = selectedNode?.id === node.id;
-                  const isFocus = mapData.focusId === node.id;
+                  const isFocus = visibleMapData.focusId === node.id;
                   return (
-                    <G key={node.id} onPress={() => setSelectedNode(node)}>
+                    <G key={node.id} onPress={() => handleNodePress(node)}>
                       <Rect
                         x={x}
                         y={y}
                         width={nodeWidth}
                         height={NODE_HEIGHT}
                         rx={12}
-                        fill={isSelected ? colors.primarySoft : node.type === 'ontology_only' ? colors.canvas : colors.surface}
+                        fill={isSelected || node.type === 'root' ? colors.primarySoft : node.type === 'ontology_only' ? colors.canvas : colors.surface}
                         stroke={isSelected || isFocus ? colors.primary : node.type === 'ontology_only' ? colors.slate : colors.border}
                         strokeWidth={isSelected || isFocus ? 2 : 1}
                       />
@@ -474,19 +561,24 @@ export default function KnowledgeMapScreen({
                         {shortLabel(node.name, Math.max(16, Math.floor(nodeWidth / 7)))}
                       </SvgText>
                       <SvgText x={x + 11} y={y + 43} fill={colors.slate} fontSize={10}>
-                        {node.type === 'ontology_only'
-                          ? 'Ontology-only · no app content'
-                          : node.hasLesson ? 'Lesson available' : 'Concept'}
+                        {node.type === 'root'
+                          ? 'All STEM concepts'
+                          : node.type === 'ontology_only'
+                            ? 'Ontology-only · no app content'
+                            : [
+                                node.hasLesson ? 'Lesson' : null,
+                                node.hasAssessment ? 'Assessment' : null,
+                              ].filter(Boolean).join(' · ') || 'Concept'}
                       </SvgText>
                     </G>
                   );
                 })}
               </G>
             </Svg>
-            {mapData.edges.length === 0 ? (
+            {visibleMapData.edges.length === 0 ? (
               <View pointerEvents="none" style={styles.graphHint}>
                 <Text style={styles.graphHintText}>
-                  {mapData.mappingStatus === 'ready'
+                  {visibleMapData.mappingStatus === 'ready'
                     ? 'Select a concept to explore its connections.'
                     : 'Concepts are shown; prerequisite links will appear after explicit mappings are verified.'}
                 </Text>
@@ -497,14 +589,28 @@ export default function KnowledgeMapScreen({
             <View style={[styles.selectionCard, { paddingBottom: Math.max(12, insets.bottom) }]}>
               <View style={styles.selectionCopy}>
                 <Text style={styles.selectionEyebrow}>
-                  {selectedNode.type === 'ontology_only' ? 'ONTOLOGY-ONLY NODE' : 'SELECTED CONCEPT'}
+                  {selectedNode.type === 'root'
+                    ? 'STEM NETWORK'
+                    : selectedNode.type === 'ontology_only'
+                      ? 'ONTOLOGY-ONLY NODE'
+                      : 'SELECTED CONCEPT'}
                 </Text>
                 <Text style={styles.selectionTitle}>{selectedNode.name}</Text>
                 <Text style={styles.selectionMeta}>
-                  {selectedNode.type === 'ontology_only'
-                    ? 'No matching app concept or lesson'
-                    : `${selectedNode.hasLesson ? 'Lesson available' : 'Lesson not available'}${selectedNode.subjectIds[0] ? ` · ${selectedNode.subjectIds[0]}` : ''}`}
+                  {selectedNode.type === 'root'
+                    ? `${visibleMapData.nodes.filter((node) => node.type === 'concept').length} important concepts across STEM`
+                    : selectedNode.type === 'ontology_only'
+                      ? 'No matching app concept or lesson'
+                      : selectedTopics.join(', ') || 'STEM concept'}
                 </Text>
+                {selectedNode.type === 'concept' ? (
+                  <Text style={styles.selectionMeta}>
+                    Prerequisites {selectedPrerequisites.length} · Unlocks {selectedDependents.length}
+                    {' · '}Related {selectedRelated.length}
+                    {' · '}Learning content {selectedNode.hasLesson ? 'available' : 'unavailable'}
+                    {' · '}Assessment {selectedNode.hasAssessment ? 'available' : 'unavailable'}
+                  </Text>
+                ) : null}
               </View>
               {selectedNode.type === 'concept' ? (
                 <View style={styles.selectionActions}>
@@ -518,7 +624,7 @@ export default function KnowledgeMapScreen({
                     <Text style={styles.secondaryActionText}>Details</Text>
                   </Pressable>
                   <Pressable style={styles.expandAction} onPress={expandSelected}>
-                    <Text style={styles.expandActionText}>Expand</Text>
+                    <Text style={styles.expandActionText}>Open connections</Text>
                     <ArrowRightIcon size={15} color={colors.onPrimary} />
                   </Pressable>
                   {selectedNode.hasLesson ? (
@@ -529,7 +635,46 @@ export default function KnowledgeMapScreen({
                     <Text style={styles.learnActionText}>Learn</Text>
                   </Pressable>
                   ) : null}
+                  {selectedNode.hasAssessment ? (
+                    <Pressable
+                      style={styles.secondaryAction}
+                      onPress={() => navigation.navigate('ConceptQuiz', {
+                        conceptId: selectedNode.id,
+                      })}
+                    >
+                      <Text style={styles.secondaryActionText}>Practice</Text>
+                    </Pressable>
+                  ) : null}
+                  {selectedPrerequisites[0] ? (
+                    <Pressable
+                      style={styles.secondaryAction}
+                      onPress={() => navigation.navigate('ConceptDetails', {
+                        conceptId: selectedPrerequisites[0].id,
+                        contextTopicId: selectedPrerequisites[0].topicIds[0],
+                        returnToConceptId: selectedNode.id,
+                      })}
+                    >
+                      <Text style={styles.secondaryActionText}>
+                        Learn {shortLabel(selectedPrerequisites[0].name, 20)} first
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                  {selectedDependents.length > 0 ? (
+                    <Text style={styles.selectionMeta}>
+                      Unlocks: {selectedDependents.slice(0, 3).map((node) => node.name).join(', ')}
+                    </Text>
+                  ) : null}
+                  {selectedRelated.length > 0 ? (
+                    <Text style={styles.selectionMeta}>
+                      Related to: {selectedRelated.slice(0, 3).map((node) => node.name).join(', ')}
+                    </Text>
+                  ) : null}
                 </View>
+              ) : null}
+              {selectedNode.type === 'root' ? (
+                <Pressable style={styles.expandAction} onPress={resetToOverview}>
+                  <Text style={styles.expandActionText}>Reset overview</Text>
+                </Pressable>
               ) : null}
             </View>
           ) : null}
@@ -563,7 +708,7 @@ const createStyles = () => StyleSheet.create({
   searchResultTitle: { fontFamily: fonts.semibold, fontSize: 13, color: colors.ink },
   searchResultContext: { marginTop: 2, fontFamily: fonts.regular, fontSize: 10, color: colors.slate },
   searchError: { padding: 12, fontFamily: fonts.regular, fontSize: 11, color: colors.danger },
-  filterRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingHorizontal: 18, paddingTop: 11 },
+  focusFilters: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6, paddingHorizontal: 18, paddingTop: 11 },
   depthOptions: { flexDirection: 'row', gap: 5 },
   filterChip: { paddingHorizontal: 9, height: 30, justifyContent: 'center', borderRadius: 999, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
   filterChipActive: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
@@ -580,6 +725,9 @@ const createStyles = () => StyleSheet.create({
   loadingState: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   graphToolbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingTop: 10, paddingBottom: 6 },
   nodeCount: { fontFamily: fonts.semibold, fontSize: 11, color: colors.slate },
+  relationshipLegend: { flexDirection: 'row', gap: 12, paddingHorizontal: 22, paddingBottom: 6 },
+  prerequisiteLegend: { fontFamily: fonts.medium, fontSize: 10, color: colors.primary },
+  relatedLegend: { fontFamily: fonts.medium, fontSize: 10, color: colors.green },
   zoomActions: { flexDirection: 'row', gap: 6 },
   zoomButton: { minWidth: 32, height: 30, paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center', borderRadius: 9, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
   zoomText: { fontFamily: fonts.medium, fontSize: 18, lineHeight: 21, color: colors.ink },
@@ -589,14 +737,14 @@ const createStyles = () => StyleSheet.create({
   graphHint: { position: 'absolute', left: 22, right: 22, bottom: 10, padding: 9, borderRadius: 9, backgroundColor: colors.canvas },
   graphHintText: { fontFamily: fonts.regular, fontSize: 10, lineHeight: 14, color: colors.slate, textAlign: 'center' },
   selectionCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, paddingTop: 12,
+    flexDirection: 'column', alignItems: 'stretch', gap: 8, marginTop: 10, paddingTop: 12,
     paddingHorizontal: 18, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.canvas,
   },
   selectionCopy: { flex: 1, gap: 3 },
   selectionEyebrow: { fontFamily: fonts.bold, fontSize: 8, color: colors.slate },
   selectionTitle: { fontFamily: fonts.semibold, fontSize: 13, color: colors.ink },
   selectionMeta: { fontFamily: fonts.regular, fontSize: 9, color: colors.slate },
-  selectionActions: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  selectionActions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 5 },
   secondaryAction: { paddingHorizontal: 9, paddingVertical: 8, borderRadius: 9, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
   secondaryActionText: { fontFamily: fonts.semibold, fontSize: 10, color: colors.ink },
   expandAction: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 9, paddingVertical: 8, borderRadius: 9, backgroundColor: colors.primary },

@@ -3,17 +3,26 @@ from typing import Any
 
 from app.models.knowledge_map import KnowledgeMapResponse
 from app.repositories.graph import (
+    _CONCEPT_QUESTIONS,
+    _CONCEPT_QUESTION_ANSWERS,
     _CONCEPT_EDGES,
     _CONCEPTS,
+    _CONTENT,
     _KNOWLEDGE_MAP_DIRECT_ONTOLOGY_IDS,
     _KNOWLEDGE_MAP_MAPPING_COUNTS,
     _KNOWLEDGE_MAP_NODES,
     _KNOWLEDGE_MAP_ONTOLOGY_CONCEPT_MAPPINGS,
+    _KNOWLEDGE_MAP_RELATED_CONCEPTS,
+    _KNOWLEDGE_MAP_ROOT_CANDIDATES,
     _KNOWLEDGE_MAP_TOPIC,
     _PREREQUISITES,
     _SEARCH_CONCEPTS,
     _STRUCTURED_LESSON,
     _STRUCTURED_QUESTION_COUNT,
+    _TOPIC_CONCEPT_CONTENT,
+    _TOPIC_OVERVIEW_CONTENT,
+    _TOPIC_QUESTIONS,
+    _TOPIC_QUESTION_ANSWERS,
     _SUBJECT_CONCEPTS,
     _TOPICS,
     GraphRepository,
@@ -63,6 +72,120 @@ def test_list_concepts_preserves_curriculum_order_and_prerequisites() -> None:
     ]
     assert concepts[1]["prerequisites"] == []
     assert repository.queries == [_CONCEPTS]
+
+
+def test_current_content_queries_follow_topic_concepts_and_concept_content() -> None:
+    assert "(t:Topic {id: $topic_id})-[r:HAS_CONCEPT]->(c:Concept)" in _TOPIC_CONCEPT_CONTENT
+    assert "(c)-[:HAS_CONTENT]->(lc:LearningContent)" in _TOPIC_CONCEPT_CONTENT
+    assert "id: lc.id" in _TOPIC_CONCEPT_CONTENT
+    assert "contentText: lc.body" in _TOPIC_CONCEPT_CONTENT
+    assert "contentType: lc.contentType" in _TOPIC_CONCEPT_CONTENT
+    assert "(c:Concept {id: $concept_id})-[:HAS_CONTENT]->(lc:LearningContent)" in _CONTENT
+
+
+def test_topic_packet_combines_overview_concepts_and_concept_content() -> None:
+    overview = {
+        "id": "math-topic",
+        "name": "Fractions",
+        "iri": None,
+        "overviewContent": [{"id": "overview-1", "conceptId": None, "contentText": "Overview"}],
+    }
+    concept = {
+        "id": "math-fractions",
+        "name": "Fractions",
+        "prefLabel": None,
+        "iri": None,
+        "order": 1,
+        "prerequisites": [],
+    }
+    concept_content = {
+        "id": "math-fractions",
+        "name": "Fractions",
+        "prefLabel": None,
+        "iri": None,
+        "order": 1,
+        "learningContent": [
+            {
+                "id": "lesson-1",
+                "conceptId": "math-fractions",
+                "title": "Definition",
+                "contentText": "A fraction represents part of a whole.",
+                "contentType": "definition",
+                "reviewStatus": "APPROVED",
+            }
+        ],
+    }
+    repository = StaticGraphRepository(
+        {
+            _TOPIC_OVERVIEW_CONTENT: [overview],
+            _CONCEPTS: [concept],
+            _TOPIC_CONCEPT_CONTENT: [concept_content],
+        }
+    )
+
+    packet = asyncio.run(repository.get_topic_packet("math-topic"))
+
+    assert packet is not None
+    assert packet["overviewContent"][0]["contentText"] == "Overview"
+    assert packet["concepts"][0]["learningContent"][0]["id"] == "lesson-1"
+    assert repository.params == [
+        {"topic_id": "math-topic"},
+        {"topic_id": "math-topic"},
+        {"topic_id": "math-topic"},
+    ]
+
+
+def test_assessment_queries_use_current_batch_and_relationship() -> None:
+    assert "(c:Concept {id: $concept_id})" in _CONCEPT_QUESTIONS
+    assert "[:ASSESSED_BY]->(q:AssessmentItem {batch: 'ASSESSMENT_V1'})" in _CONCEPT_QUESTIONS
+    assert "q.optionA AS optionA" in _CONCEPT_QUESTIONS
+    assert "q.correctOption" not in _CONCEPT_QUESTIONS
+    assert "(t)-[r:HAS_CONCEPT]->(c:Concept)" in _TOPIC_QUESTIONS
+    assert "[:ASSESSED_BY]->(q:AssessmentItem {batch: 'ASSESSMENT_V1'})" in _TOPIC_QUESTIONS
+    assert "modelAnswer: q.modelAnswer" in _TOPIC_QUESTION_ANSWERS
+    assert "q.correctAnswer AS correctAnswer" in _CONCEPT_QUESTION_ANSWERS
+
+
+def test_assessment_items_map_mcq_and_theory_without_exposing_answers() -> None:
+    rows = [
+        {
+            "id": "mcq-1",
+            "conceptId": "physics-motion",
+            "type": "MCQ",
+            "prompt": "Which quantity has direction?",
+            "optionA": "Speed",
+            "optionB": "Velocity",
+            "optionC": None,
+            "optionD": None,
+            "correctOption": "B",
+            "correctAnswer": "Velocity",
+        },
+        {
+            "id": "theory-1",
+            "conceptId": "physics-motion",
+            "type": "THEORY",
+            "prompt": "Explain velocity.",
+            "optionA": None,
+            "optionB": None,
+            "optionC": None,
+            "optionD": None,
+            "correctOption": None,
+            "correctAnswer": None,
+            "modelAnswer": "Velocity is displacement per unit time.",
+        },
+    ]
+    repository = StaticGraphRepository({_CONCEPT_QUESTIONS: rows})
+
+    questions = asyncio.run(repository.list_questions("physics-motion"))
+
+    assert [question["type"] for question in questions] == ["mcq", "written"]
+    assert questions[0]["options"] == [
+        {"id": "a", "label": "A", "text": "Speed"},
+        {"id": "b", "label": "B", "text": "Velocity"},
+    ]
+    assert questions[1]["options"] == []
+    assert all("correctOption" not in question for question in questions)
+    assert all("modelAnswer" not in question for question in questions)
 
 
 def test_ordered_subject_concepts_deduplicates_without_reordering() -> None:
@@ -147,11 +270,95 @@ def test_knowledge_map_keeps_prerequisite_paths_pending_without_explicit_mapping
     assert _KNOWLEDGE_MAP_DIRECT_ONTOLOGY_IDS not in repository.queries
 
 
+def test_knowledge_map_root_ranks_balanced_subject_concepts_without_semantic_edges() -> None:
+    candidates = [
+        {
+            "id": concept_id,
+            "name": name,
+            "prerequisiteCount": degree,
+            "dependentCount": 1,
+            "mappingCount": 1,
+            "contexts": [
+                {
+                    "subjectId": subject_id,
+                    "subjectName": subject_name,
+                    "topicId": f"{subject_id}-topic",
+                    "topicName": f"{subject_name} topic",
+                    "conceptOrder": 1,
+                }
+            ],
+        }
+        for concept_id, name, subject_id, subject_name, degree in (
+            ("m1", "Set", "mathematics", "Mathematics", 3),
+            ("p1", "Velocity", "physics", "Physics", 5),
+            ("c1", "Atom", "chemistry", "Chemistry", 4),
+        )
+    ]
+    node_rows = [
+        {
+            "id": row["id"],
+            "name": row["name"],
+            "contexts": row["contexts"],
+            "hasLesson": True,
+            "hasAssessment": True,
+        }
+        for row in candidates
+    ]
+    repository = StaticGraphRepository(
+        {
+            _KNOWLEDGE_MAP_ROOT_CANDIDATES: candidates,
+            _KNOWLEDGE_MAP_NODES: node_rows,
+        }
+    )
+
+    result = asyncio.run(repository.knowledge_map_root())
+
+    assert result["root"]["id"] == "STEM"
+    assert result["mode"] == "overview"
+    assert result["mappingStatus"] == "not_applicable"
+    assert {node["id"] for node in result["nodes"][1:]} == {"m1", "p1", "c1"}
+    assert all(edge["type"] == "STEM_ROOT" for edge in result["edges"])
+    assert repository.queries == [_KNOWLEDGE_MAP_ROOT_CANDIDATES, _KNOWLEDGE_MAP_NODES]
+
+
 def test_knowledge_map_queries_only_verified_ontology_mappings() -> None:
     assert "ONTOLOGY_MAPS_TO" in _KNOWLEDGE_MAP_MAPPING_COUNTS
     assert "reviewStatus: 'VERIFIED_MAPPING_V1'" in _KNOWLEDGE_MAP_MAPPING_COUNTS
     assert "ONTOLOGY_MAPS_TO" in _KNOWLEDGE_MAP_DIRECT_ONTOLOGY_IDS
     assert "ONTOLOGY_EQUIVALENT" not in _KNOWLEDGE_MAP_DIRECT_ONTOLOGY_IDS
+
+
+def test_concept_knowledge_map_includes_related_concepts_as_undirected_edges() -> None:
+    repository = StaticGraphRepository(
+        {
+            _KNOWLEDGE_MAP_NODES: [
+                {
+                    "id": concept_id,
+                    "name": name,
+                    "contexts": [],
+                    "hasLesson": True,
+                    "hasAssessment": True,
+                }
+                for concept_id, name in (
+                    ("focus", "Focus"),
+                    ("related", "Related concept"),
+                )
+            ],
+            _KNOWLEDGE_MAP_MAPPING_COUNTS: [{"id": "focus", "mappingCount": 0}],
+            _KNOWLEDGE_MAP_RELATED_CONCEPTS: [{"id": "related"}],
+        }
+    )
+
+    result = asyncio.run(repository.knowledge_map_concept("focus"))
+
+    assert result is not None
+    assert {node["id"] for node in result["nodes"]} == {"focus", "related"}
+    assert {
+        "source": "focus",
+        "target": "related",
+        "type": "RELATED_TO",
+    } in result["edges"]
+    assert _KNOWLEDGE_MAP_RELATED_CONCEPTS in repository.queries
 
 
 def test_knowledge_map_maps_verified_endpoints_and_preserves_edge_direction() -> None:

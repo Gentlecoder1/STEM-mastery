@@ -32,6 +32,10 @@ export function searchConcepts(query: string): Promise<ApiConceptSearchResult[]>
   );
 }
 
+export function fetchKnowledgeMapRoot(): Promise<KnowledgeMapResponse> {
+  return apiFetch<KnowledgeMapResponse>('/api/v1/knowledge-map/root');
+}
+
 export function fetchTopicKnowledgeMap(
   topicId: string,
   options: { focusId?: string; depth?: number; includeConnectedTopics?: boolean } = {},

@@ -11,13 +11,21 @@ import {
 
 import { isApiConfigured } from './lib/api';
 import { fetchLesson, fetchTopicPacket } from './lib/catalogApi';
-import { mapLesson, mapQuestions, type LearningContent, type QuizQuestion } from './types/catalog';
+import {
+  mapLesson,
+  mapQuestions,
+  type LearningContent,
+  type QuizQuestion,
+  type TopicPacket,
+} from './types/catalog';
 import {
   emptyReading,
   loadAllReading,
   loadDownloads,
   loadLesson,
+  loadTopicPacket,
   saveTopicPacket,
+  removeTopicPacket,
   loadPending,
   loadQuestions,
   removeLesson,
@@ -29,7 +37,12 @@ import {
   saveQuestions,
   type ReadingProgress,
 } from './lib/offlineStore';
-import { fetchConceptQuestions, syncProgress, type LessonProgressItem } from './lib/assessmentApi';
+import {
+  fetchConceptQuestions,
+  fetchTopicQuestions,
+  syncProgress,
+  type LessonProgressItem,
+} from './lib/assessmentApi';
 import { useConnectivity } from './connectivityContext';
 import { useCatalog } from './catalogContext';
 
@@ -39,6 +52,8 @@ type OfflineContextValue = {
   isTopicDownloaded: (topicId: string) => boolean;
   downloadConcept: (conceptId: string) => Promise<boolean>;
   downloadTopic: (topicId: string) => Promise<number>;
+  ensureTopicPacket: (topicId: string) => Promise<TopicPacket | null>;
+  ensureTopicQuestions: (topicId: string) => Promise<QuizQuestion[] | null>;
   removeDownload: (conceptId: string) => void;
   removeTopicDownload: (topicId: string) => void;
   getLesson: (conceptId: string) => LearningContent[] | null;
@@ -80,6 +95,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   const { getTopicConceptIds } = useCatalog();
 
   const [downloads, setDownloads] = useState<string[]>([]);
+  const [topicPackets, setTopicPackets] = useState<Record<string, TopicPacket>>({});
   const [lessons, setLessons] = useState<Record<string, LearningContent[]>>({});
   const [questions, setQuestions] = useState<Record<string, QuizQuestion[]>>({});
   const [reading, setReading] = useState<Record<string, ReadingProgress>>({});
@@ -89,6 +105,9 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
 
   const downloadsRef = useRef(downloads);
   downloadsRef.current = downloads;
+  const topicPacketsRef = useRef(topicPackets);
+  topicPacketsRef.current = topicPackets;
+  const topicPacketLoads = useRef(new Map<string, Promise<TopicPacket | null>>());
   const lessonsRef = useRef(lessons);
   lessonsRef.current = lessons;
   const questionsRef = useRef(questions);
@@ -177,16 +196,51 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     [cacheLesson, cacheQuestions, isOnline, persistDownloads],
   );
 
+  const ensureTopicPacket = useCallback(
+    (topicId: string): Promise<TopicPacket | null> => {
+      const current = topicPacketsRef.current[topicId];
+      if (current) return Promise.resolve(current);
+      const inFlight = topicPacketLoads.current.get(topicId);
+      if (inFlight) return inFlight;
+
+      const request = (async () => {
+        try {
+          if (isApiConfigured && isOnline) {
+            try {
+              const packet = await fetchTopicPacket(topicId);
+              await saveTopicPacket(topicId, packet);
+              setTopicPackets((currentPackets) => ({ ...currentPackets, [topicId]: packet }));
+              return packet;
+            } catch {
+              // Fall back to the last saved packet if refresh is unavailable.
+            }
+          }
+          const cached = await loadTopicPacket(topicId);
+          if (!cached) return null;
+          setTopicPackets((currentPackets) => ({
+            ...currentPackets,
+            [topicId]: cached.packet,
+          }));
+          return cached.packet;
+        } catch {
+          return null;
+        }
+      })();
+      topicPacketLoads.current.set(topicId, request);
+      void request.then(
+        () => topicPacketLoads.current.delete(topicId),
+        () => topicPacketLoads.current.delete(topicId),
+      );
+      return request;
+    },
+    [isOnline],
+  );
+
   const downloadTopic = useCallback(
     async (topicId: string) => {
       if (!isApiConfigured || !isOnline) return 0;
-      try {
-        // Fetching one bounded packet avoids downloading the full graph. The
-        // native fetch implementation transparently decompresses gzip responses.
-        await saveTopicPacket(topicId, await fetchTopicPacket(topicId));
-      } catch {
-        return 0;
-      }
+      const packet = await ensureTopicPacket(topicId);
+      if (!packet) return 0;
       const ids = getTopicConceptIds(topicId);
       let completed = 0;
       for (let index = 0; index < ids.length; index += 4) {
@@ -202,7 +256,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       }
       return completed;
     },
-    [downloadConcept, getTopicConceptIds, isOnline],
+    [downloadConcept, ensureTopicPacket, getTopicConceptIds, isOnline],
   );
 
   const removeDownload = useCallback(
@@ -233,6 +287,13 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   const removeTopicDownload = useCallback(
     (topicId: string) => {
       for (const id of getTopicConceptIds(topicId)) removeDownload(id);
+      setTopicPackets((current) => {
+        if (!(topicId in current)) return current;
+        const next = { ...current };
+        delete next[topicId];
+        return next;
+      });
+      void removeTopicPacket(topicId);
     },
     [getTopicConceptIds, removeDownload],
   );
@@ -273,6 +334,28 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       }
     },
     [cacheQuestions, isOnline],
+  );
+
+  const ensureTopicQuestions = useCallback(
+    async (topicId: string): Promise<QuizQuestion[] | null> => {
+      if (isApiConfigured && isOnline) {
+        try {
+          return mapQuestions(await fetchTopicQuestions(topicId));
+        } catch {
+          // Use cached per-concept questions if the topic endpoint is unavailable.
+        }
+      }
+      const ids = getTopicConceptIds(topicId);
+      if (ids.length === 0) return null;
+      const groups = await Promise.all(ids.map(ensureQuestions));
+      if (groups.some((group) => group === null)) return null;
+      const uniqueQuestions = new Map<string, QuizQuestion>();
+      groups.flatMap((group) => group ?? []).forEach((question) => {
+        if (!uniqueQuestions.has(question.id)) uniqueQuestions.set(question.id, question);
+      });
+      return Array.from(uniqueQuestions.values());
+    },
+    [ensureQuestions, getTopicConceptIds, isOnline],
   );
 
   const getLesson = useCallback(
@@ -393,6 +476,8 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       isTopicDownloaded,
       downloadConcept,
       downloadTopic,
+      ensureTopicPacket,
+      ensureTopicQuestions,
       removeDownload,
       removeTopicDownload,
       getLesson,
@@ -415,6 +500,8 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       isTopicDownloaded,
       downloadConcept,
       downloadTopic,
+      ensureTopicPacket,
+      ensureTopicQuestions,
       removeDownload,
       removeTopicDownload,
       getLesson,

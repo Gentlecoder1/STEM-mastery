@@ -4,11 +4,11 @@ Every query runs inside ``session.execute_read`` and is fully parameterised.
 None of these methods mutate the graph — the curriculum is authoritative in
 AuraDB and only ever read here.
 
-The queries reflect the agreed schema (Subject/Topic/Concept/LearningContent/
-Question with HAS_TOPIC, HAS_CONCEPT, BELONGS_TO_SUBJECT, PREREQUISITE_OF,
-RELATED_TO, HAS_CONTENT, ASSESSES_CONCEPT, EXPECTS_CONCEPT). They should be
-verified against the migrated AuraDB via ``GET /api/v1/graph/schema`` and the
-live smoke test.
+The queries reflect the current schema: Subject-HAS_TOPIC->Topic,
+Topic-HAS_CONCEPT->Concept, Concept-HAS_CONTENT->LearningContent,
+Concept-ASSESSED_BY->AssessmentItem, and verified Concept-ONTOLOGY_MAPS_TO->
+OntologyConcept mappings for ontology prerequisites. They should be verified
+against AuraDB via ``GET /api/v1/graph/schema`` and the live smoke test.
 """
 
 from __future__ import annotations
@@ -60,8 +60,7 @@ ORDER BY r.order ASC
 
 _CONCEPT = """
 MATCH (c:Concept {id: $concept_id})
-OPTIONAL MATCH (t:Topic)-[:HAS_CONCEPT]->(c)
-OPTIONAL MATCH (c)-[:BELONGS_TO_SUBJECT]->(s:Subject)
+OPTIONAL MATCH (s:Subject)-[:HAS_TOPIC]->(t:Topic)-[:HAS_CONCEPT]->(c)
 RETURN c.id AS id, coalesce(c.name, c.prefLabel) AS name,
        c.prefLabel AS prefLabel, c.aliases AS aliases, c.iri AS iri,
        collect(DISTINCT t.id) AS topicIds,
@@ -87,48 +86,133 @@ ORDER BY name
 
 _DEFINITION = """
 MATCH (c:Concept {id: $concept_id})-[:HAS_CONTENT]->(lc:LearningContent)
-WHERE toLower(coalesce(lc.type, '')) = 'definition'
-RETURN lc.contentText AS contentText
+WHERE toLower(coalesce(lc.contentType, '')) = 'definition'
+RETURN lc.body AS contentText
+ORDER BY coalesce(lc.order, 0)
 LIMIT 1
 """
 
 _CONTENT = """
-MATCH (:Concept {id: $concept_id})-[:HAS_CONTENT]->(lc:LearningContent)
-RETURN lc.contentID AS contentID, lc.title AS title, lc.type AS type,
-       lc.chapterOrder AS chapterOrder, lc.order AS contentOrder,
-       lc.contentText AS contentText, lc.mediaURI AS mediaURI
-ORDER BY coalesce(lc.chapterOrder, lc.order, 0)
+MATCH (c:Concept {id: $concept_id})-[:HAS_CONTENT]->(lc:LearningContent)
+RETURN lc.id AS id, c.id AS conceptId, lc.title AS title,
+       lc.body AS contentText, lc.contentType AS contentType,
+       coalesce(lc.chapterOrder, lc.order) AS chapterOrder,
+       lc.mediaURI AS mediaURI, lc.reviewStatus AS reviewStatus
+ORDER BY coalesce(lc.chapterOrder, lc.order, 0), lc.id
 """
 
-_QUESTIONS = """
-MATCH (q:Question)
-WHERE (q)-[:ASSESSES_CONCEPT]->(:Concept {id: $concept_id})
-   OR (q)-[:EXPECTS_CONCEPT]->(:Concept {id: $concept_id})
-RETURN DISTINCT q.questionID AS questionID, q.type AS type,
-       q.questionText AS questionText, q.difficultyLevel AS difficultyLevel,
-       q.options AS options
-ORDER BY questionID
+_TOPIC_OVERVIEW_CONTENT = """
+MATCH (t:Topic {id: $topic_id})
+OPTIONAL MATCH (s:Subject)-[:HAS_TOPIC]->(t)
+OPTIONAL MATCH (t)-[:HAS_CONTENT]->(lc:LearningContent)
+RETURN t.id AS id, coalesce(t.name, t.prefLabel, t.id) AS name,
+       t.iri AS iri, head(collect(DISTINCT s.id)) AS subjectId,
+       collect(DISTINCT CASE WHEN lc IS NOT NULL THEN {
+           id: lc.id,
+           conceptId: null,
+           title: lc.title,
+           contentText: lc.body,
+           contentType: lc.contentType,
+           chapterOrder: coalesce(lc.chapterOrder, lc.order),
+           mediaURI: lc.mediaURI,
+           reviewStatus: lc.reviewStatus
+       } END) AS overviewContent
 """
 
-# Questions *with* their answer keys, used only server-side for grading.
-_QUESTION_ANSWERS = """
-MATCH (q:Question)
-WHERE (q)-[:ASSESSES_CONCEPT]->(:Concept {id: $concept_id})
-   OR (q)-[:EXPECTS_CONCEPT]->(:Concept {id: $concept_id})
-RETURN DISTINCT q.questionID AS questionID, q.type AS type,
-       q.options AS options, q.correctOption AS correctOption,
-       q.correctAnswer AS correctAnswer, q.referenceAnswer AS referenceAnswer,
-       q.expectedNumericAnswer AS expectedNumericAnswer
+_TOPIC_CONCEPT_CONTENT = """
+MATCH (t:Topic {id: $topic_id})-[r:HAS_CONCEPT]->(c:Concept)
+OPTIONAL MATCH (c)-[:HAS_CONTENT]->(lc:LearningContent)
+RETURN c.id AS id, coalesce(c.name, c.prefLabel, c.id) AS name,
+       c.prefLabel AS prefLabel, c.iri AS iri, r.order AS order,
+       collect(DISTINCT CASE WHEN lc IS NOT NULL THEN {
+           id: lc.id,
+           conceptId: c.id,
+           title: lc.title,
+           contentText: lc.body,
+           contentType: lc.contentType,
+           chapterOrder: coalesce(lc.chapterOrder, lc.order),
+           mediaURI: lc.mediaURI,
+           reviewStatus: lc.reviewStatus
+       } END) AS learningContent
+ORDER BY r.order ASC, c.order ASC
+"""
+
+_TOPIC_QUESTIONS = """
+MATCH (t:Topic {id: $topic_id})
+OPTIONAL MATCH (t)-[r:HAS_CONCEPT]->(c:Concept)
+              -[:ASSESSED_BY]->(q:AssessmentItem {batch: 'ASSESSMENT_V1'})
+WITH t, r, c, q
+ORDER BY coalesce(r.order, c.order, 0), q.id
+RETURN t.id AS topicId,
+       collect(CASE WHEN q IS NOT NULL THEN {
+           conceptId: c.id,
+           id: q.id,
+           type: q.questionType,
+           prompt: q.question,
+           difficultyLevel: q.difficultyLevel,
+           optionA: q.optionA,
+           optionB: q.optionB,
+           optionC: q.optionC,
+           optionD: q.optionD,
+           reviewStatus: q.reviewStatus
+       } END) AS questions
+"""
+
+_CONCEPT_QUESTIONS = """
+MATCH (c:Concept {id: $concept_id})
+      -[:ASSESSED_BY]->(q:AssessmentItem {batch: 'ASSESSMENT_V1'})
+RETURN c.id AS conceptId, q.id AS id, q.questionType AS type,
+       q.question AS prompt, q.difficultyLevel AS difficultyLevel,
+       q.optionA AS optionA, q.optionB AS optionB,
+       q.optionC AS optionC, q.optionD AS optionD,
+       q.reviewStatus AS reviewStatus
+ORDER BY q.id
+"""
+
+# Questions with answer keys are used only by server-side grading.
+_CONCEPT_QUESTION_ANSWERS = """
+MATCH (c:Concept {id: $concept_id})
+      -[:ASSESSED_BY]->(q:AssessmentItem {batch: 'ASSESSMENT_V1'})
+RETURN c.id AS conceptId, q.id AS id, q.questionType AS type,
+       q.question AS prompt, q.optionA AS optionA,
+       q.optionB AS optionB, q.optionC AS optionC, q.optionD AS optionD,
+       q.correctOption AS correctOption, q.correctAnswer AS correctAnswer,
+       q.modelAnswer AS modelAnswer, q.reviewStatus AS reviewStatus
+"""
+
+_TOPIC_QUESTION_ANSWERS = """
+MATCH (t:Topic {id: $topic_id})
+OPTIONAL MATCH (t)-[r:HAS_CONCEPT]->(c:Concept)
+              -[:ASSESSED_BY]->(q:AssessmentItem {batch: 'ASSESSMENT_V1'})
+WITH t, r, c, q
+ORDER BY coalesce(r.order, c.order, 0), q.id
+RETURN t.id AS topicId,
+       collect(CASE WHEN q IS NOT NULL THEN {
+           conceptId: c.id,
+           id: q.id,
+           type: q.questionType,
+           prompt: q.question,
+           optionA: q.optionA,
+           optionB: q.optionB,
+           optionC: q.optionC,
+           optionD: q.optionD,
+           correctOption: q.correctOption,
+           correctAnswer: q.correctAnswer,
+           modelAnswer: q.modelAnswer
+       } END) AS questions
 """
 
 _QUESTION_ANSWER = """
-MATCH (q:Question {questionID: $question_id})
-OPTIONAL MATCH (q)-[:ASSESSES_CONCEPT]->(c:Concept)
-OPTIONAL MATCH (c)-[:BELONGS_TO_SUBJECT]->(s:Subject)
-RETURN q.questionID AS questionID, q.type AS type, q.options AS options,
+MATCH (c:Concept)-[:ASSESSED_BY]->(q:AssessmentItem {
+    id: $question_id, batch: 'ASSESSMENT_V1'
+})
+OPTIONAL MATCH (s:Subject)-[:HAS_TOPIC]->(:Topic)-[:HAS_CONCEPT]->(c)
+RETURN c.id AS conceptId, head(collect(DISTINCT s.id)) AS subjectId,
+       q.id AS id, q.questionType AS type, q.question AS prompt,
+       q.optionA AS optionA, q.optionB AS optionB,
+       q.optionC AS optionC, q.optionD AS optionD,
        q.correctOption AS correctOption, q.correctAnswer AS correctAnswer,
-       q.referenceAnswer AS referenceAnswer, q.expectedNumericAnswer AS expectedNumericAnswer,
-       c.id AS conceptId, s.id AS subjectId
+       q.modelAnswer AS modelAnswer
 LIMIT 1
 """
 
@@ -172,12 +256,57 @@ WITH c, collect(DISTINCT CASE WHEN s IS NOT NULL AND t IS NOT NULL THEN {
     topicId: t.id,
     conceptOrder: cr.order
 } END) AS contexts
-OPTIONAL MATCH (c)-[:HAS_CONTENT]->(lc:LearningContent)
-WITH c, contexts, lc
-ORDER BY coalesce(lc.chapterOrder, lc.order, 0)
-WITH c, contexts, head(collect(lc)) AS firstContent, count(lc) > 0 AS hasLesson
+CALL (c) {
+    OPTIONAL MATCH (c)-[:HAS_CONTENT]->(lc:LearningContent)
+    WITH lc ORDER BY coalesce(lc.chapterOrder, lc.order, 0)
+    RETURN head(collect(lc)) AS firstContent, count(lc) > 0 AS hasLesson
+}
+CALL (c) {
+    OPTIONAL MATCH (c)-[:ASSESSED_BY]->
+                  (q:AssessmentItem {batch: 'ASSESSMENT_V1'})
+    RETURN count(q) > 0 AS hasAssessment
+}
 RETURN c.id AS id, coalesce(c.name, c.prefLabel, c.id) AS name,
-       contexts, substring(firstContent.contentText, 0, 180) AS contentPreview, hasLesson
+       contexts, substring(firstContent.body, 0, 180) AS contentPreview,
+       hasLesson, hasAssessment
+"""
+
+_KNOWLEDGE_MAP_RELATED_CONCEPTS = """
+MATCH (:Concept {id: $concept_id})-[:RELATED_TO]-(related:Concept)
+RETURN DISTINCT related.id AS id
+ORDER BY id
+LIMIT $limit
+"""
+
+_KNOWLEDGE_MAP_ROOT_CANDIDATES = """
+MATCH (c:Concept)
+CALL (c) {
+    OPTIONAL MATCH (c)
+                  -[:ONTOLOGY_MAPS_TO {reviewStatus: 'VERIFIED_MAPPING_V1'}]->
+                  (o:OntologyConcept)
+    OPTIONAL MATCH (p:OntologyConcept)-[:PREREQUISITE_OF]->(o)
+    RETURN count(DISTINCT p) AS prerequisiteCount,
+           count(DISTINCT o) AS mappingCount
+}
+CALL (c) {
+    OPTIONAL MATCH (c)
+                  -[:ONTOLOGY_MAPS_TO {reviewStatus: 'VERIFIED_MAPPING_V1'}]->
+                  (o:OntologyConcept)
+    OPTIONAL MATCH (o)-[:PREREQUISITE_OF]->(d:OntologyConcept)
+    RETURN count(DISTINCT d) AS dependentCount
+}
+OPTIONAL MATCH (s:Subject)-[:HAS_TOPIC]->(t:Topic)-[r:HAS_CONCEPT]->(c)
+WITH c, prerequisiteCount, dependentCount, mappingCount,
+     collect(DISTINCT CASE WHEN s IS NOT NULL AND t IS NOT NULL THEN {
+         subjectId: s.id,
+         subjectName: coalesce(s.name, s.prefLabel, s.id),
+         topicId: t.id,
+         topicName: coalesce(t.name, t.prefLabel, t.id),
+         conceptOrder: r.order
+     } END) AS contexts
+RETURN c.id AS id, coalesce(c.name, c.prefLabel, c.id) AS name,
+       prerequisiteCount, dependentCount, mappingCount, contexts
+ORDER BY prerequisiteCount + dependentCount DESC, mappingCount DESC, name ASC
 """
 
 _KNOWLEDGE_MAP_MAPPING_COUNTS = """
@@ -225,7 +354,7 @@ OPTIONAL MATCH (c)-[:BELONGS_TO_SUBJECT]->(s:Subject)
 OPTIONAL MATCH (t:Topic)-[:HAS_CONCEPT]->(c)
 OPTIONAL MATCH (p:Concept)-[:PREREQUISITE_OF]->(c)
 OPTIONAL MATCH (r:Concept)-[:RELATED_TO]-(c)
-OPTIONAL MATCH (lc:LearningContent)-[:HAS_CONTENT]->(c)
+OPTIONAL MATCH (c)-[:HAS_CONTENT]->(lc:LearningContent)
 WITH c, s, t, collect(DISTINCT CASE WHEN p IS NOT NULL THEN {
     id: p.id,
     name: coalesce(p.name, p.prefLabel, p.id)
@@ -235,10 +364,10 @@ collect(DISTINCT CASE WHEN r IS NOT NULL THEN {
     name: coalesce(r.name, r.prefLabel, r.id)
 } END) AS relatedConcepts,
 collect(DISTINCT CASE WHEN lc IS NOT NULL THEN {
-    id: lc.contentID,
-    type: lc.type,
+    id: lc.id,
+    type: lc.contentType,
     title: lc.title,
-    contentText: lc.contentText,
+    contentText: lc.body,
     contentData: lc.contentData,
     chapterOrder: lc.chapterOrder,
     order: lc.order
@@ -262,9 +391,8 @@ LIMIT 1
 """
 
 _STRUCTURED_QUESTION_COUNT = """
-MATCH (q:Question)
-WHERE (q)-[:ASSESSES_CONCEPT]->(:Concept {id: $concept_id})
-   OR (q)-[:EXPECTS_CONCEPT]->(:Concept {id: $concept_id})
+MATCH (:Concept {id: $concept_id})-[:ASSESSED_BY]->
+      (q:AssessmentItem {batch: 'ASSESSMENT_V1'})
 RETURN count(DISTINCT q) AS questionCount
 """
 
@@ -287,10 +415,13 @@ LIMIT $limit
 """
 
 _PLACEMENT_CANDIDATES = """
-MATCH (:Subject {id: $subject_id})-[:HAS_TOPIC]->(:Topic)-[:HAS_CONCEPT]->(c:Concept)
-MATCH (q:Question)-[:ASSESSES_CONCEPT]->(c)
-RETURN DISTINCT q.questionID AS id, q.type AS type, q.questionText AS prompt,
-       q.difficultyLevel AS difficultyLevel, q.options AS options, c.id AS conceptId
+MATCH (:Subject {id: $subject_id})-[:HAS_TOPIC]->(:Topic)
+      -[:HAS_CONCEPT]->(c:Concept)-[:ASSESSED_BY]->
+      (q:AssessmentItem {batch: 'ASSESSMENT_V1'})
+RETURN DISTINCT c.id AS conceptId, q.id AS id, q.questionType AS type,
+       q.question AS prompt, q.difficultyLevel AS difficultyLevel,
+       q.optionA AS optionA, q.optionB AS optionB,
+       q.optionC AS optionC, q.optionD AS optionD
 """
 
 _KNOWLEDGE_MAP_MAX_NODES = 40
@@ -347,14 +478,53 @@ def _parse_options(value: Any) -> list[dict[str, Any]]:
     return options
 
 
-def _question_answer(row: dict[str, Any]) -> dict[str, Any]:
+def _assessment_options(row: dict[str, Any]) -> list[dict[str, Any]]:
+    options = []
+    for letter in "ABCD":
+        text = row.get(f"option{letter}")
+        if text is not None and str(text).strip():
+            options.append(
+                {"id": letter.lower(), "label": letter, "text": str(text)}
+            )
+    return options
+
+
+def _assessment_type(value: Any) -> str | None:
+    if value is None:
+        return None
+    normalized = str(value).strip().lower()
+    if normalized in {"mcq", "multiple-choice", "multiple choice"}:
+        return "mcq"
+    if normalized in {"theory", "theoretical", "written", "essay"}:
+        return "written"
+    return normalized
+
+
+def _public_assessment(row: dict[str, Any]) -> dict[str, Any]:
     return {
-        "id": row.get("questionID"),
+        "id": row.get("id"),
+        "type": _assessment_type(row.get("type")),
+        "prompt": row.get("prompt"),
+        "difficultyLevel": row.get("difficultyLevel"),
+        "options": _assessment_options(row),
+        "conceptId": row.get("conceptId"),
+        "reviewStatus": row.get("reviewStatus"),
+    }
+
+
+def _question_answer(row: dict[str, Any]) -> dict[str, Any]:
+    options = (
+        _assessment_options(row)
+        if any(f"option{letter}" in row for letter in "ABCD")
+        else _parse_options(row.get("options"))
+    )
+    return {
+        "id": row.get("id", row.get("questionID")),
         "type": row.get("type"),
-        "options": _parse_options(row.get("options")),
+        "options": options,
         "correctOption": row.get("correctOption"),
         "correctAnswer": row.get("correctAnswer"),
-        "referenceAnswer": row.get("referenceAnswer"),
+        "referenceAnswer": row.get("modelAnswer", row.get("referenceAnswer")),
         "expectedNumericAnswer": row.get("expectedNumericAnswer"),
         "conceptId": row.get("conceptId"),
         "subjectId": row.get("subjectId"),
@@ -459,6 +629,39 @@ class GraphRepository:
             ]
         return rows
 
+    async def get_topic_packet(self, topic_id: str) -> dict[str, Any] | None:
+        topic_rows = await self._read(_TOPIC_OVERVIEW_CONTENT, topic_id=topic_id)
+        if not topic_rows:
+            return None
+
+        topic_row = topic_rows[0]
+        concepts = await self.list_concepts(topic_id)
+        content_rows = await self._read(_TOPIC_CONCEPT_CONTENT, topic_id=topic_id)
+        content_by_concept = {
+            row["id"]: [
+                item for item in (row.get("learningContent") or []) if item is not None
+            ]
+            for row in content_rows
+        }
+        prerequisite_concepts: dict[str, dict[str, Any]] = {}
+        for concept in concepts:
+            concept["learningContent"] = content_by_concept.get(concept["id"], [])
+            for prerequisite in concept.get("prerequisites") or []:
+                prerequisite_concepts[prerequisite["id"]] = prerequisite
+
+        return {
+            "topic": {
+                "id": topic_row["id"],
+                "name": topic_row["name"],
+                "iri": topic_row.get("iri"),
+            },
+            "overviewContent": [
+                item for item in (topic_row.get("overviewContent") or []) if item is not None
+            ],
+            "concepts": concepts,
+            "prerequisiteConcepts": list(prerequisite_concepts.values()),
+        }
+
     async def ordered_concept_ids(self, topic_id: str) -> list[str]:
         concepts = await self.list_concepts(topic_id)
         return [concept["id"] for concept in concepts]
@@ -509,11 +712,106 @@ class GraphRepository:
                     "conceptOrder": contexts[0].get("conceptOrder") if contexts else None,
                     "contentPreview": row.get("contentPreview"),
                     "hasLesson": bool(row.get("hasLesson")),
+                    "hasAssessment": bool(row.get("hasAssessment")),
                     "prerequisiteCount": None,
                     "dependentCount": None,
                 }
             )
         return nodes
+
+    async def knowledge_map_root(self, concepts_per_subject: int = 12) -> dict[str, Any]:
+        """Return a degree-ranked, cross-subject overview with a virtual STEM root."""
+        rows = await self._read(_KNOWLEDGE_MAP_ROOT_CANDIDATES)
+        candidates: dict[str, dict[str, Any]] = {}
+        by_subject: dict[str, list[dict[str, Any]]] = {}
+        subject_names: dict[str, str] = {}
+
+        for row in rows:
+            concept_id = row.get("id")
+            if not concept_id:
+                continue
+            contexts = [context for context in (row.get("contexts") or []) if context]
+            if not contexts:
+                continue
+            candidate = candidates.setdefault(concept_id, row)
+            for context in contexts:
+                subject_id = context.get("subjectId")
+                if not subject_id:
+                    continue
+                subject_names[subject_id] = (
+                    context.get("subjectName") or str(subject_id)
+                )
+                subject_candidates = by_subject.setdefault(subject_id, [])
+                if all(item.get("id") != concept_id for item in subject_candidates):
+                    subject_candidates.append(candidate)
+
+        def rank(candidate: dict[str, Any]) -> tuple[int, int, str]:
+            degree = int(candidate.get("prerequisiteCount") or 0) + int(
+                candidate.get("dependentCount") or 0
+            )
+            mapping_count = int(candidate.get("mappingCount") or 0)
+            return (-degree, -mapping_count, str(candidate.get("name") or "").casefold())
+
+        selected_ids: list[str] = []
+        for subject_id in sorted(
+            by_subject,
+            key=lambda value: (
+                {"mathematics": 0, "math": 0, "physics": 1, "chemistry": 2}.get(
+                    subject_names[value].strip().lower(), 3
+                ),
+                subject_names[value].casefold(),
+            ),
+        ):
+            ranked = sorted(by_subject[subject_id], key=rank)
+            selected_ids.extend(
+                candidate["id"]
+                for candidate in ranked[:concepts_per_subject]
+                if candidate["id"] not in selected_ids
+            )
+
+        overall = sorted(candidates.values(), key=rank)
+        for candidate in overall:
+            if len(selected_ids) >= concepts_per_subject * max(1, len(by_subject)):
+                break
+            if candidate["id"] not in selected_ids:
+                selected_ids.append(candidate["id"])
+
+        concept_nodes = await self._knowledge_map_nodes(selected_ids)
+        nodes_by_id = {node["id"]: node for node in concept_nodes}
+        root = {
+            "id": "STEM",
+            "name": "STEM",
+            "type": "root",
+            "subjectIds": [],
+            "topicIds": [],
+            "conceptOrder": None,
+            "contentPreview": None,
+            "hasLesson": False,
+            "hasAssessment": False,
+            "prerequisiteCount": None,
+            "dependentCount": None,
+        }
+        concepts = [
+            {**nodes_by_id[concept_id], "conceptOrder": index + 1}
+            for index, concept_id in enumerate(selected_ids)
+            if concept_id in nodes_by_id
+        ]
+        return {
+            "root": root,
+            "mode": "overview",
+            "focusId": "STEM",
+            "subjectId": None,
+            "topicId": None,
+            "nodes": [root, *concepts],
+            "edges": [
+                {"source": "STEM", "target": node["id"], "type": "STEM_ROOT"}
+                for node in concepts
+            ],
+            "mappingStatus": "not_applicable",
+            "mappingMessage": None,
+            "depth": 0,
+            "truncated": False,
+        }
 
     async def _knowledge_map_mapping_counts(self, concept_ids: list[str]) -> dict[str, int]:
         if not concept_ids:
@@ -621,6 +919,7 @@ class GraphRepository:
                     "conceptOrder": None,
                     "contentPreview": None,
                     "hasLesson": False,
+                    "hasAssessment": False,
                     "prerequisiteCount": None,
                     "dependentCount": None,
                 }
@@ -789,6 +1088,7 @@ class GraphRepository:
             mapping_status = "ready"
 
         return {
+            "mode": "topic",
             "focusId": selected_focus,
             "subjectId": topic.get("subjectId"),
             "topicId": topic_id,
@@ -825,10 +1125,38 @@ class GraphRepository:
         edge_rows, visible_ids, mapping_status, truncated, ontology_nodes = (
             await self._knowledge_map_neighborhood([concept_id], depth, allowed_ids)
         )
-        node_ids = [node_id for node_id in visible_ids if not node_id.startswith("ontology:")]
+        node_ids = [concept_id] + sorted(
+            node_id
+            for node_id in visible_ids
+            if node_id != concept_id and not node_id.startswith("ontology:")
+        )
+        related_rows = await self._read(
+            _KNOWLEDGE_MAP_RELATED_CONCEPTS,
+            concept_id=concept_id,
+            limit=_KNOWLEDGE_MAP_MAX_NODES,
+        )
+        related_ids = list(
+            dict.fromkeys(
+                row["id"]
+                for row in related_rows
+                if row.get("id") and row["id"] != concept_id
+            )
+        )
+        remaining_node_slots = max(0, _KNOWLEDGE_MAP_MAX_NODES - len(node_ids))
+        included_related_ids = related_ids[:remaining_node_slots]
+        node_ids.extend(included_related_ids)
+        truncated = truncated or len(included_related_ids) < len(related_ids)
         nodes = await self._knowledge_map_nodes(node_ids)
         nodes_by_id = {node["id"]: node for node in nodes}
         nodes_by_id.update(ontology_nodes)
+        edge_rows.extend(
+            {
+                "source": concept_id,
+                "target": related_id,
+                "type": "RELATED_TO",
+            }
+            for related_id in included_related_ids
+        )
         edge_rows = [
             edge
             for edge in edge_rows
@@ -839,6 +1167,7 @@ class GraphRepository:
             focus["dependentCount"] = sum(edge["source"] == concept_id for edge in edge_rows)
             nodes_by_id[concept_id] = focus
         return {
+            "mode": "concept",
             "focusId": concept_id,
             "subjectId": focus["subjectIds"][0] if focus["subjectIds"] else None,
             "topicId": topic_id
@@ -865,8 +1194,32 @@ class GraphRepository:
 
     async def list_question_answers(self, concept_id: str) -> dict[str, dict[str, Any]]:
         """Questions with answer keys for server-side grading (never returned)."""
-        rows = await self._read(_QUESTION_ANSWERS, concept_id=concept_id)
-        return {row["questionID"]: _question_answer(row) for row in rows}
+        rows = await self._read(_CONCEPT_QUESTION_ANSWERS, concept_id=concept_id)
+        return {row["id"]: _question_answer(row) for row in rows}
+
+    async def list_topic_question_answers(
+        self, topic_id: str
+    ) -> dict[str, dict[str, Any]] | None:
+        """Return a topic's child-concept answer keys for server-side grading."""
+        rows = await self._read(_TOPIC_QUESTION_ANSWERS, topic_id=topic_id)
+        if not rows:
+            return None
+        questions = rows[0].get("questions") or []
+        return {
+            question["id"]: _question_answer(question)
+            for question in questions
+            if question and question.get("id")
+        }
+
+    async def list_topic_questions(self, topic_id: str) -> list[dict[str, Any]] | None:
+        rows = await self._read(_TOPIC_QUESTIONS, topic_id=topic_id)
+        if not rows:
+            return None
+        return [
+            _public_assessment(question)
+            for question in (rows[0].get("questions") or [])
+            if question and question.get("id")
+        ]
 
     async def get_question_answer(self, question_id: str) -> dict[str, Any] | None:
         rows = await self._read(_QUESTION_ANSWER, question_id=question_id)
@@ -874,18 +1227,7 @@ class GraphRepository:
 
     async def placement_candidates(self, subject_id: str) -> list[dict[str, Any]]:
         rows = await self._read(_PLACEMENT_CANDIDATES, subject_id=subject_id)
-        return [
-            {
-                "id": row.get("id"),
-                "type": row.get("type"),
-                "prompt": row.get("prompt"),
-                "difficultyLevel": row.get("difficultyLevel"),
-                "options": _parse_options(row.get("options")),
-                "conceptId": row.get("conceptId"),
-                "subjectId": subject_id,
-            }
-            for row in rows
-        ]
+        return [{**_public_assessment(row), "subjectId": subject_id} for row in rows]
 
     async def get_concept(self, concept_id: str) -> dict[str, Any] | None:
         rows = await self._read(_CONCEPT, concept_id=concept_id)
@@ -909,29 +1251,21 @@ class GraphRepository:
         rows = await self._read(_CONTENT, concept_id=concept_id)
         return [
             {
-                "id": row.get("contentID"),
-                "conceptId": concept_id,
+                "id": row.get("id"),
+                "conceptId": row.get("conceptId") or concept_id,
                 "title": row.get("title"),
                 "contentText": row.get("contentText"),
-                "contentType": row.get("type"),
-                "chapterOrder": row.get("chapterOrder") or row.get("contentOrder"),
+                "contentType": row.get("contentType"),
+                "chapterOrder": row.get("chapterOrder"),
                 "mediaURI": row.get("mediaURI"),
+                "reviewStatus": row.get("reviewStatus"),
             }
             for row in rows
         ]
 
     async def list_questions(self, concept_id: str) -> list[dict[str, Any]]:
-        rows = await self._read(_QUESTIONS, concept_id=concept_id)
-        return [
-            {
-                "id": row.get("questionID"),
-                "type": row.get("type"),
-                "prompt": row.get("questionText"),
-                "difficultyLevel": row.get("difficultyLevel"),
-                "options": _parse_options(row.get("options")),
-            }
-            for row in rows
-        ]
+        rows = await self._read(_CONCEPT_QUESTIONS, concept_id=concept_id)
+        return [_public_assessment(row) for row in rows]
 
     async def get_structured_lesson(self, concept_id: str) -> dict[str, Any] | None:
         """Return a v3 lesson payload assembled from graph content nodes."""

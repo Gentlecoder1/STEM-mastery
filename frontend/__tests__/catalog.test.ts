@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { loadLesson, loadQuestions, saveQuestions } from '../src/lib/offlineStore';
 import { CATALOG_STORAGE_KEY, loadCatalogSnapshot } from '../src/lib/catalogCache';
-import { mapConceptSummary, mapLesson } from '../src/types/catalog';
+import { mapConceptSummary, mapLesson, mapQuestions } from '../src/types/catalog';
 
 afterEach(async () => {
   await AsyncStorage.clear();
@@ -56,6 +56,26 @@ it('maps lesson sections independently and sorts them by chapter order', () => {
   expect(lesson.map((section) => section.id)).toEqual(['section-1', 'section-2']);
   expect(lesson[1].contentType).toBe('WORKED_EXAMPLE');
   expect(lesson[1].title).toBe('Worked example');
+});
+
+it('maps current MCQ and THEORY assessment types without expecting theory options', () => {
+  const questions = mapQuestions([
+    {
+      id: 'assessment-mcq',
+      type: 'MCQ',
+      prompt: 'Choose one.',
+      options: [{ id: 'a', label: 'A', text: 'Option A' }],
+    },
+    {
+      id: 'assessment-theory',
+      type: 'THEORY',
+      prompt: 'Explain your reasoning.',
+      options: [],
+    },
+  ]);
+
+  expect(questions.map((question) => question.type)).toEqual(['mcq', 'written']);
+  expect(questions[1].options).toEqual([]);
 });
 
 it('persists client-safe quiz questions for offline use', async () => {

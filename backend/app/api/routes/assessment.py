@@ -136,13 +136,9 @@ async def submit_topic_quiz(
     learner_state: LearnerStateDep,
     user: CurrentUserDep,
 ) -> TopicQuizSubmitResponse:
-    concept_ids = await repo.ordered_concept_ids(topic_id)
-    if not concept_ids:
+    answers = await repo.list_topic_question_answers(topic_id)
+    if answers is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Topic not found.")
-
-    answers: dict[str, dict] = {}
-    for concept_id in concept_ids:
-        answers.update(await repo.list_question_answers(concept_id))
     if not answers:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

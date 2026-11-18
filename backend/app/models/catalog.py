@@ -55,12 +55,25 @@ class ConceptSearchResult(BaseModel):
 
 class LearningContent(BaseModel):
     id: str
-    conceptId: str
+    conceptId: str | None = None
     title: str | None = None
     contentText: str | None = None
     contentType: str | None = None
     chapterOrder: int | None = None
     mediaURI: str | None = None
+    reviewStatus: str | None = None
+
+
+class TopicPacketConcept(ConceptSummary):
+    order: int | None = None
+    learningContent: list[LearningContent] = Field(default_factory=list)
+
+
+class TopicPacket(BaseModel):
+    topic: Topic
+    overviewContent: list[LearningContent] = Field(default_factory=list)
+    concepts: list[TopicPacketConcept] = Field(default_factory=list)
+    prerequisiteConcepts: list[ConceptRef] = Field(default_factory=list)
 
 
 class QuestionOption(BaseModel):
@@ -77,6 +90,8 @@ class Question(BaseModel):
     prompt: str | None = None
     difficultyLevel: str | None = None
     options: list[QuestionOption] = Field(default_factory=list)
+    conceptId: str | None = None
+    reviewStatus: str | None = None
     # Not yet sourced from the graph; kept for frontend type compatibility.
     explanation: str | None = None
     hint: str | None = None
