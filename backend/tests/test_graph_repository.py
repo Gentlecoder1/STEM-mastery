@@ -3,9 +3,10 @@ from typing import Any
 
 from app.models.knowledge_map import KnowledgeMapResponse
 from app.repositories.graph import (
-    _CONCEPT_QUESTIONS,
-    _CONCEPT_QUESTION_ANSWERS,
+    _CONCEPT,
     _CONCEPT_EDGES,
+    _CONCEPT_QUESTION_ANSWERS,
+    _CONCEPT_QUESTIONS,
     _CONCEPTS,
     _CONTENT,
     _KNOWLEDGE_MAP_DIRECT_ONTOLOGY_IDS,
@@ -16,14 +17,15 @@ from app.repositories.graph import (
     _KNOWLEDGE_MAP_ROOT_CANDIDATES,
     _KNOWLEDGE_MAP_TOPIC,
     _PREREQUISITES,
+    _RELATED,
     _SEARCH_CONCEPTS,
     _STRUCTURED_LESSON,
     _STRUCTURED_QUESTION_COUNT,
+    _SUBJECT_CONCEPTS,
     _TOPIC_CONCEPT_CONTENT,
     _TOPIC_OVERVIEW_CONTENT,
-    _TOPIC_QUESTIONS,
     _TOPIC_QUESTION_ANSWERS,
-    _SUBJECT_CONCEPTS,
+    _TOPIC_QUESTIONS,
     _TOPICS,
     GraphRepository,
 )
@@ -77,10 +79,76 @@ def test_list_concepts_preserves_curriculum_order_and_prerequisites() -> None:
 def test_current_content_queries_follow_topic_concepts_and_concept_content() -> None:
     assert "(t:Topic {id: $topic_id})-[r:HAS_CONCEPT]->(c:Concept)" in _TOPIC_CONCEPT_CONTENT
     assert "(c)-[:HAS_CONTENT]->(lc:LearningContent)" in _TOPIC_CONCEPT_CONTENT
-    assert "id: lc.id" in _TOPIC_CONCEPT_CONTENT
-    assert "contentText: lc.body" in _TOPIC_CONCEPT_CONTENT
-    assert "contentType: lc.contentType" in _TOPIC_CONCEPT_CONTENT
+    assert "properties(lc)" in _TOPIC_CONCEPT_CONTENT
+    assert "properties(lc) AS contentProperties" in _CONTENT
     assert "(c:Concept {id: $concept_id})-[:HAS_CONTENT]->(lc:LearningContent)" in _CONTENT
+
+
+def test_learning_content_normalization_prefers_current_batch_and_maps_text_aliases() -> None:
+    from app.repositories.graph import (
+        _content_short_description,
+        _normalize_learning_content,
+        _preferred_content_properties,
+    )
+
+    legacy = {"id": "legacy", "body": "Old lesson", "batch": "LEGACY"}
+    current = {
+        "id": "content-v1",
+        "title": "Concept note",
+        "body": "Current lesson body",
+        "contentType": "CONCEPT_NOTE",
+        "order": 2,
+        "reviewStatus": "VALIDATED",
+        "sourceStatus": "VERIFIED",
+        "batch": "CONCEPT_CONTENT_V1",
+    }
+
+    preferred = _preferred_content_properties([legacy, current])
+    normalized = _normalize_learning_content(preferred[0], "MATH_T01_C01")
+
+    assert normalized == {
+        "id": "content-v1",
+        "conceptId": "MATH_T01_C01",
+        "title": "Concept note",
+        "contentText": "Current lesson body",
+        "contentType": "CONCEPT_NOTE",
+        "chapterOrder": 2,
+        "mediaURI": None,
+        "reviewStatus": "VALIDATED",
+        "sourceStatus": "VERIFIED",
+    }
+    assert _content_short_description([normalized]) == "Current lesson body"
+
+
+def test_get_concept_uses_first_meaningful_content_as_description_fallback() -> None:
+    repository = StaticGraphRepository(
+        {
+            _CONCEPT: [{
+                "id": "MATH_T01_C01",
+                "name": "Laws of Indices",
+                "topicIds": ["math-indices"],
+                "subjectIds": ["Mathematics"],
+            }],
+            _PREREQUISITES: [],
+            _RELATED: [],
+            _CONTENT: [{
+                "contentProperties": {
+                    "id": "content-1",
+                    "title": "Laws of Indices",
+                    "body": "A law of indices describes powers.",
+                    "contentType": "CONCEPT_NOTE",
+                    "batch": "CONCEPT_CONTENT_V1",
+                }
+            }],
+        }
+    )
+
+    concept = asyncio.run(repository.get_concept("MATH_T01_C01"))
+
+    assert concept is not None
+    assert concept["shortDescription"] == "A law of indices describes powers."
+    assert concept["hasLesson"] is True
+    assert repository.queries == [_CONCEPT, _PREREQUISITES, _RELATED, _CONTENT]
 
 
 def test_topic_packet_combines_overview_concepts_and_concept_content() -> None:

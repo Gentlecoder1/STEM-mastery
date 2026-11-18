@@ -62,6 +62,7 @@ class LearningContent(BaseModel):
     chapterOrder: int | None = None
     mediaURI: str | None = None
     reviewStatus: str | None = None
+    sourceStatus: str | None = None
 
 
 class TopicPacketConcept(ConceptSummary):

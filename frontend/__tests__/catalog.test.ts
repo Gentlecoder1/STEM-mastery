@@ -58,6 +58,28 @@ it('maps lesson sections independently and sorts them by chapter order', () => {
   expect(lesson[1].title).toBe('Worked example');
 });
 
+it('renders CONCEPT_NOTE content as an explanation and keeps source status', () => {
+  const [lesson] = mapLesson(
+    [
+      {
+        id: 'content-1',
+        conceptId: 'MATH_T01_C01',
+        title: 'Laws of Indices',
+        contentText: 'A law of indices describes powers.',
+        contentType: 'CONCEPT_NOTE',
+        chapterOrder: 1,
+        mediaURI: null,
+        sourceStatus: 'VERIFIED',
+      },
+    ],
+    'MATH_T01_C01',
+  );
+
+  expect(lesson.contentType).toBe('EXPLANATION');
+  expect(lesson.contentText).toBe('A law of indices describes powers.');
+  expect(lesson.sourceStatus).toBe('VERIFIED');
+});
+
 it('maps current MCQ and THEORY assessment types without expecting theory options', () => {
   const questions = mapQuestions([
     {

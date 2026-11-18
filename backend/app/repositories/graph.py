@@ -67,11 +67,6 @@ RETURN c.id AS id, coalesce(c.name, c.prefLabel) AS name,
        collect(DISTINCT s.id) AS subjectIds
 """
 
-_HAS_LESSON = """
-MATCH (:Concept {id: $concept_id})-[:HAS_CONTENT]->(:LearningContent)
-RETURN count(*) > 0 AS hasLesson
-"""
-
 _PREREQUISITES = """
 MATCH (p:Concept)-[:PREREQUISITE_OF]->(c:Concept {id: $concept_id})
 RETURN DISTINCT p.id AS id, coalesce(p.name, p.prefLabel, p.id) AS name
@@ -84,21 +79,11 @@ RETURN DISTINCT r.id AS id, coalesce(r.name, r.prefLabel) AS name
 ORDER BY name
 """
 
-_DEFINITION = """
-MATCH (c:Concept {id: $concept_id})-[:HAS_CONTENT]->(lc:LearningContent)
-WHERE toLower(coalesce(lc.contentType, '')) = 'definition'
-RETURN lc.body AS contentText
-ORDER BY coalesce(lc.order, 0)
-LIMIT 1
-"""
-
 _CONTENT = """
 MATCH (c:Concept {id: $concept_id})-[:HAS_CONTENT]->(lc:LearningContent)
-RETURN lc.id AS id, c.id AS conceptId, lc.title AS title,
-       lc.body AS contentText, lc.contentType AS contentType,
-       coalesce(lc.chapterOrder, lc.order) AS chapterOrder,
-       lc.mediaURI AS mediaURI, lc.reviewStatus AS reviewStatus
-ORDER BY coalesce(lc.chapterOrder, lc.order, 0), lc.id
+RETURN properties(lc) AS contentProperties
+ORDER BY CASE WHEN lc.batch = 'CONCEPT_CONTENT_V1' THEN 0 ELSE 1 END,
+         coalesce(lc.chapterOrder, lc.order, 0), lc.id
 """
 
 _TOPIC_OVERVIEW_CONTENT = """
@@ -107,16 +92,7 @@ OPTIONAL MATCH (s:Subject)-[:HAS_TOPIC]->(t)
 OPTIONAL MATCH (t)-[:HAS_CONTENT]->(lc:LearningContent)
 RETURN t.id AS id, coalesce(t.name, t.prefLabel, t.id) AS name,
        t.iri AS iri, head(collect(DISTINCT s.id)) AS subjectId,
-       collect(DISTINCT CASE WHEN lc IS NOT NULL THEN {
-           id: lc.id,
-           conceptId: null,
-           title: lc.title,
-           contentText: lc.body,
-           contentType: lc.contentType,
-           chapterOrder: coalesce(lc.chapterOrder, lc.order),
-           mediaURI: lc.mediaURI,
-           reviewStatus: lc.reviewStatus
-       } END) AS overviewContent
+       collect(DISTINCT CASE WHEN lc IS NOT NULL THEN properties(lc) END) AS overviewContent
 """
 
 _TOPIC_CONCEPT_CONTENT = """
@@ -124,16 +100,7 @@ MATCH (t:Topic {id: $topic_id})-[r:HAS_CONCEPT]->(c:Concept)
 OPTIONAL MATCH (c)-[:HAS_CONTENT]->(lc:LearningContent)
 RETURN c.id AS id, coalesce(c.name, c.prefLabel, c.id) AS name,
        c.prefLabel AS prefLabel, c.iri AS iri, r.order AS order,
-       collect(DISTINCT CASE WHEN lc IS NOT NULL THEN {
-           id: lc.id,
-           conceptId: c.id,
-           title: lc.title,
-           contentText: lc.body,
-           contentType: lc.contentType,
-           chapterOrder: coalesce(lc.chapterOrder, lc.order),
-           mediaURI: lc.mediaURI,
-           reviewStatus: lc.reviewStatus
-       } END) AS learningContent
+       collect(DISTINCT CASE WHEN lc IS NOT NULL THEN properties(lc) END) AS learningContent
 ORDER BY r.order ASC, c.order ASC
 """
 
@@ -259,7 +226,9 @@ WITH c, collect(DISTINCT CASE WHEN s IS NOT NULL AND t IS NOT NULL THEN {
 CALL (c) {
     OPTIONAL MATCH (c)-[:HAS_CONTENT]->(lc:LearningContent)
     WITH lc ORDER BY coalesce(lc.chapterOrder, lc.order, 0)
-    RETURN head(collect(lc)) AS firstContent, count(lc) > 0 AS hasLesson
+    WITH collect(lc) AS contentNodes
+    RETURN properties(head(contentNodes)) AS firstContentProperties,
+           size(contentNodes) > 0 AS hasLesson
 }
 CALL (c) {
     OPTIONAL MATCH (c)-[:ASSESSED_BY]->
@@ -267,7 +236,15 @@ CALL (c) {
     RETURN count(q) > 0 AS hasAssessment
 }
 RETURN c.id AS id, coalesce(c.name, c.prefLabel, c.id) AS name,
-       contexts, substring(firstContent.body, 0, 180) AS contentPreview,
+       contexts,
+       substring(toString(coalesce(
+           firstContentProperties['contentText'],
+           firstContentProperties['body'],
+           firstContentProperties['content'],
+           firstContentProperties['explanation'],
+           firstContentProperties['definition'],
+           firstContentProperties['lessonText']
+       )), 0, 180) AS contentPreview,
        hasLesson, hasAssessment
 """
 
@@ -363,15 +340,7 @@ collect(DISTINCT CASE WHEN r IS NOT NULL THEN {
     id: r.id,
     name: coalesce(r.name, r.prefLabel, r.id)
 } END) AS relatedConcepts,
-collect(DISTINCT CASE WHEN lc IS NOT NULL THEN {
-    id: lc.id,
-    type: lc.contentType,
-    title: lc.title,
-    contentText: lc.body,
-    contentData: lc.contentData,
-    chapterOrder: lc.chapterOrder,
-    order: lc.order
-} END) AS lessons,
+collect(DISTINCT CASE WHEN lc IS NOT NULL THEN properties(lc) END) AS lessons,
 collect(DISTINCT CASE WHEN s IS NOT NULL AND t IS NOT NULL THEN {
     subjectId: s.id,
     topicId: t.id,
@@ -549,6 +518,90 @@ def _decode_json_payload(value: Any) -> Any:
         return value
 
 
+def _first_content_value(properties: dict[str, Any], *names: str) -> Any:
+    for name in names:
+        value = properties.get(name)
+        if value is not None and (not isinstance(value, str) or value.strip()):
+            return value
+    return None
+
+
+def _content_text(value: Any) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return value
+    if isinstance(value, (dict, list)):
+        return json.dumps(value, ensure_ascii=False)
+    return str(value)
+
+
+def _preferred_content_properties(
+    values: list[dict[str, Any] | None],
+    preferred_batch: str | None = "CONCEPT_CONTENT_V1",
+) -> list[dict[str, Any]]:
+    properties = [value for value in values if value]
+    preferred = [
+        value for value in properties if value.get("batch") == preferred_batch
+    ] if preferred_batch else []
+    return preferred or properties
+
+
+def _normalize_learning_content(
+    properties: dict[str, Any],
+    concept_id: str | None = None,
+    fallback_title: str | None = None,
+) -> dict[str, Any]:
+    content_id = _first_content_value(properties, "id", "contentID", "contentId")
+    title = _first_content_value(properties, "title", "name") or fallback_title
+    content = _first_content_value(
+        properties,
+        "contentText",
+        "body",
+        "content",
+        "explanation",
+        "definition",
+        "lessonText",
+    )
+    chapter_order = _first_content_value(
+        properties, "chapterOrder", "chapter_order", "order"
+    )
+    return {
+        "id": content_id,
+        "conceptId": concept_id,
+        "title": title,
+        "contentText": _content_text(content),
+        "contentType": _first_content_value(
+            properties, "contentType", "type", "content_type"
+        ),
+        "chapterOrder": chapter_order,
+        "mediaURI": _first_content_value(
+            properties, "mediaURI", "mediaUrl", "mediaURL"
+        ),
+        "reviewStatus": _first_content_value(
+            properties, "reviewStatus", "review_status"
+        ),
+        "sourceStatus": _first_content_value(
+            properties, "sourceStatus", "source_status"
+        ),
+    }
+
+
+def _content_short_description(content: list[dict[str, Any]]) -> str | None:
+    usable = [
+        item
+        for item in content
+        if isinstance(item.get("contentText"), str) and item["contentText"].strip()
+    ]
+    if not usable:
+        return None
+    for item in usable:
+        content_type = str(item.get("contentType") or "").strip().lower()
+        if content_type.replace("_", " ") == "definition":
+            return item["contentText"]
+    return usable[0]["contentText"]
+
+
 # Exact normalized matches on identity fields only; alias matching is done in
 # Python afterwards so list/JSON-string alias properties never reach Cypher
 # string functions. LIMIT 2 is enough to distinguish a match from ambiguity.
@@ -639,7 +692,8 @@ class GraphRepository:
         content_rows = await self._read(_TOPIC_CONCEPT_CONTENT, topic_id=topic_id)
         content_by_concept = {
             row["id"]: [
-                item for item in (row.get("learningContent") or []) if item is not None
+                _normalize_learning_content(item, row["id"], row.get("name"))
+                for item in _preferred_content_properties(row.get("learningContent") or [])
             ]
             for row in content_rows
         }
@@ -656,7 +710,10 @@ class GraphRepository:
                 "iri": topic_row.get("iri"),
             },
             "overviewContent": [
-                item for item in (topic_row.get("overviewContent") or []) if item is not None
+                _normalize_learning_content(item, fallback_title=topic_row.get("name"))
+                for item in _preferred_content_properties(
+                    topic_row.get("overviewContent") or [], preferred_batch=None
+                )
             ],
             "concepts": concepts,
             "prerequisiteConcepts": list(prerequisite_concepts.values()),
@@ -1239,28 +1296,19 @@ class GraphRepository:
         concept["subjectIds"] = [value for value in (concept.get("subjectIds") or []) if value]
         concept["prerequisites"] = await self._read(_PREREQUISITES, concept_id=concept_id)
         concept["related"] = await self._read(_RELATED, concept_id=concept_id)
-        definition_rows = await self._read(_DEFINITION, concept_id=concept_id)
-        concept["shortDescription"] = (
-            definition_rows[0]["contentText"] if definition_rows else None
-        )
-        has_lesson_rows = await self._read(_HAS_LESSON, concept_id=concept_id)
-        concept["hasLesson"] = bool(has_lesson_rows and has_lesson_rows[0].get("hasLesson"))
+        content = await self.list_content(concept_id)
+        concept["shortDescription"] = _content_short_description(content)
+        concept["hasLesson"] = bool(content)
         return concept
 
     async def list_content(self, concept_id: str) -> list[dict[str, Any]]:
         rows = await self._read(_CONTENT, concept_id=concept_id)
+        properties = _preferred_content_properties(
+            [row.get("contentProperties") for row in rows]
+        )
         return [
-            {
-                "id": row.get("id"),
-                "conceptId": row.get("conceptId") or concept_id,
-                "title": row.get("title"),
-                "contentText": row.get("contentText"),
-                "contentType": row.get("contentType"),
-                "chapterOrder": row.get("chapterOrder"),
-                "mediaURI": row.get("mediaURI"),
-                "reviewStatus": row.get("reviewStatus"),
-            }
-            for row in rows
+            _normalize_learning_content(item, concept_id)
+            for item in properties
         ]
 
     async def list_questions(self, concept_id: str) -> list[dict[str, Any]]:
@@ -1315,27 +1363,32 @@ class GraphRepository:
         }
 
         for item in lessons:
-            item_type = str(item.get("type") or "").strip().lower()
+            normalized_item = _normalize_learning_content(item, concept_id)
+            item_type = str(normalized_item.get("contentType") or "").strip().lower()
+            item_text = normalized_item.get("contentText")
             if item_type not in content_by_type:
                 content_by_type.setdefault(item_type, [])
             payload = _decode_json_payload(item.get("contentData"))
             if item_type == "key_term":
                 if isinstance(payload, dict):
                     content_by_type[item_type].append(
-                        {"term": payload.get("term") or item.get("title"), "definition": payload.get("definition") or item.get("contentText")}
+                        {
+                            "term": payload.get("term") or normalized_item.get("title"),
+                            "definition": payload.get("definition") or item_text,
+                        }
                     )
                 else:
                     content_by_type[item_type].append(
-                        {"term": item.get("title"), "definition": item.get("contentText")}
+                        {"term": normalized_item.get("title"), "definition": item_text}
                     )
             elif item_type in {"illustration", "worked_example"}:
                 if isinstance(payload, dict):
                     content_by_type[item_type].append(payload)
-                elif item.get("contentText") is not None:
-                    content_by_type[item_type].append({"text": item.get("contentText")})
+                elif item_text is not None:
+                    content_by_type[item_type].append({"text": item_text})
             else:
-                if item.get("contentText"):
-                    content_by_type[item_type].append(item.get("contentText"))
+                if item_text:
+                    content_by_type[item_type].append(item_text)
 
         lesson["learningObjectives"] = content_by_type["learning_objective"]
         lesson["prerequisiteNotes"] = content_by_type["prerequisite_note"]

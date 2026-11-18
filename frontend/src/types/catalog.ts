@@ -32,6 +32,7 @@ export type LearningContent = {
   chapterOrder: number;
   mediaURI: string | null;
   reviewStatus?: string | null;
+  sourceStatus?: string | null;
 };
 
 export type QuizOption = {
@@ -158,6 +159,7 @@ export type ApiLearningContent = {
   chapterOrder: number | null;
   mediaURI: string | null;
   reviewStatus?: string | null;
+  sourceStatus?: string | null;
 };
 export type ApiQuestion = {
   id: string;
@@ -245,6 +247,7 @@ export function toCatalogSubject(api: ApiSubject): CatalogSubject {
 const CONTENT_TYPE_MAP: Record<string, ContentType> = {
   definition: 'DEFINITION',
   explanation: 'EXPLANATION',
+  'concept note': 'EXPLANATION',
   formula: 'FORMULA',
   'worked example': 'WORKED_EXAMPLE',
   workedexample: 'WORKED_EXAMPLE',
@@ -270,6 +273,7 @@ export function mapContent(api: ApiLearningContent, conceptId: string): Learning
     chapterOrder: api.chapterOrder ?? 0,
     mediaURI: api.mediaURI ?? null,
     reviewStatus: api.reviewStatus ?? null,
+    sourceStatus: api.sourceStatus ?? null,
   };
 }
 

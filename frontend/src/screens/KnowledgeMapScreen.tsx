@@ -393,7 +393,7 @@ export default function KnowledgeMapScreen({
               >
                 <Text style={styles.searchResultTitle}>{result.name}</Text>
                 <Text style={styles.searchResultContext}>
-                  [result.contexts[0]?.topicName]
+                  {[result.contexts[0]?.topicName]
                     .filter(Boolean)
                     .join(' · ') || 'Open concept map'}
                 </Text>

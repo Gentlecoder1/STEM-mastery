@@ -46,6 +46,14 @@ import {
 import { useConnectivity } from './connectivityContext';
 import { useCatalog } from './catalogContext';
 
+function hasReadableLesson(items: readonly LearningContent[] | null | undefined): boolean {
+  return Boolean(items?.some(
+    (item) =>
+      (typeof item.contentText === 'string' && item.contentText.trim())
+      || Boolean(item.mediaURI),
+  ));
+}
+
 type OfflineContextValue = {
   downloads: string[];
   isDownloaded: (conceptId: string) => boolean;
@@ -301,17 +309,17 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   const ensureLesson = useCallback(
     async (conceptId: string): Promise<LearningContent[] | null> => {
       const inMemory = lessonsRef.current[conceptId];
-      if (inMemory) return inMemory;
+      if (hasReadableLesson(inMemory)) return inMemory;
       const cached = await loadLesson(conceptId);
-      if (cached) {
+      if (cached && hasReadableLesson(cached.lesson)) {
         setLessons((current) => ({ ...current, [conceptId]: cached.lesson }));
         return cached.lesson;
       }
-      if (!isApiConfigured || !isOnline) return null;
+      if (!isApiConfigured || !isOnline) return cached?.lesson ?? inMemory ?? null;
       try {
         return await cacheLesson(conceptId);
       } catch {
-        return null;
+        return cached?.lesson ?? inMemory ?? null;
       }
     },
     [cacheLesson, isOnline],
@@ -320,17 +328,17 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   const ensureQuestions = useCallback(
     async (conceptId: string): Promise<QuizQuestion[] | null> => {
       const inMemory = questionsRef.current[conceptId];
-      if (inMemory) return inMemory;
+      if (inMemory?.length) return inMemory;
       const cached = await loadQuestions(conceptId);
-      if (cached) {
+      if (cached && cached.questions.length > 0) {
         setQuestions((current) => ({ ...current, [conceptId]: cached.questions }));
         return cached.questions;
       }
-      if (!isApiConfigured || !isOnline) return null;
+      if (!isApiConfigured || !isOnline) return cached?.questions ?? inMemory ?? null;
       try {
         return await cacheQuestions(conceptId);
       } catch {
-        return null;
+        return cached?.questions ?? inMemory ?? null;
       }
     },
     [cacheQuestions, isOnline],
