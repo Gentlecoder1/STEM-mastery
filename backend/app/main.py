@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from neo4j.exceptions import Neo4jError
+from neo4j.exceptions import DriverError, Neo4jError
 from starlette.middleware.gzip import GZipMiddleware
 
 from app.api.routes import (
@@ -23,6 +23,17 @@ from app.core.db import create_database
 from app.repositories.learner_state import LearnerStateRepository
 
 logger = logging.getLogger("stem_mastery")
+
+
+def _find_neo4j_error(error: BaseException) -> Neo4jError | DriverError | None:
+    if isinstance(error, (Neo4jError, DriverError)):
+        return error
+    if isinstance(error, BaseExceptionGroup):
+        for nested_error in error.exceptions:
+            found = _find_neo4j_error(nested_error)
+            if found is not None:
+                return found
+    return None
 
 
 @asynccontextmanager
@@ -75,6 +86,36 @@ async def neo4j_error_handler(request: Request, exc: Neo4jError) -> JSONResponse
     return JSONResponse(
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         content={"detail": "Curriculum database is unavailable."},
+    )
+
+
+@app.exception_handler(DriverError)
+async def neo4j_driver_error_handler(request: Request, exc: DriverError) -> JSONResponse:
+    logger.warning("Neo4j operation failed for %s: %s", request.url.path, exc)
+    return JSONResponse(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        content={"detail": "Curriculum database is unavailable."},
+    )
+
+
+@app.exception_handler(ExceptionGroup)
+async def exception_group_handler(request: Request, exc: ExceptionGroup) -> JSONResponse:
+    neo4j_error = _find_neo4j_error(exc)
+    if neo4j_error is not None:
+        logger.warning("Neo4j operation failed for %s: %s", request.url.path, neo4j_error)
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={"detail": "Curriculum database is unavailable."},
+        )
+
+    logger.error(
+        "Unhandled exception group for %s.",
+        request.url.path,
+        exc_info=(type(exc), exc, exc.__traceback__),
+    )
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": "Internal server error."},
     )
 
 

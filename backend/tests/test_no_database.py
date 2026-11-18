@@ -8,7 +8,9 @@ endpoints return a clear 503 instead of crashing. No mock curriculum is served.
 from __future__ import annotations
 
 from fastapi.testclient import TestClient
+from neo4j.exceptions import ServiceUnavailable
 
+from app.api.deps import get_repository
 from app.core.config import settings
 from app.main import app
 
@@ -54,3 +56,22 @@ def test_no_mock_curriculum_is_served_without_neo4j(monkeypatch) -> None:
     body = response.json()
     assert "detail" in body
     assert isinstance(body["detail"], str)
+
+
+def test_neo4j_routing_exception_group_returns_503(monkeypatch) -> None:
+    class UnavailableRepository:
+        async def list_subjects(self) -> list[dict]:
+            raise ExceptionGroup(
+                "All routing table requests failed",
+                [ServiceUnavailable("database unavailable")],
+            )
+
+    app.dependency_overrides[get_repository] = UnavailableRepository
+    try:
+        with _bare_client(monkeypatch) as client:
+            response = client.get(f"{API}/subjects")
+    finally:
+        app.dependency_overrides.pop(get_repository, None)
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "Curriculum database is unavailable."

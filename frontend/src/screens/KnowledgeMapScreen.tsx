@@ -44,6 +44,9 @@ function describeError(error: unknown): string {
   if (error instanceof ApiError && error.status === 503) {
     return 'The curriculum service is temporarily unavailable. Please try again.';
   }
+  if (error instanceof ApiError && error.status === 404) {
+    return 'This backend deployment does not expose the Knowledge Map API yet. Deploy the updated backend.';
+  }
   return 'The Knowledge Map could not be loaded. Please try again.';
 }
 
@@ -271,9 +274,11 @@ export default function KnowledgeMapScreen({
     }
   };
 
-  const statusText = mapData?.mappingStatus === 'ready'
-    ? 'Prerequisite paths are verified.'
-    : mapData?.mappingMessage ?? 'Prerequisite paths are pending verification.';
+  const statusText = mapData
+    ? mapData.mappingStatus === 'ready'
+      ? 'Prerequisite paths are verified.'
+      : mapData.mappingMessage ?? 'Prerequisite paths are pending verification.'
+    : null;
 
   return (
     <View style={styles.root}>
@@ -357,10 +362,12 @@ export default function KnowledgeMapScreen({
         </Pressable>
       </View>
 
-      <View style={styles.mappingNotice}>
-        <View style={[styles.statusDot, mapData?.mappingStatus === 'ready' && styles.statusDotReady]} />
-        <Text style={styles.mappingNoticeText}>{statusText}</Text>
-      </View>
+      {mapData && statusText ? (
+        <View style={styles.mappingNotice}>
+          <View style={[styles.statusDot, mapData.mappingStatus === 'ready' && styles.statusDotReady]} />
+          <Text style={styles.mappingNoticeText}>{statusText}</Text>
+        </View>
+      ) : null}
 
       {error ? (
         <View style={styles.messageState}>

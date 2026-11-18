@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -24,6 +24,7 @@ import { useDisplayName } from '../displayName';
 import { useProgress } from '../progressContext';
 import { usePreferences } from '../preferencesContext';
 import { useCatalog } from '../catalogContext';
+import { isApiConfigured } from '../lib/api';
 
 type IconComponent = (props: IconProps) => React.JSX.Element;
 
@@ -136,10 +137,40 @@ export default function SubjectsScreen({ navigation }: RootScreenProps<'Subjects
   const { statusBarStyle } = useTheme();
   const name = useDisplayName();
   const { getSubjectMastery, completedConcepts } = useProgress();
-  const { topics, getTopicsForSubject, getTopicConceptIds } = useCatalog();
+  const { topics, status, error, refresh, getTopicsForSubject, getTopicConceptIds } = useCatalog();
   const { classLevel } = usePreferences();
   const [blockedSubject, setBlockedSubject] = useState<string | null>(null);
   const curriculumAvailable = topics.length > 0;
+
+  const openSubject = (subjectId: SubjectId, subjectName: string) => {
+    if (curriculumAvailable) {
+      navigation.navigate('SubjectDashboard', { subjectId });
+      return;
+    }
+    if (status === 'error') {
+      Alert.alert(
+        'Curriculum service unavailable',
+        error ?? 'The curriculum could not be loaded. Please try again.',
+        [
+          { text: 'Retry', onPress: () => { void refresh(); } },
+          { text: 'Dismiss', style: 'cancel' },
+        ],
+      );
+      return;
+    }
+    if (status === 'loading') {
+      Alert.alert('Loading curriculum', 'Please wait while the curriculum is loading.');
+      return;
+    }
+    if (!isApiConfigured) {
+      Alert.alert(
+        'Curriculum unavailable',
+        'The app API URL is not configured. Set EXPO_PUBLIC_API_URL and restart Expo.',
+      );
+      return;
+    }
+    setBlockedSubject(subjectName);
+  };
 
   return (
     <View style={styles.root}>
@@ -183,18 +214,18 @@ export default function SubjectsScreen({ navigation }: RootScreenProps<'Subjects
               ? `${started} of ${subjectTopics.length} ${
                   subjectTopics.length === 1 ? 'topic' : 'topics'
                 } started`
-              : 'Curriculum coming soon';
+              : status === 'error'
+                ? 'Curriculum service unavailable'
+                : status === 'loading'
+                  ? 'Loading curriculum'
+                  : isApiConfigured
+                    ? 'Curriculum coming soon'
+                    : 'Curriculum API not configured';
             return (
               <SubjectCard
                 key={s.name}
                 subject={{ ...s, mastery: getSubjectMastery(s.id), detail }}
-                onPress={() => {
-                  if (!curriculumAvailable) {
-                    setBlockedSubject(s.name);
-                    return;
-                  }
-                  navigation.navigate('SubjectDashboard', { subjectId: s.id });
-                }}
+                onPress={() => openSubject(s.id, s.name)}
               />
             );
           })}
