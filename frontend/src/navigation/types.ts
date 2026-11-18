@@ -24,6 +24,8 @@ export type RootStackParamList = {
   Search: { query?: string } | undefined;
   Profile: undefined;
   Settings: undefined;
+  /** Thesis phone benchmark; only registered in EXPO_PUBLIC_BENCHMARK=1 builds. */
+  Benchmark: { mode?: 'latency' | 'load'; minutes?: string; runId?: string; offline?: string; source?: 'local' | 'cloud' } | undefined;
 };
 
 export type RootScreenProps<T extends keyof RootStackParamList> = NativeStackScreenProps<

@@ -66,3 +66,6 @@ scibert_service/.pytest_cache/
 scibert_service/.ruff_cache/
 scibert_service/.venv/
 scibert_service/.env
+
+/phone_test_results/
+/tools/__pycache__/

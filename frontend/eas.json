@@ -24,6 +24,14 @@
       "env": {
         "EXPO_PUBLIC_API_URL": "https://stem-mastery.vercel.app"
       }
+    },
+    "benchmark": {
+      "extends": "preview",
+      "env": {
+        "ORG_GRADLE_PROJECT_reactNativeArchitectures": "arm64-v8a",
+        "EXPO_PUBLIC_API_URL": "https://stem-mastery.vercel.app",
+        "EXPO_PUBLIC_BENCHMARK": "1"
+      }
     }
   },
   "submit": {
