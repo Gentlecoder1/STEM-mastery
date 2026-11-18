@@ -45,9 +45,16 @@ import ChallengeQuizScreen from './src/screens/ChallengeQuizScreen';
 import SearchScreen from './src/screens/SearchScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
+import BenchmarkScreen from './src/screens/BenchmarkScreen';
 import type { RootStackParamList } from './src/navigation/types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+
+/** Thesis phone benchmark: only in builds made with EXPO_PUBLIC_BENCHMARK=1 (eas profile "benchmark"). */
+const BENCHMARK_ENABLED = process.env.EXPO_PUBLIC_BENCHMARK === '1';
+const linking = BENCHMARK_ENABLED
+  ? { prefixes: ['stemmastery://'], config: { screens: { Benchmark: 'benchmark' } } }
+  : undefined;
 
 function AppShell() {
   const [fontsLoaded] = useFonts({
@@ -100,7 +107,7 @@ function AppShell() {
   return (
     <SafeAreaProvider>
       <StatusBar style="light" />
-      <NavigationContainer theme={navTheme}>
+      <NavigationContainer theme={navTheme} linking={linking}>
         <Stack.Navigator
           initialRouteName={isAuthenticated && profile?.onboardedAt ? 'Home' : isAuthenticated ? 'Onboarding' : 'Splash'}
           screenOptions={{
@@ -134,6 +141,7 @@ function AppShell() {
               <Stack.Screen name="Search" component={SearchScreen} />
               <Stack.Screen name="Profile" component={ProfileScreen} />
               <Stack.Screen name="Settings" component={SettingsScreen} />
+              {BENCHMARK_ENABLED ? <Stack.Screen name="Benchmark" component={BenchmarkScreen} /> : null}
             </>
           ) : (
             <>
